@@ -531,19 +531,29 @@ function RetroSection({ week }: { week: typeof currentWeek }) {
 
       <RetroBlock
         title="Scénarios par annonce"
-        subtitle="Quels scénarios se sont réalisés, et comment as-tu tradé ?"
+        subtitle="Pour chaque annonce majeure (high impact), le scénario le plus probable s'est-il réalisé ?"
       >
-        {week.scenarios.slice(0, 4).map((sc) => (
-          <RetroQuestion
-            key={sc.id}
-            qKey={`sc-${sc.id}`}
-            question={`"${sc.title}" — ce scénario s'est-il réalisé ?`}
-            subLabel={`${SCENARIO_COLORS[sc.type].label} · ${sc.probability}% annoncés`}
-            answers={answers}
-            onChange={updateAnswer}
-            placeholder="Réalisé partiellement / totalement / pas du tout. Détails..."
-          />
-        ))}
+        {week.events
+          .filter((ev) => ev.impact === "high")
+          .map((ev) => {
+            const evScenarios = week.scenarios.filter((s) => s.eventId === ev.id);
+            if (evScenarios.length === 0) return null;
+            const top = evScenarios.reduce(
+              (max, s) => (s.probability > max.probability ? s : max),
+              evScenarios[0]
+            );
+            return (
+              <RetroQuestion
+                key={top.id}
+                qKey={`sc-${top.id}`}
+                question={`${ev.currency} · ${ev.title} — le scénario le plus probable (« ${top.title} ») s'est-il réalisé ?`}
+                subLabel={`${SCENARIO_COLORS[top.type].label} · ${top.probability}% annoncés · ${formatEventDate(ev.date)} ${ev.time}`}
+                answers={answers}
+                onChange={updateAnswer}
+                placeholder="Réalisé partiellement / totalement / pas du tout. Détails..."
+              />
+            );
+          })}
       </RetroBlock>
 
       <RetroBlock
