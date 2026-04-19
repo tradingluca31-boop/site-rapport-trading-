@@ -21,7 +21,6 @@ import {
   X as XIcon,
 } from "lucide-react";
 
-type ViewMode = "timeline" | "liste" | "grille";
 type PageSection = "preparation" | "retro";
 
 const CATEGORY_LABELS: Record<EventCategory, string> = {
@@ -89,7 +88,6 @@ function getEventSlot(event: EcoEvent): number {
 
 export default function PreparationPage() {
   const [section, setSection] = useState<PageSection>("preparation");
-  const [viewMode, setViewMode] = useState<ViewMode>("timeline");
   const [openEvent, setOpenEvent] = useState<string | null>(null);
   const [validated, setValidated] = useState<Set<string>>(new Set());
   const [weekValidated, setWeekValidated] = useState(false);
@@ -342,31 +340,6 @@ export default function PreparationPage() {
           )}
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
-          {/* View toggle — segmented control */}
-          <div
-            className="inline-flex items-center p-1 rounded-lg"
-            style={{ background: "#F1F3F6", border: "1px solid var(--border-light)" }}
-          >
-            {(["timeline", "liste", "grille"] as ViewMode[]).map((mode) => {
-              const isActive = viewMode === mode;
-              return (
-                <button
-                  type="button"
-                  key={mode}
-                  onClick={() => setViewMode(mode)}
-                  className="px-3.5 py-1.5 text-xs font-semibold transition-all rounded-md"
-                  style={{
-                    background: isActive ? "#FFFFFF" : "transparent",
-                    color: isActive ? "#0A0B0E" : "#6B7280",
-                    boxShadow: isActive ? "0 1px 2px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04)" : "none",
-                    minWidth: 72,
-                  }}
-                >
-                  {mode === "timeline" ? "Timeline" : mode === "liste" ? "Liste" : "Grille"}
-                </button>
-              );
-            })}
-          </div>
           <button
             type="button"
             onClick={() => setCustomFormOpen((v) => !v)}

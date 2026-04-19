@@ -13,6 +13,7 @@ import {
   Tag as TagIcon,
   TrendingUp,
   TrendingDown,
+  FileText,
 } from "lucide-react";
 
 type Filter = "tout" | "daily" | "weekly" | "fundamental";
@@ -29,7 +30,7 @@ function formatDate(iso: string): string {
 }
 
 export default function BibliothequePage() {
-  const [filter, setFilter] = useState<Filter>("tout");
+  const [filter] = useState<Filter>("tout");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<LibraryEntry | null>(null);
 
@@ -75,42 +76,22 @@ export default function BibliothequePage() {
           Tes rapports quotidiens, hebdo et theses fondamentales. Clique une carte pour ouvrir le detail.
         </p>
 
-        {/* Search + Filter */}
+        {/* Search */}
         <div className="flex items-center gap-5 mb-10">
           <div className="relative flex-1 max-w-md">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }} />
+            <Search
+              size={15}
+              className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10"
+              style={{ color: "var(--text-muted)" }}
+            />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Chercher par titre, tag, contenu..."
-              className="pl-9"
+              style={{ paddingLeft: "38px" }}
             />
           </div>
-          <div className="flex border rounded-md overflow-hidden" style={{ borderColor: "var(--border)" }}>
-            {([
-              ["tout", "Tout"],
-              ["daily", "Journaliers"],
-              ["weekly", "Hebdo"],
-              ["fundamental", "Theses"],
-            ] as [Filter, string][]).map(([val, label]) => (
-              <button
-                type="button"
-                key={val}
-                onClick={() => setFilter(val)}
-                className="px-4 py-2 text-xs font-medium transition-colors"
-                style={{
-                  background: filter === val ? "var(--text-primary)" : "var(--bg-card)",
-                  color: filter === val ? "white" : "var(--text-secondary)",
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <span className="text-xs font-mono ml-auto" style={{ color: "var(--text-muted)" }}>
-            {filtered.length} resultats
-          </span>
         </div>
 
         {/* Cards grid */}
@@ -228,109 +209,179 @@ function ReportCard({ report, onClick }: { report: LibraryEntry; onClick: () => 
 function DetailModal({ report, onClose }: { report: LibraryEntry; onClose: () => void }) {
   const ts = TYPE_STYLES[report.type];
   const hasPnl = report.pnlPct !== null;
+  const pnlPositive = hasPnl && report.pnlPct! > 0;
+  const pnlNegative = hasPnl && report.pnlPct! < 0;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-6 animate-in"
-      style={{ background: "rgba(15, 15, 15, 0.55)" }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-6"
+      style={{
+        background: "rgba(15, 15, 15, 0.45)",
+        backdropFilter: "blur(6px)",
+        WebkitBackdropFilter: "blur(6px)",
+        animation: "fadeIn 0.2s ease-out",
+      }}
       onClick={onClose}
     >
       <div
-        className="card relative overflow-hidden"
+        className="relative overflow-hidden"
         style={{
           width: "100%",
-          maxWidth: 820,
-          maxHeight: "88vh",
+          maxWidth: 760,
+          maxHeight: "86vh",
           display: "flex",
           flexDirection: "column",
+          background: "var(--bg-card)",
+          borderRadius: 14,
+          boxShadow: "0 30px 80px rgba(0,0,0,0.25), 0 10px 24px rgba(0,0,0,0.08)",
+          border: "1px solid var(--border-light)",
+          animation: "fadeIn 0.22s ease-out",
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Accent bar */}
-        <div className="absolute top-0 left-0 right-0 h-[4px]" style={{ background: ts.accent }} />
+        <div
+          className="absolute top-0 left-0 right-0"
+          style={{
+            height: 3,
+            background: `linear-gradient(90deg, ${ts.accent} 0%, ${ts.accent}88 100%)`,
+          }}
+        />
+
+        {/* Close button (floating) */}
+        <button
+          type="button"
+          title="Fermer"
+          onClick={onClose}
+          className="absolute top-5 right-5 p-2 rounded-full transition-colors"
+          style={{
+            background: "var(--bg-elevated)",
+            color: "var(--text-muted)",
+            zIndex: 10,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "var(--border)";
+            e.currentTarget.style.color = "var(--text-primary)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "var(--bg-elevated)";
+            e.currentTarget.style.color = "var(--text-muted)";
+          }}
+        >
+          <X size={16} />
+        </button>
 
         {/* Header */}
-        <div
-          className="flex items-start justify-between p-8 pb-6"
-          style={{ borderBottom: "1px solid var(--border-light)" }}
-        >
-          <div className="flex-1 min-w-0 pr-6">
-            <div className="flex items-center gap-3 mb-4">
-              <span
-                className="text-[10px] font-bold px-2.5 py-1 rounded tracking-[2px]"
-                style={{ background: ts.bg, color: ts.color }}
-              >
-                {ts.label}
-              </span>
-              <span className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
-                <Calendar size={12} />
-                {formatDate(report.date)}
-              </span>
-              {hasPnl && (
-                <span
-                  className="flex items-center gap-1 text-xs font-mono font-semibold px-2 py-1 rounded"
-                  style={{
-                    background: report.pnlPct! > 0 ? "var(--bull-bg)" : report.pnlPct! < 0 ? "var(--bear-bg)" : "var(--bg-tag)",
-                    color: report.pnlPct! > 0 ? "var(--bull)" : report.pnlPct! < 0 ? "var(--bear)" : "var(--text-muted)",
-                  }}
-                >
-                  {report.pnlPct! > 0 && <TrendingUp size={11} />}
-                  {report.pnlPct! < 0 && <TrendingDown size={11} />}
-                  {report.pnlPct! > 0 ? "+" : ""}{report.pnlPct}%
-                </span>
-              )}
-            </div>
-            <h2
-              className="text-3xl leading-tight"
-              style={{ fontFamily: "var(--font-display)", fontWeight: 500 }}
+        <div className="px-10 pt-12 pb-7">
+          <div className="flex items-center gap-3 mb-5 flex-wrap">
+            <span
+              className="text-[10px] font-bold px-2.5 py-1 rounded tracking-[2px]"
+              style={{ background: ts.bg, color: ts.color }}
             >
-              {report.title}
-            </h2>
+              {ts.label}
+            </span>
+            <span
+              className="flex items-center gap-1.5 text-[12px]"
+              style={{ color: "var(--text-muted)" }}
+            >
+              <Calendar size={12} />
+              {formatDate(report.date)}
+            </span>
+            {hasPnl && (
+              <span
+                className="flex items-center gap-1 text-[12px] font-mono font-semibold px-2.5 py-1 rounded"
+                style={{
+                  background: pnlPositive ? "var(--bull-bg)" : pnlNegative ? "var(--bear-bg)" : "var(--bg-tag)",
+                  color: pnlPositive ? "var(--bull)" : pnlNegative ? "var(--bear)" : "var(--text-muted)",
+                }}
+              >
+                {pnlPositive && <TrendingUp size={11} />}
+                {pnlNegative && <TrendingDown size={11} />}
+                {pnlPositive ? "+" : ""}{report.pnlPct}%
+              </span>
+            )}
           </div>
-          <button
-            type="button"
-            title="Fermer"
-            onClick={onClose}
-            className="p-2 rounded-lg hover:bg-gray-100 flex-shrink-0"
+          <h2
+            className="leading-[1.15]"
+            style={{
+              fontFamily: "var(--font-display)",
+              fontWeight: 500,
+              fontSize: 30,
+              color: "var(--text-primary)",
+              letterSpacing: "-0.01em",
+            }}
           >
-            <X size={18} style={{ color: "var(--text-muted)" }} />
-          </button>
+            {report.title}
+          </h2>
         </div>
 
+        {/* Divider */}
+        <div style={{ height: 1, background: "var(--border-light)", margin: "0 40px" }} />
+
         {/* Body scrollable */}
-        <div className="flex-1 overflow-y-auto p-8">
+        <div className="flex-1 overflow-y-auto px-10 py-8">
           <p
-            className="text-[15px] leading-[1.8] mb-6"
-            style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)", fontStyle: "italic" }}
+            className="mb-2"
+            style={{
+              fontFamily: "var(--font-display)",
+              fontStyle: "italic",
+              fontSize: 16,
+              lineHeight: 1.7,
+              color: "var(--text-primary)",
+            }}
           >
             {report.summary}
           </p>
 
-          {report.content && (
-            <div className="pt-6 mt-6" style={{ borderTop: "1px solid var(--border-light)" }}>
+          {report.content ? (
+            <div className="mt-8 pt-8" style={{ borderTop: "1px solid var(--border-light)" }}>
               <p
-                className="text-[14px] leading-[1.85] whitespace-pre-line"
-                style={{ color: "var(--text-secondary)" }}
+                className="whitespace-pre-line"
+                style={{
+                  fontSize: 14,
+                  lineHeight: 1.85,
+                  color: "var(--text-secondary)",
+                }}
               >
                 {report.content}
               </p>
             </div>
-          )}
-
-          {!report.content && (
+          ) : (
             <div
-              className="mt-6 p-5 rounded-lg text-center text-sm"
-              style={{ background: "var(--bg-elevated)", color: "var(--text-muted)" }}
+              className="mt-8 flex flex-col items-center justify-center text-center gap-3 py-10 rounded-xl"
+              style={{
+                background: "var(--bg-elevated)",
+                border: "1px dashed var(--border)",
+              }}
             >
-              Le contenu detaille de ce rapport sera affiche ici lorsque tu connecteras la source de donnees (journal du jour ou notes enregistrees).
+              <div
+                className="flex items-center justify-center rounded-full"
+                style={{
+                  width: 44,
+                  height: 44,
+                  background: "var(--bg-card)",
+                  color: "var(--text-muted)",
+                }}
+              >
+                <FileText size={18} />
+              </div>
+              <p
+                className="text-[13px] max-w-sm"
+                style={{ color: "var(--text-muted)", lineHeight: 1.6 }}
+              >
+                Le contenu detaille sera affiche ici lorsque tu connecteras la source de donnees (journal du jour ou notes enregistrees).
+              </p>
             </div>
           )}
         </div>
 
         {/* Footer */}
         <div
-          className="flex items-center justify-between gap-4 px-8 py-5"
-          style={{ borderTop: "1px solid var(--border-light)", background: "var(--bg-elevated)" }}
+          className="flex items-center justify-between gap-4 px-10 py-5"
+          style={{
+            borderTop: "1px solid var(--border-light)",
+            background: "var(--bg-elevated)",
+          }}
         >
           <div className="flex items-center gap-2 flex-wrap">
             <TagIcon size={13} style={{ color: "var(--text-muted)" }} />
@@ -340,8 +391,10 @@ function DetailModal({ report, onClose }: { report: LibraryEntry; onClose: () =>
           </div>
           <button
             type="button"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium text-white"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold text-white transition-transform"
             style={{ background: "var(--text-primary)" }}
+            onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-1px)")}
+            onMouseLeave={(e) => (e.currentTarget.style.transform = "translateY(0)")}
           >
             Editer
           </button>
