@@ -223,21 +223,9 @@ function renderDays(w) {
         </div>
 
         ${sortedEvents.length ? `
-          <table class="table">
-            <thead>
-              <tr>
-                <th style="width:70px">Heure</th>
-                <th style="width:130px">Pays</th>
-                <th>Événement</th>
-                <th style="width:90px">Impact</th>
-                <th style="width:80px">Devise</th>
-                <th style="width:110px"></th>
-              </tr>
-            </thead>
-            <tbody>
-              ${sortedEvents.map(ev => evRow(iso, ev)).join('')}
-            </tbody>
-          </table>
+          <div class="ev-list">
+            ${sortedEvents.map(ev => evCard(iso, ev)).join('')}
+          </div>
         ` : `<div class="dim" style="padding:10px 0;font-size:13px">Aucune annonce prévue ce jour.</div>`}
 
         <div id="form-${iso}"></div>
@@ -257,6 +245,7 @@ function renderDays(w) {
   container.querySelectorAll('[data-template]').forEach(b => b.onclick = () => showTemplatePicker(w, b.dataset.template));
   container.querySelectorAll('[data-del-ev]').forEach(b => b.onclick = () => {
     const [iso, evId] = b.dataset.delEv.split('|');
+    if (!confirm('Supprimer cet événement (et ses scénarios) ?')) return;
     w.days[iso].events = w.days[iso].events.filter(e => e.id !== evId);
     save(STORAGE.preparation, items);
     renderDays(w);
@@ -266,33 +255,213 @@ function renderDays(w) {
     const ev = w.days[iso].events.find(x => x.id === evId);
     if (ev) showEventForm(w, iso, ev);
   });
+
+  // Scenarios wiring
+  container.querySelectorAll('[data-toggle-sc]').forEach(b => b.onclick = () => {
+    const [iso, evId] = b.dataset.toggleSc.split('|');
+    const box = document.getElementById(`sc-${iso}-${evId}`);
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+  });
+  container.querySelectorAll('[data-add-sc]').forEach(b => b.onclick = () => {
+    const [iso, evId] = b.dataset.addSc.split('|');
+    showScenarioForm(w, iso, evId);
+  });
+  container.querySelectorAll('[data-edit-sc]').forEach(b => b.onclick = () => {
+    const [iso, evId, scId] = b.dataset.editSc.split('|');
+    const ev = w.days[iso].events.find(x => x.id === evId);
+    const sc = ev?.scenarios?.find(x => x.id === scId);
+    if (sc) showScenarioForm(w, iso, evId, sc);
+  });
+  container.querySelectorAll('[data-del-sc]').forEach(b => b.onclick = () => {
+    const [iso, evId, scId] = b.dataset.delSc.split('|');
+    if (!confirm('Supprimer ce scénario ?')) return;
+    const ev = w.days[iso].events.find(x => x.id === evId);
+    ev.scenarios = (ev.scenarios || []).filter(s => s.id !== scId);
+    save(STORAGE.preparation, items);
+    renderDays(w);
+  });
+  container.querySelectorAll('[data-preset-sc]').forEach(b => b.onclick = () => {
+    const [iso, evId] = b.dataset.presetSc.split('|');
+    addHotColdPreset(w, iso, evId);
+  });
 }
 
-function evRow(iso, ev) {
+function showScenarioForm(w, iso, evId, editing = null) {
+  const ev = w.days[iso].events.find(x => x.id === evId);
+  const holder = document.getElementById(`sc-form-${iso}-${evId}`);
+  const curr = ev.currency || (COUNTRIES.find(c => c.code === ev.country)?.currency) || '';
+  holder.innerHTML = `
+    <div class="card" style="margin-top:8px;background:rgba(16,185,129,.04)">
+      <h3>${editing ? 'Modifier' : 'Nouveau'} scénario — ${ev.title}</h3>
+      <div class="grid grid-2">
+        <div class="field">
+          <label>Condition déclencheuse</label>
+          <input type="text" class="input" id="scCond" value="${editing?.condition || ''}" placeholder="Ex : CPI > 3.3% (hotter) / Hawkish / Miss" />
+        </div>
+        <div class="field">
+          <label>Biais attendu</label>
+          <select class="select" id="scBias">
+            <option value="">—</option>
+            <option value="bullish" ${editing?.bias === 'bullish' ? 'selected' : ''}>🟢 Bullish ${curr}</option>
+            <option value="bearish" ${editing?.bias === 'bearish' ? 'selected' : ''}>🔴 Bearish ${curr}</option>
+            <option value="neutral" ${editing?.bias === 'neutral' ? 'selected' : ''}>⚪ Neutre / range</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Paires / instruments à trader</label>
+        <input type="text" class="input" id="scPairs" value="${(editing?.pairs || []).join(', ')}" placeholder="Ex : EUR/USD, XAU/USD, USD/JPY" />
+      </div>
+      <div class="field">
+        <label>Plan d'action</label>
+        <textarea class="textarea" id="scPlan" placeholder="Attendre la clôture M15, chercher pullback sur résistance, risque 0.5%, viser 2R...">${editing?.plan || ''}</textarea>
+      </div>
+      <div class="grid grid-2">
+        <div class="field">
+          <label>📌 Niveaux clés</label>
+          <input type="text" class="input" id="scLevels" value="${editing?.levels || ''}" placeholder="Ex : Support 1.0820 / Résistance 1.0880" />
+        </div>
+        <div class="field">
+          <label>🚫 Invalidation</label>
+          <input type="text" class="input" id="scInv" value="${editing?.invalidation || ''}" placeholder="Ex : Clôture D1 sous 1.0800" />
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn" id="scCancel">Annuler</button>
+        <div class="spacer"></div>
+        <button class="btn btn-primary" id="scSave">${editing ? 'Enregistrer' : 'Ajouter'}</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('scCancel').onclick = () => holder.innerHTML = '';
+  document.getElementById('scSave').onclick = () => {
+    const sc = {
+      id: editing?.id || uid(),
+      condition: document.getElementById('scCond').value.trim(),
+      bias: document.getElementById('scBias').value,
+      pairs: document.getElementById('scPairs').value.split(',').map(s => s.trim()).filter(Boolean),
+      plan: document.getElementById('scPlan').value,
+      levels: document.getElementById('scLevels').value.trim(),
+      invalidation: document.getElementById('scInv').value.trim(),
+    };
+    if (!sc.condition && !sc.plan) return toast('Condition ou plan requis');
+    ev.scenarios = ev.scenarios || [];
+    if (editing) {
+      ev.scenarios = ev.scenarios.map(x => x.id === editing.id ? sc : x);
+    } else {
+      ev.scenarios.push(sc);
+    }
+    save(STORAGE.preparation, items);
+    toast('Scénario enregistré');
+    renderDays(w);
+  };
+}
+
+function addHotColdPreset(w, iso, evId) {
+  const ev = w.days[iso].events.find(x => x.id === evId);
+  const curr = ev.currency || (COUNTRIES.find(c => c.code === ev.country)?.currency) || '';
+  ev.scenarios = ev.scenarios || [];
+  ev.scenarios.push(
+    {
+      id: uid(),
+      condition: `Chiffre > prévu (hot / hawkish)`,
+      bias: 'bullish',
+      pairs: [],
+      plan: `${curr} fort : attendre le choc, puis chercher un pullback avec structure en ${curr}+. Risque fixe, viser 2R minimum.`,
+      levels: '',
+      invalidation: '',
+    },
+    {
+      id: uid(),
+      condition: `Chiffre < prévu (cold / dovish)`,
+      bias: 'bearish',
+      pairs: [],
+      plan: `${curr} faible : attendre confirmation, chercher un pullback avec structure en ${curr}-. Risque fixe, viser 2R minimum.`,
+      levels: '',
+      invalidation: '',
+    },
+    {
+      id: uid(),
+      condition: `Chiffre en ligne / réaction confuse`,
+      bias: 'neutral',
+      pairs: [],
+      plan: `Pas de trade forcé. Observer 30min, attendre un rebond net de volatilité et une structure claire.`,
+      levels: '',
+      invalidation: '',
+    },
+  );
+  save(STORAGE.preparation, items);
+  toast('3 scénarios ajoutés (Hot/Cold/Neutre)');
+  renderDays(w);
+}
+
+function evCard(iso, ev) {
   const country = COUNTRIES.find(c => c.code === ev.country) || { flag: '🏳️', name: ev.country, currency: '' };
   const impactBadge = ev.impact === 'high'   ? '<span class="badge neg">🔴 Élevé</span>'
                     : ev.impact === 'medium' ? '<span class="badge warn">🟠 Moyen</span>'
                     : '<span class="badge">🟢 Faible</span>';
   const currency = ev.currency || country.currency || '';
+  const scenarios = ev.scenarios || [];
+
   return `
-    <tr>
-      <td><b>${ev.time || '—'}</b></td>
-      <td>${country.flag} ${country.name}</td>
-      <td>
-        <div>${ev.title}</div>
-        ${ev.note ? `<div class="dim" style="font-size:12px;margin-top:2px">${ev.note}</div>` : ''}
-        ${ev.forecast || ev.previous ? `<div class="dim" style="font-size:11.5px;margin-top:2px">
-          ${ev.forecast ? `Prévu : <b>${ev.forecast}</b>` : ''}
-          ${ev.previous ? ` · Précédent : <b>${ev.previous}</b>` : ''}
-        </div>` : ''}
-      </td>
-      <td>${impactBadge}</td>
-      <td>${currency ? `<span class="badge info">${currency}</span>` : ''}</td>
-      <td style="text-align:right">
-        <button class="btn btn-sm" data-edit-ev="${iso}|${ev.id}">✏️</button>
-        <button class="btn btn-sm btn-danger" data-del-ev="${iso}|${ev.id}">✕</button>
-      </td>
-    </tr>
+    <div class="ev-card" data-ev="${iso}|${ev.id}">
+      <div class="ev-head">
+        <div class="ev-time"><b>${ev.time || '—'}</b></div>
+        <div class="ev-country">${country.flag} <span>${country.name}</span></div>
+        <div class="ev-title">
+          <div style="font-weight:600">${ev.title}</div>
+          ${ev.forecast || ev.previous ? `<div class="dim" style="font-size:11.5px;margin-top:2px">
+            ${ev.forecast ? `Prévu : <b>${ev.forecast}</b>` : ''}
+            ${ev.previous ? ` · Précédent : <b>${ev.previous}</b>` : ''}
+          </div>` : ''}
+          ${ev.note ? `<div class="dim" style="font-size:12px;margin-top:2px">${ev.note}</div>` : ''}
+        </div>
+        <div class="ev-tags">${impactBadge} ${currency ? `<span class="badge info">${currency}</span>` : ''}</div>
+        <div class="ev-actions">
+          <button class="btn btn-sm" data-toggle-sc="${iso}|${ev.id}">🎬 Scénarios${scenarios.length ? ` (${scenarios.length})` : ''}</button>
+          <button class="btn btn-sm" data-edit-ev="${iso}|${ev.id}">✏️</button>
+          <button class="btn btn-sm btn-danger" data-del-ev="${iso}|${ev.id}">✕</button>
+        </div>
+      </div>
+      <div class="ev-scenarios" id="sc-${iso}-${ev.id}" style="display:${scenarios.length ? 'block' : 'none'}">
+        ${renderScenarios(iso, ev)}
+      </div>
+    </div>
+  `;
+}
+
+function renderScenarios(iso, ev) {
+  const scenarios = ev.scenarios || [];
+  const items = scenarios.length ? scenarios.map(sc => {
+    const biasBadge = sc.bias === 'bullish' ? '<span class="badge pos">🟢 Bullish</span>'
+                   : sc.bias === 'bearish' ? '<span class="badge neg">🔴 Bearish</span>'
+                   : sc.bias === 'neutral' ? '<span class="badge">⚪ Neutre</span>'
+                   : '<span class="badge info">🎯 Plan</span>';
+    return `
+      <div class="sc-item">
+        <div class="sc-head">
+          <span class="sc-cond">${sc.condition || 'Scénario'}</span>
+          ${biasBadge}
+          ${sc.pairs?.length ? `<span class="badge">${sc.pairs.join(' · ')}</span>` : ''}
+          <div class="spacer"></div>
+          <button class="btn btn-sm" data-edit-sc="${iso}|${ev.id}|${sc.id}">✏️</button>
+          <button class="btn btn-sm btn-danger" data-del-sc="${iso}|${ev.id}|${sc.id}">✕</button>
+        </div>
+        ${sc.plan ? `<div class="sc-plan">${sc.plan}</div>` : ''}
+        ${sc.levels ? `<div class="sc-levels"><b>📌 Niveaux :</b> ${sc.levels}</div>` : ''}
+        ${sc.invalidation ? `<div class="sc-inv"><b>🚫 Invalidation :</b> ${sc.invalidation}</div>` : ''}
+      </div>
+    `;
+  }).join('') : '<div class="dim" style="font-size:13px;padding:4px 0 10px">Aucun scénario. Prépare ton plan : "Si chiffre > prévu → …", "Si < prévu → …".</div>';
+
+  return `
+    ${items}
+    <div class="row" style="margin-top:8px">
+      <button class="btn btn-sm btn-primary" data-add-sc="${iso}|${ev.id}">+ Scénario</button>
+      <button class="btn btn-sm" data-preset-sc="${iso}|${ev.id}">⚡ Preset Hot/Cold</button>
+    </div>
+    <div id="sc-form-${iso}-${ev.id}"></div>
   `;
 }
 
