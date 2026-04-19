@@ -287,32 +287,34 @@ function ThesisPanel({
 }) {
   return (
     <div
-      className="relative p-7 rounded-lg overflow-hidden"
+      className="relative rounded-xl overflow-hidden"
       style={{
-        background: `linear-gradient(135deg, ${tint} 0%, transparent 70%)`,
+        background: `linear-gradient(135deg, ${tint} 0%, transparent 75%)`,
         border: "1px solid var(--border-light)",
+        padding: "32px 36px 36px 44px",
+        minHeight: 260,
       }}
     >
       <div
-        className="absolute top-0 left-0 bottom-0 w-[3px]"
+        className="absolute top-0 left-0 bottom-0 w-[4px]"
         style={{ background: accent }}
       />
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-2.5">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
           <span
-            className="text-[9px] font-bold tracking-[2.5px] uppercase px-2.5 py-1 rounded"
+            className="text-[10px] font-bold tracking-[2.5px] uppercase px-3 py-1.5 rounded"
             style={{ background: accent, color: "white" }}
           >
             {label}
           </span>
-          <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
             {period}
           </span>
         </div>
-        <div style={{ color: accent, opacity: 0.6 }}>{icon}</div>
+        <div style={{ color: accent, opacity: 0.5 }}>{icon}</div>
       </div>
       <p
-        className="text-[14px] leading-[1.75]"
+        className="text-[16px] leading-[1.85]"
         style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)", fontWeight: 400 }}
       >
         {text}
