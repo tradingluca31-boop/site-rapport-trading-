@@ -23,20 +23,7 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
   const scenarios = currentWeek.scenarios.filter((s) => s.eventId === nextEvent?.id);
 
   return (
-    <div className="px-40 py-10 animate-in">
-      <div
-        style={{
-          position: "fixed",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          fontSize: "300px",
-          zIndex: 9999,
-          pointerEvents: "none",
-        }}
-      >
-        🐻
-      </div>
+    <div className="px-48 py-10 animate-in">
       {/* Header */}
       <div className="flex items-start justify-between mb-14 gap-6">
         <div className="min-w-0 flex-1">
