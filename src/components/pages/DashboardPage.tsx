@@ -54,7 +54,7 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
             Bonjour Luca.
           </h1>
           <p className="mt-2 text-sm" style={{ color: "var(--text-secondary)" }}>
-            {todayLine || "\u00a0"} · CPI US a 14h30 · 1 prep validee cette semaine
+            {todayLine || "\u00a0"} · CPI US à 14h30 · 1 prép validée cette semaine
           </p>
         </div>
         <div className="flex gap-3 flex-shrink-0">
@@ -121,17 +121,17 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
             </h3>
             <p className="text-sm mb-5" style={{ color: "var(--text-secondary)" }}>
               Consensus <strong className="font-mono">0.2%</strong> / <strong className="font-mono">3.1%</strong>
-              <span style={{ color: "var(--text-muted)" }}> · precedent </span>
+              <span style={{ color: "var(--text-muted)" }}> · précédent </span>
               <span className="font-mono">0.3%</span> / <span className="font-mono">3.2%</span>
             </p>
 
             <div className="mb-4">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-[10px] font-bold tracking-[1.5px] uppercase" style={{ color: "var(--text-secondary)" }}>
-                  REPARTITION DES SCENARIOS
+                  RÉPARTITION DES SCÉNARIOS
                 </span>
                 <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  {scenarios.length} scenarios
+                  {scenarios.length} scénarios
                 </span>
               </div>
               <div className="flex h-3 rounded-full overflow-hidden gap-0.5">
@@ -180,7 +180,7 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
             <span className="section-label">THESES MACRO EN COURS</span>
           </div>
           <button type="button" className="flex items-center gap-1.5 text-xs font-medium hover:underline" style={{ color: "var(--text-secondary)" }}>
-            <Pencil size={12} /> Editer
+            <Pencil size={12} /> Éditer
           </button>
         </div>
         <div className="card-body grid grid-cols-2 gap-5">

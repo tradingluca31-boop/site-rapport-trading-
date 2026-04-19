@@ -125,16 +125,16 @@ export default function PreparationPage() {
 
       {/* Title */}
       <h1 className="text-4xl font-light mb-2" style={{ fontFamily: "var(--font-display)" }}>
-        Preparation de la semaine
+        Préparation de la semaine
       </h1>
       <p className="text-sm mb-6" style={{ color: "var(--text-secondary)" }}>
-        Semaine {week.weekNumber} — {formatDateRange(week.startDate, week.endDate)} · theme — <em>{week.theme}</em>
+        Semaine {week.weekNumber} — {formatDateRange(week.startDate, week.endDate)} · thème — <em>{week.theme}</em>
       </p>
 
       {/* Onglets section */}
       <div className="flex items-center gap-1 mb-10 border-b" style={{ borderColor: "var(--border)" }}>
         {([
-          ["preparation", "Preparation", CalendarDays],
+          ["preparation", "Préparation", CalendarDays],
           ["retro", "Fin de semaine", Rewind],
         ] as [PageSection, string, typeof CalendarDays][]).map(([id, label, Icon]) => {
           const isActive = section === id;
@@ -268,10 +268,10 @@ export default function PreparationPage() {
       <div className="mt-10">
         <div className="flex items-baseline justify-between mb-4">
           <h2 className="text-xl font-light" style={{ fontFamily: "var(--font-display)" }}>
-            Scenarios par annonce
+            Scénarios par annonce
           </h2>
           <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-            {validated.size} valide{validated.size > 1 ? "s" : ""} sur {week.scenarios.length + week.weeklyScenarios.length}
+            {validated.size} validé{validated.size > 1 ? "s" : ""} sur {week.scenarios.length + week.weeklyScenarios.length}
           </span>
         </div>
         <div className="flex flex-col gap-2">
@@ -313,11 +313,11 @@ export default function PreparationPage() {
                       className="text-[10px] font-bold px-2 py-0.5 rounded"
                       style={{ background: "var(--bull-bg)", color: "var(--bull)" }}
                     >
-                      {validCount}/3 valide{validCount > 1 ? "s" : ""}
+                      {validCount}/3 validé{validCount > 1 ? "s" : ""}
                     </span>
                   )}
                   <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                    {eventScenarios.length} scenarios
+                    {eventScenarios.length} scénarios
                   </span>
                 </button>
                 {isOpen && (
@@ -497,113 +497,113 @@ function RetroSection({ week }: { week: typeof currentWeek }) {
             className="text-[10px] font-bold tracking-[3px] uppercase"
             style={{ color: "var(--accent-gold)" }}
           >
-            Debrief de la semaine passee
+            Débrief de la semaine passée
           </span>
         </div>
         <h2 className="text-3xl font-light mb-2" style={{ fontFamily: "var(--font-display)" }}>
-          Et la semaine derniere, qu'as-tu reellement fait ?
+          Et la semaine dernière, qu'as-tu réellement fait ?
         </h2>
         <p className="text-sm max-w-2xl" style={{ color: "var(--text-secondary)", fontStyle: "italic" }}>
-          Relis ta preparation de la semaine S{week.weekNumber - 1}. Repond honnetement :
-          qu'est-ce qui s'est passe, qu'est-ce qui s'est realise, et qu'est-ce que tu ajustes ?
+          Relis ta préparation de la semaine S{week.weekNumber - 1}. Réponds honnêtement :
+          qu'est-ce qui s'est passé, qu'est-ce qui s'est réalisé, et qu'est-ce que tu ajustes ?
         </p>
       </div>
 
       <RetroBlock
-        title="Theses macro"
-        subtitle="Ton biais court terme etait-il juste ?"
+        title="Thèses macro"
+        subtitle="Ton biais court terme était-il juste ?"
       >
         <RetroQuestion
           qKey="thesis-st"
-          question="Ton biais court terme annonce a-t-il ete valide par le marche ?"
+          question="Ton biais court terme annoncé a-t-il été validé par le marché ?"
           answers={answers}
           onChange={updateAnswer}
-          placeholder="Explique en 2-3 phrases : ce qui a marche, ce qui n'a pas..."
+          placeholder="Explique en 2-3 phrases : ce qui a marché, ce qui n'a pas..."
         />
         <RetroQuestion
           qKey="thesis-lt"
-          question="Ta vision long terme reste-t-elle la meme ?"
+          question="Ta vision long terme reste-t-elle la même ?"
           answers={answers}
           onChange={updateAnswer}
-          placeholder="Ajustement de thesis Q2, niveaux revus..."
+          placeholder="Ajustement de thèse Q2, niveaux revus..."
         />
       </RetroBlock>
 
       <RetroBlock
-        title="Scenarios par annonce"
-        subtitle="Quels scenarios se sont realises, et comment as-tu trade ?"
+        title="Scénarios par annonce"
+        subtitle="Quels scénarios se sont réalisés, et comment as-tu tradé ?"
       >
         {week.scenarios.slice(0, 4).map((sc) => (
           <RetroQuestion
             key={sc.id}
             qKey={`sc-${sc.id}`}
-            question={`"${sc.title}" — ce scenario s'est-il realise ?`}
-            subLabel={`${SCENARIO_COLORS[sc.type].label} · ${sc.probability}% annonces`}
+            question={`"${sc.title}" — ce scénario s'est-il réalisé ?`}
+            subLabel={`${SCENARIO_COLORS[sc.type].label} · ${sc.probability}% annoncés`}
             answers={answers}
             onChange={updateAnswer}
-            placeholder="Realise partiellement / totalement / pas du tout. Details..."
+            placeholder="Réalisé partiellement / totalement / pas du tout. Détails..."
           />
         ))}
       </RetroBlock>
 
       <RetroBlock
-        title="Execution"
-        subtitle="As-tu applique ton plan ?"
+        title="Exécution"
+        subtitle="As-tu appliqué ton plan ?"
       >
         <RetroQuestion
           qKey="exec-setups"
-          question="As-tu trade les setups que tu avais prepares ?"
+          question="As-tu tradé les setups que tu avais préparés ?"
           answers={answers}
           onChange={updateAnswer}
           placeholder="Setups pris vs attendus. Raisons si skip."
         />
         <RetroQuestion
           qKey="exec-discipline"
-          question="As-tu respecte ton sizing et ton risk ?"
+          question="As-tu respecté ton sizing et ton risk ?"
           answers={answers}
           onChange={updateAnswer}
-          placeholder="Ex: 1 derive sur EURUSD mardi, +0.5R ajoute..."
+          placeholder="Ex : 1 dérive sur EURUSD mardi, +0.5R ajouté..."
         />
         <RetroQuestion
           qKey="exec-offplan"
-          question="As-tu pris des trades non prevus ?"
+          question="As-tu pris des trades non prévus ?"
           answers={answers}
           onChange={updateAnswer}
-          placeholder="Ce qui t'a fait sortir du plan, et resultat."
+          placeholder="Ce qui t'a fait sortir du plan, et résultat."
         />
       </RetroBlock>
 
       <RetroBlock
-        title="Synthese & ajustements"
-        subtitle="Qu'est-ce que tu gardes pour S{n+1} ?"
+        title="Synthèse & ajustements"
+        subtitle="Qu'est-ce que tu gardes pour la semaine prochaine ?"
       >
         <FreeTextQuestion
           qKey="worked"
-          question="Qu'est-ce qui a le mieux fonctionne cette semaine ?"
+          question="Qu'est-ce qui a le mieux fonctionné cette semaine ?"
           value={freeText["worked"] ?? ""}
           onChange={(v) => setFreeText((p) => ({ ...p, worked: v }))}
           placeholder="Setup, timing, discipline, routine..."
         />
         <FreeTextQuestion
           qKey="failed"
-          question="Qu'est-ce qui n'a pas fonctionne ?"
+          question="Qu'est-ce qui n'a pas fonctionné ?"
           value={freeText["failed"] ?? ""}
           onChange={(v) => setFreeText((p) => ({ ...p, failed: v }))}
-          placeholder="Erreurs d'analyse, d'execution, emotionnel..."
+          placeholder="Erreurs d'analyse, d'exécution, émotionnel..."
         />
         <FreeTextQuestion
           qKey="lesson"
-          question="La lecon a ancrer pour la semaine prochaine ?"
+          question="La leçon à ancrer pour la semaine prochaine ?"
           value={freeText["lesson"] ?? ""}
           onChange={(v) => setFreeText((p) => ({ ...p, lesson: v }))}
           placeholder="Une phrase, brutale et claire."
         />
         <FreeTextQuestion
           qKey="adjust"
-          question="Qu'est-ce que tu ajustes sur ta prochaine preparation ?"
+          question="Qu'est-ce que tu ajustes sur ta prochaine préparation ?"
           value={freeText["adjust"] ?? ""}
           onChange={(v) => setFreeText((p) => ({ ...p, adjust: v }))}
-          placeholder="Ex: ajouter un scenario intermediaire, surveiller aussi DXY..."
+          placeholder="Ex : ajouter un scénario intermédiaire, surveiller aussi DXY..."
         />
       </RetroBlock>
 
@@ -613,7 +613,7 @@ function RetroSection({ week }: { week: typeof currentWeek }) {
           className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium text-white"
           style={{ background: "var(--bull)" }}
         >
-          <CheckSquare size={14} /> Cloturer la retrospective
+          <CheckSquare size={14} /> Clôturer la rétrospective
         </button>
       </div>
     </div>
