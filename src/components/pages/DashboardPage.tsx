@@ -312,38 +312,90 @@ function ThesisPanel({
 }) {
   return (
     <div
-      className="relative rounded-xl overflow-hidden"
+      className="relative rounded-2xl overflow-hidden"
       style={{
-        background: `linear-gradient(135deg, ${tint} 0%, transparent 75%)`,
+        background: `linear-gradient(145deg, ${tint} 0%, ${tint} 40%, transparent 100%)`,
         border: "1px solid var(--border-light)",
-        padding: "32px 36px 36px 44px",
-        minHeight: 260,
+        padding: "40px 44px 44px 56px",
+        minHeight: 340,
+        boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)",
       }}
     >
       <div
-        className="absolute top-0 left-0 bottom-0 w-[4px]"
-        style={{ background: accent }}
+        className="absolute top-0 left-0 bottom-0"
+        style={{ background: accent, width: 6 }}
       />
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <span
-            className="text-[10px] font-bold tracking-[2.5px] uppercase px-3 py-1.5 rounded"
-            style={{ background: accent, color: "white" }}
-          >
-            {label}
-          </span>
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-            {period}
-          </span>
-        </div>
-        <div style={{ color: accent, opacity: 0.5 }}>{icon}</div>
-      </div>
-      <p
-        className="text-[16px] leading-[1.85]"
-        style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)", fontWeight: 400 }}
+      <div
+        className="absolute"
+        style={{
+          right: -40,
+          bottom: -40,
+          width: 180,
+          height: 180,
+          borderRadius: "50%",
+          background: accent,
+          opacity: 0.035,
+          pointerEvents: "none",
+        }}
+      />
+      <div
+        className="absolute"
+        style={{
+          right: 28,
+          top: 28,
+          color: accent,
+          opacity: 0.08,
+          transform: "scale(3.5)",
+          transformOrigin: "top right",
+          pointerEvents: "none",
+        }}
       >
-        {text}
-      </p>
+        {icon}
+      </div>
+
+      <div className="flex items-center gap-3 mb-7 relative">
+        <span
+          className="text-[11px] font-bold tracking-[2.5px] uppercase px-3.5 py-2 rounded-md inline-flex items-center gap-2"
+          style={{ background: accent, color: "white" }}
+        >
+          {icon}
+          {label}
+        </span>
+        <span
+          className="text-[11px] font-mono uppercase tracking-wider px-2.5 py-1 rounded"
+          style={{ color: accent, background: "white", border: `1px solid ${accent}20` }}
+        >
+          {period}
+        </span>
+      </div>
+
+      <div className="relative">
+        <span
+          className="absolute"
+          style={{
+            left: -32,
+            top: -18,
+            fontSize: 54,
+            color: accent,
+            opacity: 0.25,
+            lineHeight: 1,
+            fontFamily: "var(--font-display)",
+          }}
+        >
+          &ldquo;
+        </span>
+        <p
+          className="text-[17px] leading-[1.9]"
+          style={{
+            color: "var(--text-primary)",
+            fontFamily: "var(--font-display)",
+            fontWeight: 400,
+            position: "relative",
+          }}
+        >
+          {text}
+        </p>
+      </div>
     </div>
   );
 }
