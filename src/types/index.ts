@@ -101,6 +101,7 @@ export interface LibraryEntry {
   type: ReportType;
   title: string;
   summary: string;
+  content?: string;
   tags: string[];
   pnlPct: number | null;
 }

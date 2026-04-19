@@ -12,9 +12,14 @@ import {
   TrendingDown,
   TrendingUp,
   Minus,
+  CalendarDays,
+  Clock,
+  BookOpen,
+  Rewind,
 } from "lucide-react";
 
 type ViewMode = "timeline" | "liste" | "grille";
+type PageSection = "preparation" | "retro";
 
 const SCENARIO_COLORS: Record<ScenarioType, { color: string; bg: string; label: string }> = {
   bear: { color: "var(--bear)", bg: "var(--bear-bg)", label: "BEAR" },
@@ -41,6 +46,7 @@ function getEventSlot(event: EcoEvent): number {
 }
 
 export default function PreparationPage() {
+  const [section, setSection] = useState<PageSection>("preparation");
   const [viewMode, setViewMode] = useState<ViewMode>("timeline");
   const [openEvent, setOpenEvent] = useState<string | null>(null);
   const [validated, setValidated] = useState<Set<string>>(new Set());
@@ -121,31 +127,65 @@ export default function PreparationPage() {
       <h1 className="text-4xl font-light mb-2" style={{ fontFamily: "var(--font-display)" }}>
         Preparation de la semaine
       </h1>
-      <p className="text-sm mb-8" style={{ color: "var(--text-secondary)" }}>
+      <p className="text-sm mb-6" style={{ color: "var(--text-secondary)" }}>
         Semaine {week.weekNumber} — {formatDateRange(week.startDate, week.endDate)} · theme — <em>{week.theme}</em>
       </p>
 
-      {/* These macro */}
-      <div className="card mb-8">
-        <div className="card-body grid grid-cols-2 gap-0">
-          <div className="pr-5 border-r" style={{ borderColor: "var(--border-light)" }}>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="tag font-bold text-[10px]" style={{ background: "var(--text-primary)", color: "white" }}>COURT TERME</span>
-              <span className="text-xs" style={{ color: "var(--text-muted)" }}>Semaine {week.weekNumber}</span>
-            </div>
-            <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-              {week.thesisShortTerm}
-            </p>
-          </div>
-          <div className="pl-5">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="tag font-bold text-[10px]" style={{ border: "1px solid var(--border)", background: "var(--bg-card)" }}>LONG TERME</span>
-              <span className="text-xs" style={{ color: "var(--text-muted)" }}>Q2 2026</span>
-            </div>
-            <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-              {week.thesisLongTerm}
-            </p>
-          </div>
+      {/* Onglets section */}
+      <div className="flex items-center gap-1 mb-10 border-b" style={{ borderColor: "var(--border)" }}>
+        {([
+          ["preparation", "Preparation", CalendarDays],
+          ["retro", "Fin de semaine", Rewind],
+        ] as [PageSection, string, typeof CalendarDays][]).map(([id, label, Icon]) => {
+          const isActive = section === id;
+          return (
+            <button
+              type="button"
+              key={id}
+              onClick={() => setSection(id)}
+              className="flex items-center gap-2 px-5 py-3 text-sm font-medium transition-colors relative"
+              style={{
+                color: isActive ? "var(--text-primary)" : "var(--text-muted)",
+              }}
+            >
+              <Icon size={15} />
+              {label}
+              {isActive && (
+                <span
+                  className="absolute bottom-0 left-0 right-0 h-[2px]"
+                  style={{ background: "var(--accent)" }}
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {section === "preparation" && (<>
+
+      {/* These macro — nouveau visuel */}
+      <div className="card mb-10">
+        <div className="card-header flex items-center gap-3">
+          <BookOpen size={15} style={{ color: "var(--text-muted)" }} />
+          <span className="section-label">THESES MACRO EN COURS</span>
+        </div>
+        <div className="card-body grid grid-cols-2 gap-5">
+          <ThesisPanel
+            label="COURT TERME"
+            period={`Semaine ${week.weekNumber}`}
+            text={week.thesisShortTerm}
+            accent="var(--accent)"
+            tint="var(--accent-light)"
+            icon={<CalendarDays size={13} />}
+          />
+          <ThesisPanel
+            label="LONG TERME"
+            period="Q2 2026"
+            text={week.thesisLongTerm}
+            accent="var(--accent-gold)"
+            tint="var(--accent-gold-light)"
+            icon={<Clock size={13} />}
+          />
         </div>
       </div>
 
@@ -322,6 +362,330 @@ export default function PreparationPage() {
           ))}
         </div>
       </div>
+
+      </>)}
+
+      {section === "retro" && <RetroSection week={week} />}
+    </div>
+  );
+}
+
+function ThesisPanel({
+  label,
+  period,
+  text,
+  accent,
+  tint,
+  icon,
+}: {
+  label: string;
+  period: string;
+  text: string;
+  accent: string;
+  tint: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div
+      className="relative rounded-xl overflow-hidden"
+      style={{
+        background: `linear-gradient(135deg, ${tint} 0%, transparent 75%)`,
+        border: "1px solid var(--border-light)",
+        padding: "36px 40px 40px 52px",
+        minHeight: 300,
+      }}
+    >
+      <div
+        className="absolute top-0 left-0 bottom-0 w-[4px]"
+        style={{ background: accent }}
+      />
+      <div className="flex items-center justify-between mb-7">
+        <div className="flex items-center gap-3">
+          <span
+            className="text-[10px] font-bold tracking-[2.5px] uppercase px-3 py-1.5 rounded"
+            style={{ background: accent, color: "white" }}
+          >
+            {label}
+          </span>
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+            {period}
+          </span>
+        </div>
+        <div style={{ color: accent, opacity: 0.5 }}>{icon}</div>
+      </div>
+      <p
+        className="text-[17px] leading-[1.85]"
+        style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)", fontWeight: 400 }}
+      >
+        {text}
+      </p>
+    </div>
+  );
+}
+
+type RetroAnswer = { yesNo: boolean | null; note: string };
+
+function RetroSection({ week }: { week: typeof currentWeek }) {
+  const [answers, setAnswers] = useState<Record<string, RetroAnswer>>({});
+  const [freeText, setFreeText] = useState<Record<string, string>>({});
+
+  const updateAnswer = (key: string, patch: Partial<RetroAnswer>) => {
+    setAnswers((prev) => ({ ...prev, [key]: { ...(prev[key] ?? { yesNo: null, note: "" }), ...patch } }));
+  };
+
+  return (
+    <div className="animate-in">
+      <div className="mb-10">
+        <div className="flex items-center gap-3 mb-3">
+          <Rewind size={16} style={{ color: "var(--accent-gold)" }} />
+          <span
+            className="text-[10px] font-bold tracking-[3px] uppercase"
+            style={{ color: "var(--accent-gold)" }}
+          >
+            Debrief de la semaine passee
+          </span>
+        </div>
+        <h2 className="text-3xl font-light mb-2" style={{ fontFamily: "var(--font-display)" }}>
+          Et la semaine derniere, qu'as-tu reellement fait ?
+        </h2>
+        <p className="text-sm max-w-2xl" style={{ color: "var(--text-secondary)", fontStyle: "italic" }}>
+          Relis ta preparation de la semaine S{week.weekNumber - 1}. Repond honnetement :
+          qu'est-ce qui s'est passe, qu'est-ce qui s'est realise, et qu'est-ce que tu ajustes ?
+        </p>
+      </div>
+
+      <RetroBlock
+        title="Theses macro"
+        subtitle="Ton biais court terme etait-il juste ?"
+      >
+        <RetroQuestion
+          qKey="thesis-st"
+          question="Ton biais court terme annonce a-t-il ete valide par le marche ?"
+          answers={answers}
+          onChange={updateAnswer}
+          placeholder="Explique en 2-3 phrases : ce qui a marche, ce qui n'a pas..."
+        />
+        <RetroQuestion
+          qKey="thesis-lt"
+          question="Ta vision long terme reste-t-elle la meme ?"
+          answers={answers}
+          onChange={updateAnswer}
+          placeholder="Ajustement de thesis Q2, niveaux revus..."
+        />
+      </RetroBlock>
+
+      <RetroBlock
+        title="Scenarios par annonce"
+        subtitle="Quels scenarios se sont realises, et comment as-tu trade ?"
+      >
+        {week.scenarios.slice(0, 4).map((sc) => (
+          <RetroQuestion
+            key={sc.id}
+            qKey={`sc-${sc.id}`}
+            question={`"${sc.title}" — ce scenario s'est-il realise ?`}
+            subLabel={`${SCENARIO_COLORS[sc.type].label} · ${sc.probability}% annonces`}
+            answers={answers}
+            onChange={updateAnswer}
+            placeholder="Realise partiellement / totalement / pas du tout. Details..."
+          />
+        ))}
+      </RetroBlock>
+
+      <RetroBlock
+        title="Execution"
+        subtitle="As-tu applique ton plan ?"
+      >
+        <RetroQuestion
+          qKey="exec-setups"
+          question="As-tu trade les setups que tu avais prepares ?"
+          answers={answers}
+          onChange={updateAnswer}
+          placeholder="Setups pris vs attendus. Raisons si skip."
+        />
+        <RetroQuestion
+          qKey="exec-discipline"
+          question="As-tu respecte ton sizing et ton risk ?"
+          answers={answers}
+          onChange={updateAnswer}
+          placeholder="Ex: 1 derive sur EURUSD mardi, +0.5R ajoute..."
+        />
+        <RetroQuestion
+          qKey="exec-offplan"
+          question="As-tu pris des trades non prevus ?"
+          answers={answers}
+          onChange={updateAnswer}
+          placeholder="Ce qui t'a fait sortir du plan, et resultat."
+        />
+      </RetroBlock>
+
+      <RetroBlock
+        title="Synthese & ajustements"
+        subtitle="Qu'est-ce que tu gardes pour S{n+1} ?"
+      >
+        <FreeTextQuestion
+          qKey="worked"
+          question="Qu'est-ce qui a le mieux fonctionne cette semaine ?"
+          value={freeText["worked"] ?? ""}
+          onChange={(v) => setFreeText((p) => ({ ...p, worked: v }))}
+          placeholder="Setup, timing, discipline, routine..."
+        />
+        <FreeTextQuestion
+          qKey="failed"
+          question="Qu'est-ce qui n'a pas fonctionne ?"
+          value={freeText["failed"] ?? ""}
+          onChange={(v) => setFreeText((p) => ({ ...p, failed: v }))}
+          placeholder="Erreurs d'analyse, d'execution, emotionnel..."
+        />
+        <FreeTextQuestion
+          qKey="lesson"
+          question="La lecon a ancrer pour la semaine prochaine ?"
+          value={freeText["lesson"] ?? ""}
+          onChange={(v) => setFreeText((p) => ({ ...p, lesson: v }))}
+          placeholder="Une phrase, brutale et claire."
+        />
+        <FreeTextQuestion
+          qKey="adjust"
+          question="Qu'est-ce que tu ajustes sur ta prochaine preparation ?"
+          value={freeText["adjust"] ?? ""}
+          onChange={(v) => setFreeText((p) => ({ ...p, adjust: v }))}
+          placeholder="Ex: ajouter un scenario intermediaire, surveiller aussi DXY..."
+        />
+      </RetroBlock>
+
+      <div className="flex justify-end mt-10">
+        <button
+          type="button"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium text-white"
+          style={{ background: "var(--bull)" }}
+        >
+          <CheckSquare size={14} /> Cloturer la retrospective
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RetroBlock({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="mb-10">
+      <div className="mb-5 pb-3 border-b" style={{ borderColor: "var(--border-light)" }}>
+        <h3 className="text-xl font-medium" style={{ fontFamily: "var(--font-display)" }}>
+          {title}
+        </h3>
+        <p className="text-xs mt-1" style={{ color: "var(--text-muted)", fontStyle: "italic" }}>
+          {subtitle}
+        </p>
+      </div>
+      <div className="flex flex-col gap-3">{children}</div>
+    </section>
+  );
+}
+
+function RetroQuestion({
+  qKey,
+  question,
+  subLabel,
+  answers,
+  onChange,
+  placeholder,
+}: {
+  qKey: string;
+  question: string;
+  subLabel?: string;
+  answers: Record<string, RetroAnswer>;
+  onChange: (key: string, patch: Partial<RetroAnswer>) => void;
+  placeholder: string;
+}) {
+  const a = answers[qKey] ?? { yesNo: null, note: "" };
+  return (
+    <div
+      className="rounded-lg p-5"
+      style={{ background: "var(--bg-card)", border: "1px solid var(--border-light)" }}
+    >
+      <div className="flex items-start justify-between gap-4 mb-4">
+        <div className="flex-1 min-w-0">
+          {subLabel && (
+            <div className="text-[10px] font-mono mb-1" style={{ color: "var(--text-muted)" }}>
+              {subLabel}
+            </div>
+          )}
+          <h4 className="text-[15px] font-medium" style={{ fontFamily: "var(--font-display)" }}>
+            {question}
+          </h4>
+        </div>
+        <div className="flex gap-2 flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => onChange(qKey, { yesNo: true })}
+            className="chip"
+            style={a.yesNo === true ? {
+              background: "var(--bull-bg)",
+              borderColor: "var(--bull)",
+              color: "var(--bull)",
+            } : {}}
+          >
+            Oui
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange(qKey, { yesNo: false })}
+            className="chip"
+            style={a.yesNo === false ? {
+              background: "var(--bear-bg)",
+              borderColor: "var(--bear)",
+              color: "var(--bear)",
+            } : {}}
+          >
+            Non
+          </button>
+        </div>
+      </div>
+      <textarea
+        value={a.note}
+        onChange={(e) => onChange(qKey, { note: e.target.value })}
+        placeholder={placeholder}
+        style={{ minHeight: 70 }}
+      />
+    </div>
+  );
+}
+
+function FreeTextQuestion({
+  qKey,
+  question,
+  value,
+  onChange,
+  placeholder,
+}: {
+  qKey: string;
+  question: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <div
+      key={qKey}
+      className="rounded-lg p-5"
+      style={{ background: "var(--bg-card)", border: "1px solid var(--border-light)" }}
+    >
+      <h4 className="text-[15px] font-medium mb-3" style={{ fontFamily: "var(--font-display)" }}>
+        {question}
+      </h4>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{ minHeight: 90 }}
+      />
     </div>
   );
 }
