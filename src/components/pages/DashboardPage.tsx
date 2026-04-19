@@ -23,7 +23,7 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
   const scenarios = currentWeek.scenarios.filter((s) => s.eventId === nextEvent?.id);
 
   return (
-    <div className="px-8 py-8 animate-in">
+    <div className="px-20 py-10 animate-in">
       {/* Header */}
       <div className="flex items-start justify-between mb-14 gap-6">
         <div className="min-w-0 flex-1">
@@ -38,20 +38,20 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
           <button
             type="button"
             onClick={() => onNavigate("preparation")}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-lg border text-sm font-medium transition-colors hover:bg-gray-50"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors hover:bg-gray-50 whitespace-nowrap"
             style={{ borderColor: "var(--border)" }}
           >
-            <CalendarDays size={15} />
+            <CalendarDays size={14} />
             Voir la semaine
           </button>
           <button
             type="button"
             onClick={() => onNavigate("rapport")}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium text-white transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors whitespace-nowrap"
             style={{ background: "var(--text-primary)" }}
           >
-            <FileText size={15} />
-            + Rapport du jour
+            <FileText size={14} />
+            + Rapport
           </button>
         </div>
       </div>
