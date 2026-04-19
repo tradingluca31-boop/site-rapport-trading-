@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { currentWeek } from "@/lib/mock-data";
 import { EcoEvent, EventCategory, Impact, Scenario, ScenarioType, WeeklyScenario, WeeklyScenarioKind } from "@/types";
 import {
   CheckSquare,
   Plus,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Check,
   TrendingDown,
@@ -31,6 +32,29 @@ const CATEGORY_LABELS: Record<EventCategory, string> = {
   discours: "Discours",
   sentiment: "Sentiment",
   autre: "Autre",
+};
+
+const ALL_CURRENCIES = ["USD", "EUR", "GBP", "JPY", "CHF", "AUD", "NZD", "CAD", "CNY"];
+const ALL_IMPACTS: Impact[] = ["high", "medium", "low"];
+const ALL_CATEGORIES: EventCategory[] = [
+  "inflation",
+  "emploi",
+  "croissance",
+  "politique_monetaire",
+  "discours",
+  "sentiment",
+  "autre",
+];
+const CURRENCY_FLAGS: Record<string, string> = {
+  USD: "🇺🇸",
+  EUR: "🇪🇺",
+  GBP: "🇬🇧",
+  JPY: "🇯🇵",
+  CHF: "🇨🇭",
+  AUD: "🇦🇺",
+  NZD: "🇳🇿",
+  CAD: "🇨🇦",
+  CNY: "🇨🇳",
 };
 
 const IMPACT_LABELS: Record<Impact, { label: string; color: string; bg: string }> = {
@@ -68,8 +92,59 @@ export default function PreparationPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("timeline");
   const [openEvent, setOpenEvent] = useState<string | null>(null);
   const [validated, setValidated] = useState<Set<string>>(new Set());
+  const [weekValidated, setWeekValidated] = useState(false);
+  const [customFormOpen, setCustomFormOpen] = useState(false);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [weekPickerOpen, setWeekPickerOpen] = useState(false);
+  const weekPickerRef = useRef<HTMLDivElement>(null);
 
-  const week = currentWeek;
+  useEffect(() => {
+    if (!weekPickerOpen) return;
+    const handle = (e: MouseEvent) => {
+      if (weekPickerRef.current && !weekPickerRef.current.contains(e.target as Node)) {
+        setWeekPickerOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [weekPickerOpen]);
+
+  // Base = currentWeek (mock). Pour le picker, on génère weekOffset semaines autour.
+  const baseWeek = currentWeek;
+  const shiftedDates = useMemo(() => {
+    const start = new Date(baseWeek.startDate);
+    start.setDate(start.getDate() + weekOffset * 7);
+    const end = new Date(baseWeek.endDate);
+    end.setDate(end.getDate() + weekOffset * 7);
+    const weekNumber = baseWeek.weekNumber + weekOffset;
+    const year = start.getFullYear();
+    return {
+      startDate: start.toISOString().slice(0, 10),
+      endDate: end.toISOString().slice(0, 10),
+      weekNumber,
+      year,
+    };
+  }, [baseWeek, weekOffset]);
+
+  const week = useMemo(
+    () => ({ ...baseWeek, ...shiftedDates }),
+    [baseWeek, shiftedDates]
+  );
+
+  const weekChoices = useMemo(() => {
+    return Array.from({ length: 13 }, (_, i) => i - 6).map((off) => {
+      const s = new Date(baseWeek.startDate);
+      s.setDate(s.getDate() + off * 7);
+      const e = new Date(baseWeek.endDate);
+      e.setDate(e.getDate() + off * 7);
+      return {
+        offset: off,
+        weekNumber: baseWeek.weekNumber + off,
+        year: s.getFullYear(),
+        range: formatDateRange(s.toISOString(), e.toISOString()),
+      };
+    });
+  }, [baseWeek]);
 
   // Filtres annonces (multiselect chips)
   const [filterImpact, setFilterImpact] = useState<Set<Impact>>(new Set());
@@ -138,46 +213,182 @@ export default function PreparationPage() {
   return (
     <div className="px-12 py-10 animate-in">
       {/* Header */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <span className="tag font-mono text-xs">S{week.weekNumber} · {week.year}</span>
-          <span
-            className="text-[10px] font-bold px-2 py-0.5 rounded tracking-wider"
-            style={{ background: "var(--bull-bg)", color: "var(--bull)" }}
-          >
-            EN COURS
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          {/* View toggle */}
-          <div className="flex border rounded-md overflow-hidden" style={{ borderColor: "var(--border)" }}>
-            {(["timeline", "liste", "grille"] as ViewMode[]).map((mode, i) => (
+      <div className="flex items-start justify-between mb-3 gap-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          {/* Sélecteur de semaine */}
+          <div className="relative" ref={weekPickerRef}>
+            <div
+              className="inline-flex items-center rounded-lg overflow-hidden"
+              style={{ border: "1px solid var(--border)", background: "#FFFFFF" }}
+            >
               <button
                 type="button"
-                key={mode}
-                onClick={() => setViewMode(mode)}
-                className="px-4 py-1.5 text-xs font-medium capitalize transition-colors"
+                onClick={() => setWeekOffset((o) => o - 1)}
+                className="px-2 py-1.5 transition-colors"
+                style={{ color: "#0A0B0E", borderRight: "1px solid var(--border-light)" }}
+                title="Semaine précédente"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setWeekPickerOpen((v) => !v)}
+                className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold"
+                style={{ color: "#0A0B0E", minWidth: 120 }}
+              >
+                <span className="font-mono">S{week.weekNumber}</span>
+                <span style={{ color: "var(--text-muted)" }}>·</span>
+                <span className="font-mono" style={{ color: "var(--text-secondary)" }}>
+                  {week.year}
+                </span>
+                <ChevronDown
+                  size={12}
+                  style={{
+                    marginLeft: 2,
+                    transition: "transform 0.2s",
+                    transform: weekPickerOpen ? "rotate(180deg)" : "rotate(0deg)",
+                  }}
+                />
+              </button>
+              <button
+                type="button"
+                onClick={() => setWeekOffset((o) => o + 1)}
+                className="px-2 py-1.5 transition-colors"
+                style={{ color: "#0A0B0E", borderLeft: "1px solid var(--border-light)" }}
+                title="Semaine suivante"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+            {weekPickerOpen && (
+              <div
+                className="absolute left-0 top-full mt-2 rounded-xl overflow-hidden z-50"
                 style={{
-                  background: viewMode === mode ? "var(--text-primary)" : "var(--bg-card)",
-                  color: viewMode === mode ? "white" : "var(--text-secondary)",
-                  borderLeft: i > 0 ? "1px solid var(--border)" : "none",
+                  background: "#FFFFFF",
+                  border: "1px solid var(--border)",
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.12), 0 4px 8px rgba(0,0,0,0.06)",
+                  minWidth: 280,
+                  maxHeight: 360,
+                  overflowY: "auto",
                 }}
               >
-                {mode === "timeline" ? "Timeline" : mode === "liste" ? "Liste" : "Grille"}
-              </button>
-            ))}
+                <div className="py-1.5">
+                  {weekChoices.map((c) => {
+                    const isCurrent = c.offset === weekOffset;
+                    const isToday = c.offset === 0;
+                    return (
+                      <button
+                        type="button"
+                        key={c.offset}
+                        onClick={() => {
+                          setWeekOffset(c.offset);
+                          setWeekPickerOpen(false);
+                        }}
+                        className="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-xs font-medium transition-colors"
+                        style={{
+                          background: isCurrent ? "var(--accent-light)" : "transparent",
+                          color: isCurrent ? "var(--accent)" : "#0A0B0E",
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="font-mono font-bold" style={{ minWidth: 42 }}>
+                            S{c.weekNumber}
+                          </span>
+                          <span
+                            className="font-mono text-[11px]"
+                            style={{ color: isCurrent ? "var(--accent)" : "var(--text-muted)" }}
+                          >
+                            {c.range}
+                          </span>
+                        </div>
+                        {isToday && (
+                          <span
+                            className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded"
+                            style={{ background: "var(--bull-bg)", color: "var(--bull)" }}
+                          >
+                            EN COURS
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+          {weekOffset === 0 && (
+            <span
+              className="text-[10px] font-bold px-2 py-1 rounded tracking-wider"
+              style={{ background: "var(--bull-bg)", color: "var(--bull)" }}
+            >
+              EN COURS
+            </span>
+          )}
+          {weekOffset < 0 && (
+            <span
+              className="text-[10px] font-bold px-2 py-1 rounded tracking-wider"
+              style={{ background: "var(--bg-elevated)", color: "var(--text-muted)" }}
+            >
+              PASSÉE
+            </span>
+          )}
+          {weekOffset > 0 && (
+            <span
+              className="text-[10px] font-bold px-2 py-1 rounded tracking-wider"
+              style={{ background: "var(--accent-light)", color: "var(--accent)" }}
+            >
+              À VENIR
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {/* View toggle — segmented control */}
+          <div
+            className="inline-flex items-center p-1 rounded-lg"
+            style={{ background: "#F1F3F6", border: "1px solid var(--border-light)" }}
+          >
+            {(["timeline", "liste", "grille"] as ViewMode[]).map((mode) => {
+              const isActive = viewMode === mode;
+              return (
+                <button
+                  type="button"
+                  key={mode}
+                  onClick={() => setViewMode(mode)}
+                  className="px-3.5 py-1.5 text-xs font-semibold transition-all rounded-md"
+                  style={{
+                    background: isActive ? "#FFFFFF" : "transparent",
+                    color: isActive ? "#0A0B0E" : "#6B7280",
+                    boxShadow: isActive ? "0 1px 2px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04)" : "none",
+                    minWidth: 72,
+                  }}
+                >
+                  {mode === "timeline" ? "Timeline" : mode === "liste" ? "Liste" : "Grille"}
+                </button>
+              );
+            })}
           </div>
           <button
-            className="flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-medium transition-colors hover:bg-gray-50"
-            style={{ borderColor: "var(--border)" }}
+            type="button"
+            onClick={() => setCustomFormOpen((v) => !v)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all"
+            style={{
+              background: "#FFFFFF",
+              border: "1px solid var(--border)",
+              color: "#0A0B0E",
+            }}
           >
-            <Plus size={13} /> Evenement custom
+            <Plus size={13} /> Évènement custom
           </button>
           <button
-            className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium text-white"
-            style={{ background: "var(--text-primary)" }}
+            type="button"
+            onClick={() => setWeekValidated((v) => !v)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold text-white transition-all"
+            style={{
+              background: weekValidated ? "#16A34A" : "#0A0B0E",
+            }}
           >
-            <CheckSquare size={13} /> Valider la semaine
+            <CheckSquare size={13} />
+            {weekValidated ? "Semaine validée" : "Valider la semaine"}
           </button>
         </div>
       </div>
@@ -222,12 +433,12 @@ export default function PreparationPage() {
 
       {section === "preparation" && (<>
 
-      {/* Filtres annonces */}
+      {/* Filtres annonces — dropdowns */}
       <div
-        className="rounded-xl mb-5 px-5 py-4"
+        className="rounded-xl mb-5 px-5 py-4 flex items-center gap-3 flex-wrap"
         style={{ background: "var(--bg-card)", border: "1px solid var(--border-light)" }}
       >
-        <div className="flex items-center gap-3 mb-3">
+        <div className="flex items-center gap-2">
           <Filter size={14} style={{ color: "var(--text-muted)" }} />
           <span
             className="text-[10px] font-bold tracking-[1.5px] uppercase"
@@ -235,70 +446,70 @@ export default function PreparationPage() {
           >
             Filtres
           </span>
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-            {filteredEvents.length} / {week.events.length} annonces
-          </span>
-          {activeFilterCount > 0 && (
-            <button
-              type="button"
-              onClick={resetFilters}
-              className="ml-auto flex items-center gap-1 text-xs font-medium transition-colors hover:underline"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              <XIcon size={12} /> Réinitialiser ({activeFilterCount})
-            </button>
-          )}
         </div>
 
-        <div className="flex flex-col gap-2.5">
-          <FilterRow label="Importance">
-            {(["high", "medium", "low"] as Impact[]).map((imp) => {
-              const isActive = filterImpact.has(imp);
-              const meta = IMPACT_LABELS[imp];
-              return (
-                <FilterChip
-                  key={imp}
-                  active={isActive}
-                  onClick={() => setFilterImpact((s) => toggleFrom(s, imp))}
-                  color={meta.color}
-                  bg={meta.bg}
-                >
-                  <span
-                    className="w-1.5 h-1.5 rounded-full inline-block"
-                    style={{ background: meta.color }}
-                  />
-                  {meta.label}
-                </FilterChip>
-              );
-            })}
-          </FilterRow>
+        <FilterDropdown
+          label="Importance"
+          count={filterImpact.size}
+          options={ALL_IMPACTS.map((imp) => ({
+            value: imp,
+            selected: filterImpact.has(imp),
+            render: (
+              <div className="flex items-center gap-2.5">
+                <span
+                  className="w-2 h-2 rounded-full inline-block flex-shrink-0"
+                  style={{ background: IMPACT_LABELS[imp].color }}
+                />
+                <span>{IMPACT_LABELS[imp].label}</span>
+              </div>
+            ),
+            onToggle: () => setFilterImpact((s) => toggleFrom(s, imp)),
+          }))}
+        />
 
-          <FilterRow label="Pays">
-            {availableCurrencies.map((cur) => (
-              <FilterChip
-                key={cur}
-                active={filterCurrency.has(cur)}
-                onClick={() => setFilterCurrency((s) => toggleFrom(s, cur))}
-              >
-                {cur}
-              </FilterChip>
-            ))}
-          </FilterRow>
+        <FilterDropdown
+          label="Pays"
+          count={filterCurrency.size}
+          options={ALL_CURRENCIES.map((cur) => ({
+            value: cur,
+            selected: filterCurrency.has(cur),
+            render: (
+              <div className="flex items-center gap-2.5">
+                <span className="text-base leading-none flex-shrink-0">{CURRENCY_FLAGS[cur] ?? "🌐"}</span>
+                <span className="font-mono font-semibold">{cur}</span>
+              </div>
+            ),
+            onToggle: () => setFilterCurrency((s) => toggleFrom(s, cur)),
+          }))}
+        />
 
-          <FilterRow label="Catégorie">
-            {(["inflation", "emploi", "croissance", "politique_monetaire", "discours", "sentiment"] as EventCategory[])
-              .filter((c) => availableCategories.includes(c))
-              .map((cat) => (
-                <FilterChip
-                  key={cat}
-                  active={filterCategory.has(cat)}
-                  onClick={() => setFilterCategory((s) => toggleFrom(s, cat))}
-                >
-                  {CATEGORY_LABELS[cat]}
-                </FilterChip>
-              ))}
-          </FilterRow>
-        </div>
+        <FilterDropdown
+          label="Catégorie"
+          count={filterCategory.size}
+          options={ALL_CATEGORIES.map((cat) => ({
+            value: cat,
+            selected: filterCategory.has(cat),
+            render: <span>{CATEGORY_LABELS[cat]}</span>,
+            onToggle: () => setFilterCategory((s) => toggleFrom(s, cat)),
+          }))}
+        />
+
+        <div className="flex-1" />
+
+        <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+          {filteredEvents.length} / {week.events.length} annonces
+        </span>
+
+        {activeFilterCount > 0 && (
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="flex items-center gap-1 text-xs font-semibold transition-colors px-2.5 py-1.5 rounded-md"
+            style={{ color: "var(--text-secondary)", background: "var(--bg-elevated)" }}
+          >
+            <XIcon size={12} /> Réinitialiser ({activeFilterCount})
+          </button>
+        )}
       </div>
 
       {/* Calendar full width */}
@@ -361,9 +572,6 @@ export default function PreparationPage() {
                             <div className="text-[10px] font-mono mt-1.5" style={{ color: "var(--text-muted)" }}>
                               Cons. {event.forecast} {event.previous && `· Prec. ${event.previous}`}
                             </div>
-                          )}
-                          {event.impact === "high" && (
-                            <div className="w-full h-0.5 mt-2 rounded" style={{ background: "var(--bear)" }} />
                           )}
                         </div>
                       )}
@@ -504,6 +712,114 @@ export default function PreparationPage() {
       </>)}
 
       {section === "retro" && <RetroSection week={week} />}
+    </div>
+  );
+}
+
+type DropdownOption = {
+  value: string;
+  selected: boolean;
+  render: React.ReactNode;
+  onToggle: () => void;
+};
+
+function FilterDropdown({
+  label,
+  count,
+  options,
+}: {
+  label: string;
+  count: number;
+  options: DropdownOption[];
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handle = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [open]);
+
+  const isActive = count > 0 || open;
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all"
+        style={{
+          background: isActive ? "#0A0B0E" : "#FFFFFF",
+          color: isActive ? "#FFFFFF" : "#0A0B0E",
+          border: `1px solid ${isActive ? "#0A0B0E" : "var(--border)"}`,
+        }}
+      >
+        <span>{label}</span>
+        {count > 0 && (
+          <span
+            className="inline-flex items-center justify-center text-[10px] font-bold rounded-full"
+            style={{
+              minWidth: 18,
+              height: 18,
+              padding: "0 6px",
+              background: "#FFFFFF",
+              color: "#0A0B0E",
+            }}
+          >
+            {count}
+          </span>
+        )}
+        <ChevronDown
+          size={13}
+          style={{
+            transition: "transform 0.2s",
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+          }}
+        />
+      </button>
+      {open && (
+        <div
+          className="absolute left-0 top-full mt-2 rounded-xl overflow-hidden z-50"
+          style={{
+            background: "#FFFFFF",
+            border: "1px solid var(--border)",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.12), 0 4px 8px rgba(0,0,0,0.06)",
+            minWidth: 220,
+          }}
+        >
+          <div className="py-1.5">
+            {options.map((opt) => (
+              <button
+                type="button"
+                key={opt.value}
+                onClick={opt.onToggle}
+                className="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-xs font-medium transition-colors"
+                style={{
+                  background: opt.selected ? "var(--accent-light)" : "transparent",
+                  color: opt.selected ? "var(--accent)" : "#0A0B0E",
+                }}
+              >
+                <span className="flex-1 text-left">{opt.render}</span>
+                <span
+                  className="inline-flex items-center justify-center flex-shrink-0 rounded"
+                  style={{
+                    width: 16,
+                    height: 16,
+                    background: opt.selected ? "var(--accent)" : "transparent",
+                    border: opt.selected ? "none" : "1.5px solid var(--border)",
+                  }}
+                >
+                  {opt.selected && <Check size={11} strokeWidth={3} style={{ color: "#FFFFFF" }} />}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
