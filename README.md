@@ -20,10 +20,36 @@ fondamentaux, un suivi du sentiment de marché et un bilan hebdomadaire.
 | **📊 Dashboard** | Vue d'ensemble : KPI sur 30 jours, jours tradés, note moyenne, rappel du dernier rapport et checklist quotidienne. |
 | **📓 Journal quotidien** | Un **assistant de questions** (wizard) avec questions **conditionnelles**. Réponds simplement, les questions suivantes s'adaptent à tes réponses. |
 | **📅 Bilan hebdomadaire** | Synthèse de la semaine : statistiques automatiques (R net, discipline, note moyenne) + rédaction libre (points forts, erreurs, leçons, plan). |
-| **🗓️ Préparation de la semaine** | Planifie **semaine par semaine, jour par jour** : plan global, biais dominant, paires prioritaires. Pour chaque jour : heure, pays, événement macro, niveau d'impact (élevé/moyen/faible), devise, prévu/précédent, note. Templates rapides (NFP, CPI, FOMC, BCE, BoE, BoJ, SNB, BoC, RBA, RBNZ, OPEP…). |
+| **🗓️ Préparation de la semaine** | Planifie **semaine par semaine, jour par jour** : plan global, biais dominant, paires prioritaires. Pour chaque jour : heure, pays, événement macro, niveau d'impact (élevé/moyen/faible), devise, prévu/précédent, note. Templates rapides (NFP, CPI, FOMC, BCE, BoE, BoJ, SNB, BoC, RBA, RBNZ, OPEP…). **Scénarios** par événement (condition, biais, paires, plan d'action, niveaux, invalidation) + **Bilan post-événement** (chiffre réel, surprise, scénario qui s'est réalisé, trade pris, leçon). |
 | **📈 Positions & captures** | Upload tes **screenshots de trades** (glisser-déposer), avec instrument, direction, R multiple, notes. Filtrage par instrument / direction / résultat. |
 | **📰 Rapports fondamentaux** | Rédige tes **rapports macro** quotidiens et hebdomadaires, avec biais directionnel (bullish / bearish / neutre), devises concernées, événements à venir, images. |
 | **🌡️ Sentiment de marché** | Onglets dédiés pour : **Fear & Greed**, **attentes banques centrales**, **devises non pondérées** (hebdo), **COT / positionnement**, autres. Images + notes. |
+
+---
+
+## 🗓️ La préparation de la semaine (fonctionnement complet)
+
+C'est la page la plus riche du site, pensée comme un **cockpit hebdomadaire** :
+
+1. **Vue semaine** : navigation Lundi → Dimanche avec le jour courant mis en avant.
+   Tu définis en haut le **plan global**, le **biais dominant** (Risk-On / Risk-Off /
+   USD Bull/Bear / Mixte) et les **paires prioritaires**.
+
+2. **Annonces par jour** : tu ajoutes les événements macro avec
+   heure · pays (drapeau) · impact 🔴🟠🟢 · devise · prévu / précédent.
+   28 **templates** (NFP, CPI, FOMC, BCE, BoE, BoJ, SNB, BoC, RBA, RBNZ, OPEP, EIA…)
+   accélèrent la saisie.
+
+3. **🎬 Scénarios** par annonce : tu anticipes ce qui peut se passer.
+   Pour chaque scénario : **condition** déclencheuse · **biais** attendu ·
+   **paires** à trader · **plan d'action** · **niveaux clés** · **invalidation**.
+   Un **preset Hot/Cold** crée d'un clic 3 scénarios types (chiffre > / < / en ligne).
+
+4. **📝 Bilan post-événement** : une fois l'annonce tombée, tu remplis
+   le chiffre réel, le **scénario qui s'est le plus rapproché** (ou "Aucun"),
+   ce qui s'est passé sur le marché, si tu as tradé et ton résultat en R,
+   et la leçon retenue. Le scénario choisi est mis en surbrillance ✅ **Réalisé**
+   dans ta liste, et l'événement passe de ⏳ *À débriefer* à ✅ *Bilan fait*.
 
 ---
 
@@ -66,6 +92,7 @@ site-rapport-trading-/
 ├── positions.html          # Captures de positions
 ├── fondamentaux.html       # Rapports fondamentaux (daily/weekly)
 ├── sentiment.html          # Fear & Greed, BC, devises non pondérées…
+├── preparation.html        # Préparation de la semaine (événements + scénarios + bilan)
 ├── assets/
 │   ├── css/styles.css      # Thème sombre premium, responsive
 │   └── js/
@@ -75,7 +102,8 @@ site-rapport-trading-/
 │       ├── bilan.js
 │       ├── positions.js
 │       ├── fondamentaux.js
-│       └── sentiment.js
+│       ├── sentiment.js
+│       └── preparation.js  # Événements + scénarios + bilan post-event
 └── README.md
 ```
 
