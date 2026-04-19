@@ -500,7 +500,7 @@ export default function PreparationPage() {
         <div className="flex-1" />
 
         <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
-          {filteredEvents.length} / {week.events.length} annonces
+          {filteredEvents.length} / {realEvents.length} annonces
         </span>
 
         {activeFilterCount > 0 && (
