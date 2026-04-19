@@ -284,6 +284,133 @@ function renderDays(w) {
     const [iso, evId] = b.dataset.presetSc.split('|');
     addHotColdPreset(w, iso, evId);
   });
+
+  // Review wiring
+  container.querySelectorAll('[data-toggle-rv]').forEach(b => b.onclick = () => {
+    const [iso, evId] = b.dataset.toggleRv.split('|');
+    const ev = w.days[iso].events.find(x => x.id === evId);
+    const box = document.getElementById(`rv-${iso}-${evId}`);
+    if (box.style.display === 'none') {
+      box.style.display = 'block';
+      if (!ev.review) showReviewForm(w, iso, evId);
+    } else {
+      box.style.display = 'none';
+    }
+  });
+  container.querySelectorAll('[data-edit-rv]').forEach(b => b.onclick = () => {
+    const [iso, evId] = b.dataset.editRv.split('|');
+    showReviewForm(w, iso, evId);
+  });
+  container.querySelectorAll('[data-del-rv]').forEach(b => b.onclick = () => {
+    const [iso, evId] = b.dataset.delRv.split('|');
+    if (!confirm('Supprimer ce bilan ?')) return;
+    const ev = w.days[iso].events.find(x => x.id === evId);
+    delete ev.review;
+    save(STORAGE.preparation, items);
+    renderDays(w);
+  });
+}
+
+function showReviewForm(w, iso, evId) {
+  const ev = w.days[iso].events.find(x => x.id === evId);
+  const review = ev.review || {};
+  const scenarios = ev.scenarios || [];
+  const holder = document.getElementById(`rv-form-${iso}-${evId}`);
+  holder.innerHTML = `
+    <div class="card" style="margin-top:10px;background:rgba(56,189,248,.05)">
+      <h3>📝 Bilan post-événement — ${ev.title}</h3>
+      <div class="grid grid-2">
+        <div class="field">
+          <label>Chiffre / résultat réel publié</label>
+          <input type="text" class="input" id="rvActual" value="${review.actual || ''}" placeholder="Ex : 3.4% / +175k / Hawkish" />
+        </div>
+        <div class="field">
+          <label>Surprise vs attente</label>
+          <select class="select" id="rvSurprise">
+            <option value="">—</option>
+            <option value="hot"   ${review.surprise === 'hot'   ? 'selected' : ''}>🔥 Plus chaud que prévu</option>
+            <option value="cold"  ${review.surprise === 'cold'  ? 'selected' : ''}>❄️ Plus froid que prévu</option>
+            <option value="inline" ${review.surprise === 'inline' ? 'selected' : ''}>⚪ En ligne</option>
+            <option value="mixed" ${review.surprise === 'mixed' ? 'selected' : ''}>🟡 Mixte</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Que s'est-il passé sur le marché ?</label>
+        <textarea class="textarea" id="rvWhat" placeholder="Réaction des paires, volatilité, niveaux cassés/respectés...">${review.what || ''}</textarea>
+      </div>
+      <div class="field">
+        <label>🎯 Quel scénario s'est le plus rapproché ?</label>
+        ${scenarios.length ? `
+          <div class="choices" id="rvScWrap">
+            ${scenarios.map(sc => `
+              <button type="button" class="chip ${review.matchedScenarioId === sc.id ? 'selected' : ''}" data-sc="${sc.id}">
+                ${sc.bias === 'bullish' ? '🟢' : sc.bias === 'bearish' ? '🔴' : '⚪'} ${sc.condition || 'Scénario'}
+              </button>
+            `).join('')}
+            <button type="button" class="chip ${review.matchedScenarioId === '__none__' ? 'selected' : ''}" data-sc="__none__">❌ Aucun (réaction imprévue)</button>
+          </div>
+        ` : `<div class="dim" style="font-size:13px">Aucun scénario défini en amont. Tu peux quand même remplir le bilan.</div>`}
+      </div>
+      <div class="grid grid-3">
+        <div class="field">
+          <label>As-tu tradé ?</label>
+          <select class="select" id="rvTraded">
+            <option value="">—</option>
+            <option value="oui"  ${review.tradedIt === true  ? 'selected' : ''}>✅ Oui</option>
+            <option value="non"  ${review.tradedIt === false ? 'selected' : ''}>⏸️ Non</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Résultat (R)</label>
+          <input type="number" step="0.1" class="input" id="rvR" value="${review.tradeResult ?? ''}" placeholder="+1.5 / -1" />
+        </div>
+        <div class="field">
+          <label>Paire(s) tradée(s)</label>
+          <input type="text" class="input" id="rvPairs" value="${(review.pairs || []).join(', ')}" placeholder="EUR/USD, XAU/USD..." />
+        </div>
+      </div>
+      <div class="field">
+        <label>💡 Leçon / observation à retenir</label>
+        <textarea class="textarea" id="rvLesson" placeholder="Ce qu'il faut retenir pour la prochaine fois...">${review.lesson || ''}</textarea>
+      </div>
+      <div class="row">
+        <button class="btn" id="rvCancel">Annuler</button>
+        <div class="spacer"></div>
+        <button class="btn btn-primary" id="rvSave">Enregistrer le bilan</button>
+      </div>
+    </div>
+  `;
+
+  // Scenario selection (single)
+  let pickedScId = review.matchedScenarioId || '';
+  holder.querySelectorAll('#rvScWrap .chip').forEach(ch => ch.onclick = () => {
+    pickedScId = ch.dataset.sc;
+    holder.querySelectorAll('#rvScWrap .chip').forEach(x => x.classList.remove('selected'));
+    ch.classList.add('selected');
+  });
+
+  document.getElementById('rvCancel').onclick = () => {
+    holder.innerHTML = '';
+    if (!ev.review) document.getElementById(`rv-${iso}-${evId}`).style.display = 'none';
+  };
+  document.getElementById('rvSave').onclick = () => {
+    const tradedVal = document.getElementById('rvTraded').value;
+    ev.review = {
+      actual: document.getElementById('rvActual').value.trim(),
+      surprise: document.getElementById('rvSurprise').value,
+      what: document.getElementById('rvWhat').value,
+      matchedScenarioId: pickedScId || null,
+      tradedIt: tradedVal === 'oui' ? true : tradedVal === 'non' ? false : undefined,
+      tradeResult: document.getElementById('rvR').value === '' ? null : Number(document.getElementById('rvR').value),
+      pairs: document.getElementById('rvPairs').value.split(',').map(s => s.trim()).filter(Boolean),
+      lesson: document.getElementById('rvLesson').value,
+      reviewedAt: new Date().toISOString(),
+    };
+    save(STORAGE.preparation, items);
+    toast('Bilan enregistré ✅');
+    renderDays(w);
+  };
 }
 
 function showScenarioForm(w, iso, evId, editing = null) {
@@ -403,6 +530,12 @@ function evCard(iso, ev) {
                     : '<span class="badge">🟢 Faible</span>';
   const currency = ev.currency || country.currency || '';
   const scenarios = ev.scenarios || [];
+  const review = ev.review || null;
+  const matched = review?.matchedScenarioId ? scenarios.find(s => s.id === review.matchedScenarioId) : null;
+
+  const reviewBadge = review
+    ? `<span class="badge pos">✅ Bilan fait</span>`
+    : (ev.scenarios?.length ? `<span class="badge warn">⏳ À débriefer</span>` : '');
 
   return `
     <div class="ev-card" data-ev="${iso}|${ev.id}">
@@ -410,16 +543,19 @@ function evCard(iso, ev) {
         <div class="ev-time"><b>${ev.time || '—'}</b></div>
         <div class="ev-country">${country.flag} <span>${country.name}</span></div>
         <div class="ev-title">
-          <div style="font-weight:600">${ev.title}</div>
-          ${ev.forecast || ev.previous ? `<div class="dim" style="font-size:11.5px;margin-top:2px">
+          <div style="font-weight:600">${ev.title} ${reviewBadge}</div>
+          ${ev.forecast || ev.previous || review?.actual ? `<div class="dim" style="font-size:11.5px;margin-top:2px">
             ${ev.forecast ? `Prévu : <b>${ev.forecast}</b>` : ''}
             ${ev.previous ? ` · Précédent : <b>${ev.previous}</b>` : ''}
+            ${review?.actual ? ` · <span style="color:var(--accent)">Réel : <b>${review.actual}</b></span>` : ''}
           </div>` : ''}
           ${ev.note ? `<div class="dim" style="font-size:12px;margin-top:2px">${ev.note}</div>` : ''}
+          ${matched ? `<div style="font-size:12px;margin-top:4px;color:var(--accent)">🎯 Scénario réalisé : <b>${matched.condition || 'Scénario'}</b></div>` : ''}
         </div>
         <div class="ev-tags">${impactBadge} ${currency ? `<span class="badge info">${currency}</span>` : ''}</div>
         <div class="ev-actions">
           <button class="btn btn-sm" data-toggle-sc="${iso}|${ev.id}">🎬 Scénarios${scenarios.length ? ` (${scenarios.length})` : ''}</button>
+          <button class="btn btn-sm ${review ? '' : 'btn-primary'}" data-toggle-rv="${iso}|${ev.id}">📝 Bilan</button>
           <button class="btn btn-sm" data-edit-ev="${iso}|${ev.id}">✏️</button>
           <button class="btn btn-sm btn-danger" data-del-ev="${iso}|${ev.id}">✕</button>
         </div>
@@ -427,20 +563,49 @@ function evCard(iso, ev) {
       <div class="ev-scenarios" id="sc-${iso}-${ev.id}" style="display:${scenarios.length ? 'block' : 'none'}">
         ${renderScenarios(iso, ev)}
       </div>
+      <div class="ev-review" id="rv-${iso}-${ev.id}" style="display:${review ? 'block' : 'none'}">
+        ${renderReview(iso, ev)}
+      </div>
+    </div>
+  `;
+}
+
+function renderReview(iso, ev) {
+  const review = ev.review || {};
+  return `
+    <div style="padding:12px 14px">
+      <div style="font-weight:600;margin-bottom:6px">📝 Bilan post-événement</div>
+      ${review.what ? `<div style="font-size:13.5px;line-height:1.55;white-space:pre-wrap;margin-bottom:8px">${review.what}</div>` : ''}
+      ${review.tradedIt ? `
+        <div class="row" style="margin-bottom:6px">
+          <span class="badge ${review.tradeResult && Number(review.tradeResult) >= 0 ? 'pos' : 'neg'}">
+            Tradé · ${review.tradeResult ? (Number(review.tradeResult) >= 0 ? '+' : '') + review.tradeResult + ' R' : 'résultat non noté'}
+          </span>
+        </div>
+      ` : (review.tradedIt === false ? '<div class="row"><span class="badge">Non tradé</span></div>' : '')}
+      ${review.lesson ? `<div style="font-size:13px;margin-top:6px"><b>💡 Leçon :</b> ${review.lesson}</div>` : ''}
+      <div class="row" style="margin-top:10px">
+        <button class="btn btn-sm" data-edit-rv="${iso}|${ev.id}">${ev.review ? '✏️ Modifier le bilan' : '+ Remplir le bilan'}</button>
+        ${ev.review ? `<button class="btn btn-sm btn-danger" data-del-rv="${iso}|${ev.id}">Supprimer</button>` : ''}
+      </div>
+      <div id="rv-form-${iso}-${ev.id}"></div>
     </div>
   `;
 }
 
 function renderScenarios(iso, ev) {
   const scenarios = ev.scenarios || [];
+  const matchedId = ev.review?.matchedScenarioId;
   const items = scenarios.length ? scenarios.map(sc => {
     const biasBadge = sc.bias === 'bullish' ? '<span class="badge pos">🟢 Bullish</span>'
                    : sc.bias === 'bearish' ? '<span class="badge neg">🔴 Bearish</span>'
                    : sc.bias === 'neutral' ? '<span class="badge">⚪ Neutre</span>'
                    : '<span class="badge info">🎯 Plan</span>';
+    const isMatched = sc.id === matchedId;
     return `
-      <div class="sc-item">
+      <div class="sc-item${isMatched ? ' sc-matched' : ''}">
         <div class="sc-head">
+          ${isMatched ? '<span class="badge pos">✅ Réalisé</span>' : ''}
           <span class="sc-cond">${sc.condition || 'Scénario'}</span>
           ${biasBadge}
           ${sc.pairs?.length ? `<span class="badge">${sc.pairs.join(' · ')}</span>` : ''}
