@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { currentWeek } from "@/lib/mock-data";
+import { fetchWeekEvents } from "@/lib/mt5-calendar";
 import { EcoEvent, EventCategory, Impact, Scenario, ScenarioType, WeeklyScenario, WeeklyScenarioKind } from "@/types";
 import {
   CheckSquare,
@@ -75,16 +76,6 @@ const WEEKLY_COLORS: Record<WeeklyScenarioKind, { color: string; bg: string; lab
 };
 
 const DAYS = ["Lun", "Mar", "Mer", "Jeu", "Ven"];
-const TIME_SLOTS = ["09:00", "11:00", "13:00", "14:30", "16:00", "20:00"];
-
-function getEventDay(event: EcoEvent): number {
-  const d = new Date(event.date);
-  return d.getDay() - 1; // 0=Mon
-}
-
-function getEventSlot(event: EcoEvent): number {
-  return TIME_SLOTS.findIndex((t) => t === event.time);
-}
 
 export default function PreparationPage() {
   const [section, setSection] = useState<PageSection>("preparation");
@@ -144,23 +135,42 @@ export default function PreparationPage() {
     });
   }, [baseWeek]);
 
+  // Events réels depuis Supabase mt5_calendar
+  const [realEvents, setRealEvents] = useState<EcoEvent[]>([]);
+  const [loadingEvents, setLoadingEvents] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingEvents(true);
+    fetchWeekEvents(week.startDate, week.endDate)
+      .then((evts) => {
+        if (!cancelled) setRealEvents(evts);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingEvents(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [week.startDate, week.endDate]);
+
   // Filtres annonces (multiselect chips)
   const [filterImpact, setFilterImpact] = useState<Set<Impact>>(new Set());
   const [filterCurrency, setFilterCurrency] = useState<Set<string>>(new Set());
   const [filterCategory, setFilterCategory] = useState<Set<EventCategory>>(new Set());
 
   const availableCurrencies = useMemo(
-    () => Array.from(new Set(week.events.map((e) => e.currency))).sort(),
-    [week.events]
+    () => Array.from(new Set(realEvents.map((e) => e.currency))).sort(),
+    [realEvents]
   );
   const availableCategories = useMemo(() => {
     const set = new Set<EventCategory>();
-    week.events.forEach((e) => { if (e.category) set.add(e.category); });
+    realEvents.forEach((e) => { if (e.category) set.add(e.category); });
     return Array.from(set);
-  }, [week.events]);
+  }, [realEvents]);
 
   const filteredEvents = useMemo(() => {
-    return week.events.filter((ev) => {
+    return realEvents.filter((ev) => {
       if (filterImpact.size > 0 && !filterImpact.has(ev.impact)) return false;
       if (filterCurrency.size > 0 && !filterCurrency.has(ev.currency)) return false;
       if (filterCategory.size > 0) {
@@ -168,7 +178,27 @@ export default function PreparationPage() {
       }
       return true;
     });
-  }, [week.events, filterImpact, filterCurrency, filterCategory]);
+  }, [realEvents, filterImpact, filterCurrency, filterCategory]);
+
+  // Regrouper les events par jour de la semaine sélectionnée
+  const dayKeys = useMemo(() => {
+    const start = new Date(`${week.startDate}T00:00:00`);
+    return Array.from({ length: 5 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    });
+  }, [week.startDate]);
+
+  const eventsByDay = useMemo(() => {
+    const groups: EcoEvent[][] = dayKeys.map(() => []);
+    filteredEvents.forEach((ev) => {
+      const idx = dayKeys.indexOf(ev.date);
+      if (idx >= 0) groups[idx].push(ev);
+    });
+    groups.forEach((g) => g.sort((a, b) => a.time.localeCompare(b.time)));
+    return groups;
+  }, [filteredEvents, dayKeys]);
 
   const toggleFrom = <T,>(set: Set<T>, value: T) => {
     const next = new Set(set);
@@ -485,76 +515,113 @@ export default function PreparationPage() {
         )}
       </div>
 
-      {/* Calendar full width */}
-      <div className="card overflow-hidden">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr>
-              <th
-                className="text-[10px] font-bold tracking-wider uppercase text-left px-4 py-4 border-b"
-                style={{ color: "var(--text-muted)", borderColor: "var(--border-light)", width: "90px" }}
+      {/* Calendrier — 5 colonnes Lun→Ven, events verticalement triés par heure */}
+      <div
+        className="rounded-xl overflow-hidden"
+        style={{ background: "var(--bg-card)", border: "1px solid var(--border-light)" }}
+      >
+        <div className="grid grid-cols-5">
+          {DAYS.map((day, i) => (
+            <div
+              key={day}
+              className="flex flex-col"
+              style={{
+                borderLeft: i > 0 ? "1px solid var(--border-light)" : "none",
+                minHeight: 360,
+              }}
+            >
+              <div
+                className="flex items-baseline gap-2 px-4 py-3.5 border-b"
+                style={{ borderColor: "var(--border-light)", background: "var(--bg-elevated)" }}
               >
-                HORAIRE
-              </th>
-              {DAYS.map((day, i) => (
-                <th
-                  key={day}
-                  className="text-left px-4 py-4 border-b border-l"
-                  style={{ borderColor: "var(--border-light)", width: "20%" }}
-                >
-                  <span className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>{day}</span>
-                  <span className="ml-2 font-mono text-xs" style={{ color: "var(--text-muted)" }}>{dates[i]}</span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {TIME_SLOTS.map((time) => (
-              <tr key={time}>
-                <td
-                  className="px-4 py-5 text-xs font-mono border-b align-top"
-                  style={{ color: "var(--text-muted)", borderColor: "var(--border-light)" }}
-                >
-                  {time}
-                </td>
-                {DAYS.map((_, dayIndex) => {
-                  const event = filteredEvents.find(
-                    (e) => getEventDay(e) === dayIndex && getEventSlot(e) === TIME_SLOTS.indexOf(time)
-                  );
-                  return (
-                    <td
-                      key={dayIndex}
-                      className="px-3 py-3 border-b border-l align-top"
-                      style={{ borderColor: "var(--border-light)", minHeight: "70px" }}
+                <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                  {day}
+                </span>
+                <span className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>
+                  {dates[i]}
+                </span>
+              </div>
+              <div className="flex flex-col gap-2 p-2.5 flex-1">
+                {loadingEvents ? (
+                  <div
+                    className="rounded-md h-14"
+                    style={{ background: "var(--bg-elevated)", opacity: 0.4 }}
+                  />
+                ) : eventsByDay[i].length === 0 ? (
+                  <div
+                    className="flex items-center justify-center h-full text-xs"
+                    style={{ color: "var(--text-faint)", minHeight: 80 }}
+                  >
+                    —
+                  </div>
+                ) : (
+                  eventsByDay[i].map((event) => (
+                    <div
+                      key={event.id}
+                      className="w-full text-left p-2.5 rounded-lg border-l-[3px] transition-all hover:shadow-sm cursor-pointer"
+                      style={{
+                        borderLeftColor:
+                          event.impact === "high"
+                            ? "var(--bear)"
+                            : event.impact === "medium"
+                            ? "var(--accent)"
+                            : "var(--text-faint)",
+                        background: "var(--bg-elevated)",
+                      }}
                     >
-                      {event && (
-                        <div
-                          className="w-full text-left p-3 rounded-lg border-l-[3px] transition-all hover:shadow-sm cursor-pointer"
+                      <div
+                        className="text-[10px] font-mono mb-1 flex items-center gap-1.5"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        <span
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-bold"
                           style={{
-                            borderLeftColor: event.impact === "high" ? "var(--bear)" : event.impact === "medium" ? "var(--accent)" : "var(--text-faint)",
-                            background: "var(--bg-elevated)",
+                            background:
+                              event.impact === "high"
+                                ? "var(--bear-bg)"
+                                : event.impact === "medium"
+                                ? "var(--neutral-bg)"
+                                : "var(--bg-muted)",
+                            color:
+                              event.impact === "high"
+                                ? "var(--bear)"
+                                : event.impact === "medium"
+                                ? "var(--neutral-color)"
+                                : "var(--text-muted)",
                           }}
                         >
-                          <div className="text-[10px] font-mono mb-1.5" style={{ color: "var(--text-muted)" }}>
-                            {event.currency} · {event.time}
-                          </div>
-                          <div className="text-sm font-medium leading-snug">
-                            {event.title}
-                          </div>
-                          {event.forecast && (
-                            <div className="text-[10px] font-mono mt-1.5" style={{ color: "var(--text-muted)" }}>
-                              Cons. {event.forecast} {event.previous && `· Prec. ${event.previous}`}
-                            </div>
-                          )}
+                          {event.currency}
+                        </span>
+                        <span>·</span>
+                        <span>{event.time}</span>
+                      </div>
+                      <div className="text-[13px] font-medium leading-snug">
+                        {event.title}
+                      </div>
+                      {event.forecast && (
+                        <div
+                          className="text-[10px] font-mono mt-1"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          Cons. {event.forecast}
+                          {event.previous && ` · Préc. ${event.previous}`}
                         </div>
                       )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        {!loadingEvents && realEvents.length === 0 && (
+          <div
+            className="text-center text-xs py-3 border-t"
+            style={{ color: "var(--text-muted)", borderColor: "var(--border-light)" }}
+          >
+            Aucune annonce Supabase pour cette semaine (S{week.weekNumber})
+          </div>
+        )}
       </div>
 
       {/* Thèses macro — déplacé après le calendrier */}
