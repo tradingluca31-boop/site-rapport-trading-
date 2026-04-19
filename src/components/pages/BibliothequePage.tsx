@@ -77,7 +77,7 @@ export default function BibliothequePage() {
         </p>
 
         {/* Search */}
-        <div className="flex items-center gap-5 mb-10">
+        <div className="flex items-center gap-5 mb-16">
           <div className="relative flex-1 max-w-md">
             <Search
               size={15}
