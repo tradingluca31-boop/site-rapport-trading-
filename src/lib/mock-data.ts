@@ -11,11 +11,11 @@ export const currentWeek: WeeklyPrep = {
   thesisShortTerm: "Le marche attend un CPI US core en-dessous de 3.0% pour valider la sequence de baisses FED. Un print hot relance DXY et pese sur Gold/EURUSD. Cote BCE, Lagarde doit confirmer la pause apres la baisse de mars — toute hawkish surprise soutient EURUSD.",
   thesisLongTerm: "Regime desinflation US en deceleration, zone de fin de cycle de baisses FED (2-3 cuts prices 2026). EUR structurellement soutenu par differentiel de croissance favorable et fin d'assouplissement BCE prevue H2 2026. Or tenu par achats BC + flux refuge sur tensions geopolitiques. Biais moyen terme : EUR/USD long sur repli 1.0850, Gold long sur pullback 2980, DXY short sur rebond 103.",
   events: [
-    { id: "e1", date: "2026-04-13", time: "11:00", currency: "EUR", title: "Production industrielle Zone Euro", impact: "medium" },
-    { id: "e2", date: "2026-04-14", time: "14:30", currency: "USD", title: "CPI US (MoM & YoY, core & headline)", impact: "high", forecast: "0.2% / 3.1%", previous: "0.3% / 3.2%" },
-    { id: "e3", date: "2026-04-15", time: "20:00", currency: "USD", title: "FOMC — Decision & conference Powell", impact: "high" },
-    { id: "e4", date: "2026-04-16", time: "14:30", currency: "USD", title: "Jobless claims + Philly Fed", impact: "medium" },
-    { id: "e5", date: "2026-04-17", time: "16:00", currency: "USD", title: "Michigan — sentiment & inflation 1y", impact: "medium" },
+    { id: "e1", date: "2026-04-13", time: "11:00", currency: "EUR", title: "Production industrielle Zone Euro", impact: "medium", category: "croissance" },
+    { id: "e2", date: "2026-04-14", time: "14:30", currency: "USD", title: "CPI US (MoM & YoY, core & headline)", impact: "high", category: "inflation", forecast: "0.2% / 3.1%", previous: "0.3% / 3.2%" },
+    { id: "e3", date: "2026-04-15", time: "20:00", currency: "USD", title: "FOMC — Decision & conference Powell", impact: "high", category: "politique_monetaire" },
+    { id: "e4", date: "2026-04-16", time: "14:30", currency: "USD", title: "Jobless claims + Philly Fed", impact: "medium", category: "emploi" },
+    { id: "e5", date: "2026-04-17", time: "16:00", currency: "USD", title: "Michigan — sentiment & inflation 1y", impact: "medium", category: "sentiment" },
   ],
   scenarios: [
     // --- e1 : Production industrielle Zone Euro (11h00, EUR, medium) ---

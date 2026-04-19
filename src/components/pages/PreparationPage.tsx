@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { currentWeek } from "@/lib/mock-data";
-import { EcoEvent, Scenario, ScenarioType, WeeklyScenario, WeeklyScenarioKind } from "@/types";
+import { EcoEvent, EventCategory, Impact, Scenario, ScenarioType, WeeklyScenario, WeeklyScenarioKind } from "@/types";
 import {
   CheckSquare,
   Plus,
@@ -16,10 +16,28 @@ import {
   Clock,
   BookOpen,
   Rewind,
+  Filter,
+  X as XIcon,
 } from "lucide-react";
 
 type ViewMode = "timeline" | "liste" | "grille";
 type PageSection = "preparation" | "retro";
+
+const CATEGORY_LABELS: Record<EventCategory, string> = {
+  inflation: "Inflation",
+  emploi: "Marché du travail",
+  croissance: "Croissance",
+  politique_monetaire: "Politique monétaire",
+  discours: "Discours",
+  sentiment: "Sentiment",
+  autre: "Autre",
+};
+
+const IMPACT_LABELS: Record<Impact, { label: string; color: string; bg: string }> = {
+  high:   { label: "HAUT",  color: "var(--bear)",          bg: "var(--bear-bg)" },
+  medium: { label: "MOYEN", color: "var(--neutral-color)", bg: "var(--neutral-bg)" },
+  low:    { label: "BAS",   color: "var(--text-muted)",    bg: "var(--bg-muted)" },
+};
 
 const SCENARIO_COLORS: Record<ScenarioType, { color: string; bg: string; label: string }> = {
   bear: { color: "var(--bear)", bg: "var(--bear-bg)", label: "BEAR" },
@@ -53,6 +71,47 @@ export default function PreparationPage() {
 
   const week = currentWeek;
 
+  // Filtres annonces (multiselect chips)
+  const [filterImpact, setFilterImpact] = useState<Set<Impact>>(new Set());
+  const [filterCurrency, setFilterCurrency] = useState<Set<string>>(new Set());
+  const [filterCategory, setFilterCategory] = useState<Set<EventCategory>>(new Set());
+
+  const availableCurrencies = useMemo(
+    () => Array.from(new Set(week.events.map((e) => e.currency))).sort(),
+    [week.events]
+  );
+  const availableCategories = useMemo(() => {
+    const set = new Set<EventCategory>();
+    week.events.forEach((e) => { if (e.category) set.add(e.category); });
+    return Array.from(set);
+  }, [week.events]);
+
+  const filteredEvents = useMemo(() => {
+    return week.events.filter((ev) => {
+      if (filterImpact.size > 0 && !filterImpact.has(ev.impact)) return false;
+      if (filterCurrency.size > 0 && !filterCurrency.has(ev.currency)) return false;
+      if (filterCategory.size > 0) {
+        if (!ev.category || !filterCategory.has(ev.category)) return false;
+      }
+      return true;
+    });
+  }, [week.events, filterImpact, filterCurrency, filterCategory]);
+
+  const toggleFrom = <T,>(set: Set<T>, value: T) => {
+    const next = new Set(set);
+    if (next.has(value)) next.delete(value);
+    else next.add(value);
+    return next;
+  };
+
+  const resetFilters = () => {
+    setFilterImpact(new Set());
+    setFilterCurrency(new Set());
+    setFilterCategory(new Set());
+  };
+
+  const activeFilterCount = filterImpact.size + filterCurrency.size + filterCategory.size;
+
   const toggleEvent = (eventId: string) => {
     setOpenEvent((prev) => (prev === eventId ? null : eventId));
   };
@@ -66,7 +125,7 @@ export default function PreparationPage() {
     });
   };
 
-  const eventsWithScenarios = week.events.filter((e) =>
+  const eventsWithScenarios = filteredEvents.filter((e) =>
     week.scenarios.some((s) => s.eventId === e.id)
   );
 
@@ -189,6 +248,85 @@ export default function PreparationPage() {
         </div>
       </div>
 
+      {/* Filtres annonces */}
+      <div
+        className="rounded-xl mb-5 px-5 py-4"
+        style={{ background: "var(--bg-card)", border: "1px solid var(--border-light)" }}
+      >
+        <div className="flex items-center gap-3 mb-3">
+          <Filter size={14} style={{ color: "var(--text-muted)" }} />
+          <span
+            className="text-[10px] font-bold tracking-[1.5px] uppercase"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            Filtres
+          </span>
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+            {filteredEvents.length} / {week.events.length} annonces
+          </span>
+          {activeFilterCount > 0 && (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="ml-auto flex items-center gap-1 text-xs font-medium transition-colors hover:underline"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              <XIcon size={12} /> Réinitialiser ({activeFilterCount})
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2.5">
+          <FilterRow label="Importance">
+            {(["high", "medium", "low"] as Impact[]).map((imp) => {
+              const isActive = filterImpact.has(imp);
+              const meta = IMPACT_LABELS[imp];
+              return (
+                <FilterChip
+                  key={imp}
+                  active={isActive}
+                  onClick={() => setFilterImpact((s) => toggleFrom(s, imp))}
+                  color={meta.color}
+                  bg={meta.bg}
+                >
+                  <span
+                    className="w-1.5 h-1.5 rounded-full inline-block"
+                    style={{ background: meta.color }}
+                  />
+                  {meta.label}
+                </FilterChip>
+              );
+            })}
+          </FilterRow>
+
+          <FilterRow label="Pays">
+            {availableCurrencies.map((cur) => (
+              <FilterChip
+                key={cur}
+                active={filterCurrency.has(cur)}
+                onClick={() => setFilterCurrency((s) => toggleFrom(s, cur))}
+              >
+                {cur}
+              </FilterChip>
+            ))}
+          </FilterRow>
+
+          <FilterRow label="Catégorie">
+            {(["inflation", "emploi", "croissance", "politique_monetaire", "discours", "sentiment"] as EventCategory[])
+              .filter((c) => availableCategories.includes(c))
+              .map((cat) => (
+                <FilterChip
+                  key={cat}
+                  active={filterCategory.has(cat)}
+                  onClick={() => setFilterCategory((s) => toggleFrom(s, cat))}
+                >
+                  {CATEGORY_LABELS[cat]}
+                </FilterChip>
+              ))}
+          </FilterRow>
+        </div>
+      </div>
+
       {/* Calendar full width */}
       <div className="card overflow-hidden">
         <table className="w-full border-collapse">
@@ -222,7 +360,7 @@ export default function PreparationPage() {
                   {time}
                 </td>
                 {DAYS.map((_, dayIndex) => {
-                  const event = week.events.find(
+                  const event = filteredEvents.find(
                     (e) => getEventDay(e) === dayIndex && getEventSlot(e) === TIME_SLOTS.indexOf(time)
                   );
                   return (
@@ -367,6 +505,57 @@ export default function PreparationPage() {
 
       {section === "retro" && <RetroSection week={week} />}
     </div>
+  );
+}
+
+function FilterRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 flex-wrap">
+      <span
+        className="text-[10px] font-bold tracking-[1px] uppercase w-20 flex-shrink-0"
+        style={{ color: "var(--text-muted)" }}
+      >
+        {label}
+      </span>
+      <div className="flex items-center gap-1.5 flex-wrap">{children}</div>
+    </div>
+  );
+}
+
+function FilterChip({
+  active,
+  onClick,
+  children,
+  color,
+  bg,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  color?: string;
+  bg?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all"
+      style={
+        active
+          ? {
+              background: bg ?? "var(--accent-light)",
+              color: color ?? "var(--accent)",
+              border: `1px solid ${color ?? "var(--accent)"}`,
+            }
+          : {
+              background: "transparent",
+              color: "var(--text-secondary)",
+              border: "1px solid var(--border)",
+            }
+      }
+    >
+      {children}
+    </button>
   );
 }
 

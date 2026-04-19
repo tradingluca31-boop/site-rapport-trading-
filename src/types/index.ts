@@ -9,6 +9,14 @@ export type Impact = "high" | "medium" | "low";
 export type ScenarioType = "bull" | "bear" | "neutral";
 export type ReportType = "daily" | "weekly" | "fundamental";
 export type BiasDirection = "long" | "short" | "flat";
+export type EventCategory =
+  | "inflation"
+  | "emploi"
+  | "croissance"
+  | "politique_monetaire"
+  | "discours"
+  | "sentiment"
+  | "autre";
 
 export interface EcoEvent {
   id: string;
@@ -17,6 +25,7 @@ export interface EcoEvent {
   currency: string;
   title: string;
   impact: Impact;
+  category?: EventCategory;
   forecast?: string;
   previous?: string;
   actual?: string;
