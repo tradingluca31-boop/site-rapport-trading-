@@ -53,7 +53,7 @@ export default function RapportPage() {
   const totalQuestions = SECTIONS.reduce((a, s) => a + s.count, 0);
 
   return (
-    <div className="max-w-[900px] mx-auto px-6 py-6 animate-in">
+    <div className="max-w-[960px] mx-auto px-12 py-8 animate-in">
       {/* Header */}
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-3">

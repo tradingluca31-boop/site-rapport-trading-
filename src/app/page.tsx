@@ -11,6 +11,7 @@ import BibliothequePage from "@/components/pages/BibliothequePage";
 
 export default function Home() {
   const [activePage, setActivePage] = useState<PageId>("dashboard");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const subtitles: Partial<Record<PageId, string>> = {
     preparation: "Semaine 16",
@@ -19,9 +20,19 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar activePage={activePage} onNavigate={setActivePage} />
+      <Sidebar
+        activePage={activePage}
+        onNavigate={setActivePage}
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+      />
 
-      <main className="flex-1" style={{ marginLeft: "var(--sidebar-width)" }}>
+      <main
+        className="flex-1 transition-[margin] duration-200"
+        style={{
+          marginLeft: sidebarCollapsed ? "var(--sidebar-collapsed)" : "var(--sidebar-width)",
+        }}
+      >
         <TopBar activePage={activePage} subtitle={subtitles[activePage]} />
 
         {activePage === "dashboard" && <DashboardPage onNavigate={setActivePage} />}
@@ -29,7 +40,7 @@ export default function Home() {
         {activePage === "rapport" && <RapportPage />}
         {activePage === "bibliotheque" && <BibliothequePage />}
         {activePage === "parametres" && (
-          <div className="max-w-[900px] mx-auto px-6 py-12 text-center">
+          <div className="px-10 py-12 text-center">
             <h1 className="text-2xl font-light mb-2" style={{ fontFamily: "var(--font-display)" }}>
               Parametres
             </h1>

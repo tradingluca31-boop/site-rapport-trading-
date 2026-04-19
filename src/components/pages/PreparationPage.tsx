@@ -41,7 +41,7 @@ export default function PreparationPage() {
   });
 
   return (
-    <div className="px-8 py-6 animate-in">
+    <div className="px-12 py-8 animate-in">
       {/* Header */}
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-3">
@@ -56,14 +56,16 @@ export default function PreparationPage() {
         <div className="flex items-center gap-3">
           {/* View toggle */}
           <div className="flex border rounded-md overflow-hidden" style={{ borderColor: "var(--border)" }}>
-            {(["timeline", "liste", "grille"] as ViewMode[]).map((mode) => (
+            {(["timeline", "liste", "grille"] as ViewMode[]).map((mode, i) => (
               <button
+                type="button"
                 key={mode}
                 onClick={() => setViewMode(mode)}
-                className="px-3 py-1.5 text-xs font-medium capitalize transition-colors"
+                className="px-4 py-1.5 text-xs font-medium capitalize transition-colors"
                 style={{
                   background: viewMode === mode ? "var(--text-primary)" : "var(--bg-card)",
                   color: viewMode === mode ? "white" : "var(--text-secondary)",
+                  borderLeft: i > 0 ? "1px solid var(--border)" : "none",
                 }}
               >
                 {mode === "timeline" ? "Timeline" : mode === "liste" ? "Liste" : "Grille"}
