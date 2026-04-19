@@ -23,10 +23,10 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
   const scenarios = currentWeek.scenarios.filter((s) => s.eventId === nextEvent?.id);
 
   return (
-    <div className="p-10 animate-in" style={{ maxWidth: 1400, margin: "0 auto" }}>
+    <div className="px-8 py-8 animate-in">
       {/* Header */}
-      <div className="flex items-start justify-between mb-10">
-        <div>
+      <div className="flex items-start justify-between mb-14 gap-6">
+        <div className="min-w-0 flex-1">
           <h1 className="text-4xl" style={{ fontFamily: "var(--font-display)", fontWeight: 400 }}>
             Bonjour Luca.
           </h1>
@@ -34,7 +34,7 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
             Mardi 14 avril — 07:42 GMT+2 · CPI US a 14h30 · 1 prep validee cette semaine
           </p>
         </div>
-        <div className="flex gap-3 flex-shrink-0 ml-8">
+        <div className="flex gap-3 flex-shrink-0">
           <button
             type="button"
             onClick={() => onNavigate("preparation")}
@@ -57,7 +57,7 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-4 gap-5 mb-8">
+      <div className="grid grid-cols-4 gap-6 mb-12">
         <KpiCard label="PRECISION SCENARIOS 4S" value="68%" sub="+4pts vs 4s prec." subColor="var(--bull)" sparkline />
         <KpiCard label="SCENARIOS VALIDES" value="32/47" sub="ratio 68%" />
         <KpiCard label="WIN RATE (30J)" value="64%" sub="RR 1.85" subColor="var(--bull)" />
@@ -65,7 +65,7 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
       </div>
 
       {/* Prochain Catalyseur + Biais Instruments */}
-      <div className="grid grid-cols-[1fr_380px] gap-5 mb-8">
+      <div className="grid grid-cols-[1fr_380px] gap-6 mb-12">
         {/* Catalyseur */}
         <div className="card">
           <div className="card-header flex items-center justify-between">
@@ -194,7 +194,7 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
       </div>
 
       {/* These macro */}
-      <div className="card mb-8">
+      <div className="card mb-12">
         <div className="card-header flex items-center justify-between">
           <div>
             <h3 className="font-semibold text-sm">These macro en cours</h3>
@@ -229,7 +229,7 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
       </div>
 
       {/* Derniers rapports + Precision */}
-      <div className="grid grid-cols-[1fr_420px] gap-5">
+      <div className="grid grid-cols-[1fr_420px] gap-6">
         {/* Derniers rapports */}
         <div className="card">
           <div className="card-header flex items-center justify-between">
@@ -356,7 +356,7 @@ function KpiCard({
   sparkline?: boolean;
 }) {
   return (
-    <div className="card" style={{ padding: "20px 24px" }}>
+    <div className="card" style={{ padding: "26px 28px" }}>
       <div
         className="text-[10px] font-bold tracking-[1.5px] uppercase mb-3"
         style={{ color: "var(--text-muted)" }}

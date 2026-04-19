@@ -28,7 +28,7 @@ export default function Home() {
       />
 
       <main
-        className="flex-1 transition-[margin] duration-200"
+        className="flex-1 min-w-0 overflow-x-hidden transition-[margin] duration-200"
         style={{
           marginLeft: sidebarCollapsed ? "var(--sidebar-collapsed)" : "var(--sidebar-width)",
         }}
