@@ -2,13 +2,31 @@
 
 import { useState } from "react";
 import { currentWeek } from "@/lib/mock-data";
-import { EcoEvent } from "@/types";
+import { EcoEvent, Scenario, ScenarioType, WeeklyScenario, WeeklyScenarioKind } from "@/types";
 import {
   CheckSquare,
   Plus,
+  ChevronDown,
+  ChevronRight,
+  Check,
+  TrendingDown,
+  TrendingUp,
+  Minus,
 } from "lucide-react";
 
 type ViewMode = "timeline" | "liste" | "grille";
+
+const SCENARIO_COLORS: Record<ScenarioType, { color: string; bg: string; label: string }> = {
+  bear: { color: "var(--bear)", bg: "var(--bear-bg)", label: "BEAR" },
+  neutral: { color: "var(--neutral-color)", bg: "var(--neutral-bg)", label: "NEUTRE" },
+  bull: { color: "var(--bull)", bg: "var(--bull-bg)", label: "BULL" },
+};
+
+const WEEKLY_COLORS: Record<WeeklyScenarioKind, { color: string; bg: string; label: string }> = {
+  dovish: { color: "var(--bull)", bg: "var(--bull-bg)", label: "DOVISH" },
+  base: { color: "var(--neutral-color)", bg: "var(--neutral-bg)", label: "BASE" },
+  hawkish: { color: "var(--bear)", bg: "var(--bear-bg)", label: "HAWKISH" },
+};
 
 const DAYS = ["Lun", "Mar", "Mer", "Jeu", "Ven"];
 const TIME_SLOTS = ["09:00", "11:00", "13:00", "14:30", "16:00", "20:00"];
@@ -24,8 +42,27 @@ function getEventSlot(event: EcoEvent): number {
 
 export default function PreparationPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("timeline");
+  const [openEvent, setOpenEvent] = useState<string | null>(null);
+  const [validated, setValidated] = useState<Set<string>>(new Set());
 
   const week = currentWeek;
+
+  const toggleEvent = (eventId: string) => {
+    setOpenEvent((prev) => (prev === eventId ? null : eventId));
+  };
+
+  const toggleValidation = (scenarioId: string) => {
+    setValidated((prev) => {
+      const next = new Set(prev);
+      if (next.has(scenarioId)) next.delete(scenarioId);
+      else next.add(scenarioId);
+      return next;
+    });
+  };
+
+  const eventsWithScenarios = week.events.filter((e) =>
+    week.scenarios.some((s) => s.eventId === e.id)
+  );
 
   const dates = DAYS.map((d, i) => {
     const start = new Date(week.startDate);
@@ -186,8 +223,243 @@ export default function PreparationPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Scenarios par annonce (accordeon) */}
+      <div className="mt-10">
+        <div className="flex items-baseline justify-between mb-4">
+          <h2 className="text-xl font-light" style={{ fontFamily: "var(--font-display)" }}>
+            Scenarios par annonce
+          </h2>
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+            {validated.size} valide{validated.size > 1 ? "s" : ""} sur {week.scenarios.length + week.weeklyScenarios.length}
+          </span>
+        </div>
+        <div className="flex flex-col gap-2">
+          {eventsWithScenarios.map((event) => {
+            const eventScenarios = week.scenarios.filter((s) => s.eventId === event.id);
+            const isOpen = openEvent === event.id;
+            const validCount = eventScenarios.filter((s) => validated.has(s.id)).length;
+            return (
+              <div
+                key={event.id}
+                className="card overflow-hidden"
+                style={{ padding: 0 }}
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleEvent(event.id)}
+                  className="w-full flex items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-gray-50"
+                >
+                  {isOpen ? (
+                    <ChevronDown size={16} style={{ color: "var(--text-muted)" }} />
+                  ) : (
+                    <ChevronRight size={16} style={{ color: "var(--text-muted)" }} />
+                  )}
+                  <span
+                    className="text-[10px] font-bold px-2 py-0.5 rounded tracking-wider"
+                    style={{
+                      background: event.impact === "high" ? "var(--bear-bg)" : "var(--neutral-bg)",
+                      color: event.impact === "high" ? "var(--bear)" : "var(--neutral-color)",
+                    }}
+                  >
+                    {event.impact === "high" ? "HAUT" : event.impact === "medium" ? "MOYEN" : "BAS"}
+                  </span>
+                  <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+                    {event.currency} · {formatEventDate(event.date)} · {event.time}
+                  </span>
+                  <span className="text-sm font-medium flex-1">{event.title}</span>
+                  {validCount > 0 && (
+                    <span
+                      className="text-[10px] font-bold px-2 py-0.5 rounded"
+                      style={{ background: "var(--bull-bg)", color: "var(--bull)" }}
+                    >
+                      {validCount}/3 valide{validCount > 1 ? "s" : ""}
+                    </span>
+                  )}
+                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                    {eventScenarios.length} scenarios
+                  </span>
+                </button>
+                {isOpen && (
+                  <div
+                    className="grid grid-cols-3 gap-3 px-5 pb-5 pt-1 border-t"
+                    style={{ borderColor: "var(--border-light)" }}
+                  >
+                    {eventScenarios.map((sc) => (
+                      <ScenarioCard
+                        key={sc.id}
+                        scenario={sc}
+                        isValidated={validated.has(sc.id)}
+                        onToggle={() => toggleValidation(sc.id)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Scenarios semaine (globaux) */}
+      <div className="mt-10">
+        <div className="flex items-baseline justify-between mb-4">
+          <h2 className="text-xl font-light" style={{ fontFamily: "var(--font-display)" }}>
+            Scenarios semaine
+          </h2>
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+            Lecture globale — 3 chemins de la semaine
+          </span>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          {week.weeklyScenarios.map((ws) => (
+            <WeeklyScenarioCard
+              key={ws.id}
+              scenario={ws}
+              isValidated={validated.has(ws.id)}
+              onToggle={() => toggleValidation(ws.id)}
+            />
+          ))}
+        </div>
+      </div>
     </div>
   );
+}
+
+function ScenarioCard({
+  scenario,
+  isValidated,
+  onToggle,
+}: {
+  scenario: Scenario;
+  isValidated: boolean;
+  onToggle: () => void;
+}) {
+  const meta = SCENARIO_COLORS[scenario.type];
+  const Icon = scenario.type === "bear" ? TrendingDown : scenario.type === "bull" ? TrendingUp : Minus;
+  return (
+    <div
+      className="rounded-lg border p-4 flex flex-col gap-3 transition-all"
+      style={{
+        borderColor: isValidated ? meta.color : "var(--border)",
+        background: isValidated ? meta.bg : "var(--bg-card)",
+      }}
+    >
+      <div className="flex items-center justify-between">
+        <span
+          className="text-[10px] font-bold px-2 py-0.5 rounded tracking-wider flex items-center gap-1"
+          style={{ background: meta.bg, color: meta.color }}
+        >
+          <Icon size={11} />
+          {meta.label}
+        </span>
+        <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+          {scenario.probability}%
+        </span>
+      </div>
+      <div>
+        <div className="text-sm font-medium leading-snug mb-1.5">{scenario.title}</div>
+        <p className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+          {scenario.description}
+        </p>
+      </div>
+      {scenario.instruments.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {scenario.instruments.map((ins) => (
+            <span
+              key={ins}
+              className="text-[10px] font-mono px-1.5 py-0.5 rounded"
+              style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)" }}
+            >
+              {ins}
+            </span>
+          ))}
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={onToggle}
+        className="mt-auto w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors"
+        style={{
+          background: isValidated ? meta.color : "var(--bg-elevated)",
+          color: isValidated ? "white" : "var(--text-secondary)",
+        }}
+      >
+        <Check size={12} />
+        {isValidated ? "Valide" : "Valider"}
+      </button>
+    </div>
+  );
+}
+
+function WeeklyScenarioCard({
+  scenario,
+  isValidated,
+  onToggle,
+}: {
+  scenario: WeeklyScenario;
+  isValidated: boolean;
+  onToggle: () => void;
+}) {
+  const meta = WEEKLY_COLORS[scenario.kind];
+  return (
+    <div
+      className="rounded-lg border p-5 flex flex-col gap-3 transition-all"
+      style={{
+        borderColor: isValidated ? meta.color : "var(--border)",
+        background: isValidated ? meta.bg : "var(--bg-card)",
+      }}
+    >
+      <div className="flex items-center justify-between">
+        <span
+          className="text-[10px] font-bold px-2 py-0.5 rounded tracking-wider"
+          style={{ background: meta.bg, color: meta.color }}
+        >
+          {meta.label}
+        </span>
+        <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+          {scenario.probability}%
+        </span>
+      </div>
+      <div>
+        <div className="text-sm font-medium leading-snug mb-2">{scenario.title}</div>
+        <p className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+          {scenario.description}
+        </p>
+      </div>
+      {scenario.instruments.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {scenario.instruments.map((ins) => (
+            <span
+              key={ins}
+              className="text-[10px] font-mono px-1.5 py-0.5 rounded"
+              style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)" }}
+            >
+              {ins}
+            </span>
+          ))}
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={onToggle}
+        className="mt-auto w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors"
+        style={{
+          background: isValidated ? meta.color : "var(--bg-elevated)",
+          color: isValidated ? "white" : "var(--text-secondary)",
+        }}
+      >
+        <Check size={12} />
+        {isValidated ? "Valide" : "Valider"}
+      </button>
+    </div>
+  );
+}
+
+function formatEventDate(iso: string): string {
+  const d = new Date(iso);
+  const days = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+  return `${days[d.getDay()]} ${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}`;
 }
 
 function formatDateRange(start: string, end: string): string {

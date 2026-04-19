@@ -34,6 +34,18 @@ export interface Scenario {
   realizedPct?: number;
 }
 
+export type WeeklyScenarioKind = "dovish" | "base" | "hawkish";
+
+export interface WeeklyScenario {
+  id: string;
+  kind: WeeklyScenarioKind;
+  title: string;
+  description: string;
+  probability: number;
+  instruments: string[];
+  validated?: boolean;
+}
+
 export interface WeeklyPrep {
   id: string;
   weekNumber: number;
@@ -46,6 +58,7 @@ export interface WeeklyPrep {
   thesisLongTerm: string;
   events: EcoEvent[];
   scenarios: Scenario[];
+  weeklyScenarios: WeeklyScenario[];
 }
 
 export interface DailyReport {
