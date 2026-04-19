@@ -2,6 +2,7 @@
 
 import { PageId } from "@/types";
 import { currentWeek, recentReports } from "@/lib/mock-data";
+import { useEffect, useState } from "react";
 import {
   CalendarDays,
   FileText,
@@ -16,9 +17,33 @@ interface DashboardPageProps {
   onNavigate: (page: PageId) => void;
 }
 
+function formatTodayLine(): string {
+  const now = new Date();
+  const dateLabel = now.toLocaleDateString("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+  const timeLabel = now.toLocaleTimeString("fr-FR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const offsetMinutes = -now.getTimezoneOffset();
+  const offsetHours = offsetMinutes / 60;
+  const tz = `GMT${offsetHours >= 0 ? "+" : ""}${offsetHours}`;
+  const cap = dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1);
+  return `${cap} — ${timeLabel} ${tz}`;
+}
+
 export default function DashboardPage({ onNavigate }: DashboardPageProps) {
   const nextEvent = currentWeek.events.find((e) => e.impact === "high");
   const scenarios = currentWeek.scenarios.filter((s) => s.eventId === nextEvent?.id);
+  const [todayLine, setTodayLine] = useState<string>("");
+  useEffect(() => {
+    setTodayLine(formatTodayLine());
+    const id = setInterval(() => setTodayLine(formatTodayLine()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <div className="px-48 py-10 animate-in">
@@ -29,7 +54,7 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
             Bonjour Luca.
           </h1>
           <p className="mt-2 text-sm" style={{ color: "var(--text-secondary)" }}>
-            Mardi 14 avril — 07:42 GMT+2 · CPI US a 14h30 · 1 prep validee cette semaine
+            {todayLine || "\u00a0"} · CPI US a 14h30 · 1 prep validee cette semaine
           </p>
         </div>
         <div className="flex gap-3 flex-shrink-0">
