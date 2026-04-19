@@ -222,32 +222,6 @@ export default function PreparationPage() {
 
       {section === "preparation" && (<>
 
-      {/* These macro — nouveau visuel */}
-      <div className="card mb-10">
-        <div className="card-header flex items-center gap-3">
-          <BookOpen size={15} style={{ color: "var(--text-muted)" }} />
-          <span className="section-label">THESES MACRO EN COURS</span>
-        </div>
-        <div className="card-body grid grid-cols-2 gap-5">
-          <ThesisPanel
-            label="COURT TERME"
-            period={`Semaine ${week.weekNumber}`}
-            text={week.thesisShortTerm}
-            accent="var(--accent)"
-            tint="var(--accent-light)"
-            icon={<CalendarDays size={13} />}
-          />
-          <ThesisPanel
-            label="LONG TERME"
-            period="Q2 2026"
-            text={week.thesisLongTerm}
-            accent="var(--accent-gold)"
-            tint="var(--accent-gold-light)"
-            icon={<Clock size={13} />}
-          />
-        </div>
-      </div>
-
       {/* Filtres annonces */}
       <div
         className="rounded-xl mb-5 px-5 py-4"
@@ -400,6 +374,32 @@ export default function PreparationPage() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Thèses macro — déplacé après le calendrier */}
+      <div className="card mt-10">
+        <div className="card-header flex items-center gap-3">
+          <BookOpen size={15} style={{ color: "var(--text-muted)" }} />
+          <span className="section-label">THÈSES MACRO EN COURS</span>
+        </div>
+        <div className="card-body grid grid-cols-2 gap-5">
+          <ThesisPanel
+            label="COURT TERME"
+            period={`Semaine ${week.weekNumber}`}
+            text={week.thesisShortTerm}
+            accent="var(--accent)"
+            tint="var(--accent-light)"
+            icon={<CalendarDays size={13} />}
+          />
+          <ThesisPanel
+            label="LONG TERME"
+            period="Q2 2026"
+            text={week.thesisLongTerm}
+            accent="var(--accent-gold)"
+            tint="var(--accent-gold-light)"
+            icon={<Clock size={13} />}
+          />
+        </div>
       </div>
 
       {/* Scenarios par annonce (accordeon) */}
