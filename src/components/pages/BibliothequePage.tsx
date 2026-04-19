@@ -30,7 +30,7 @@ export default function BibliothequePage() {
   });
 
   return (
-    <div className="max-w-[1200px] mx-auto px-6 py-6 animate-in">
+    <div className="px-8 py-6 animate-in">
       {/* Header */}
       <div className="flex items-start justify-between mb-2">
         <span className="tag text-xs">{recentReports.length} entrees · archivees</span>

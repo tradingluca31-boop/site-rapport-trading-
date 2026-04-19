@@ -16,15 +16,14 @@ interface NavItem {
   icon: React.ReactNode;
   shortcut?: string;
   section: "workspaces" | "meta";
-  badge?: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "dashboard", label: "Tableau de bord", icon: <LayoutDashboard size={18} />, shortcut: "D", section: "workspaces" },
-  { id: "preparation", label: "Preparation semaine", icon: <CalendarRange size={18} />, shortcut: "P", section: "workspaces" },
-  { id: "rapport", label: "Rapport journalier", icon: <FileText size={18} />, shortcut: "J", section: "workspaces" },
-  { id: "bibliotheque", label: "Bibliotheque", icon: <Library size={18} />, shortcut: "B", section: "workspaces" },
-  { id: "parametres", label: "Parametres", icon: <Settings size={18} />, section: "meta" },
+  { id: "dashboard", label: "Tableau de bord", icon: <LayoutDashboard size={16} />, shortcut: "D", section: "workspaces" },
+  { id: "preparation", label: "Preparation semaine", icon: <CalendarRange size={16} />, shortcut: "P", section: "workspaces" },
+  { id: "rapport", label: "Rapport journalier", icon: <FileText size={16} />, shortcut: "J", section: "workspaces" },
+  { id: "bibliotheque", label: "Bibliotheque", icon: <Library size={16} />, shortcut: "B", section: "workspaces" },
+  { id: "parametres", label: "Parametres", icon: <Settings size={16} />, section: "meta" },
 ];
 
 interface SidebarProps {
@@ -37,42 +36,19 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
   const metaItems = NAV_ITEMS.filter((i) => i.section === "meta");
 
   return (
-    <aside
-      className="fixed top-0 left-0 bottom-0 z-50 flex flex-col border-r"
-      style={{
-        width: "var(--sidebar-width)",
-        background: "var(--bg-sidebar)",
-        borderColor: "var(--border-sidebar)",
-      }}
-    >
+    <aside className="sidebar">
       {/* Logo */}
-      <div className="px-4 pt-5 pb-4 border-b" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
-        <div className="flex items-center gap-3">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm"
-            style={{ background: "var(--accent)" }}
-          >
-            R
-          </div>
-          <div>
-            <div className="text-white font-semibold text-sm tracking-wide">RAPPORT TRADING</div>
-            <div className="text-xs" style={{ color: "var(--accent-gold)", opacity: 0.8 }}>
-              V0.1 · L. TRADING DESK
-            </div>
-          </div>
+      <div className="sidebar-logo">
+        <div className="sidebar-logo-icon">R</div>
+        <div className="sidebar-logo-text">
+          <span className="sidebar-logo-title">RAPPORT TRADING</span>
+          <span className="sidebar-logo-sub">V0.1 · L. TRADING DESK</span>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-2 py-3 overflow-y-auto">
-        <div className="mb-1 px-3">
-          <span
-            className="text-[9px] font-bold tracking-[2px] uppercase"
-            style={{ color: "rgba(138,135,128,0.35)" }}
-          >
-            WORKSPACES
-          </span>
-        </div>
+      <nav className="sidebar-nav">
+        <div className="sidebar-section-label">WORKSPACES</div>
 
         {workspaceItems.map((item) => {
           const isActive = activePage === item.id;
@@ -80,78 +56,43 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
             <button
               key={item.id}
               onClick={() => onNavigate(item.id)}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-md mb-0.5 transition-all text-left"
-              style={{
-                background: isActive ? "rgba(44, 82, 130, 0.12)" : "transparent",
-                color: isActive ? "#7EB0E6" : "var(--text-sidebar)",
-                borderLeft: isActive ? "3px solid #7EB0E6" : "3px solid transparent",
-              }}
+              className={`sidebar-link ${isActive ? "active" : ""}`}
             >
-              {item.icon}
-              <span className="text-[13px] font-medium flex-1">{item.label}</span>
+              <span className="sidebar-link-icon">{item.icon}</span>
+              <span className="sidebar-link-label">{item.label}</span>
               {item.shortcut && (
-                <span
-                  className="text-[10px] font-mono opacity-40"
-                  style={{ color: "var(--text-sidebar)" }}
-                >
-                  {item.shortcut}
-                </span>
+                <span className="sidebar-link-shortcut">{item.shortcut}</span>
               )}
             </button>
           );
         })}
 
-        <div className="mt-5 mb-1 px-3">
-          <span
-            className="text-[9px] font-bold tracking-[2px] uppercase"
-            style={{ color: "rgba(138,135,128,0.35)" }}
-          >
-            META
-          </span>
-        </div>
+        <div className="sidebar-section-label" style={{ marginTop: 24 }}>META</div>
 
-        <button
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-md mb-0.5 transition-all text-left"
-          style={{ color: "var(--text-sidebar)" }}
-        >
-          <Sparkles size={18} />
-          <span className="text-[13px] font-medium flex-1">Insights IA</span>
-          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded text-white" style={{ background: "var(--accent)" }}>
-            SOON
-          </span>
+        <button className="sidebar-link">
+          <span className="sidebar-link-icon"><Sparkles size={16} /></span>
+          <span className="sidebar-link-label">Insights IA</span>
+          <span className="sidebar-badge-soon">SOON</span>
         </button>
 
         {metaItems.map((item) => (
           <button
             key={item.id}
             onClick={() => onNavigate(item.id)}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-md mb-0.5 transition-all text-left"
-            style={{
-              background: activePage === item.id ? "rgba(44, 82, 130, 0.12)" : "transparent",
-              color: activePage === item.id ? "#7EB0E6" : "var(--text-sidebar)",
-            }}
+            className={`sidebar-link ${activePage === item.id ? "active" : ""}`}
           >
-            {item.icon}
-            <span className="text-[13px] font-medium">{item.label}</span>
+            <span className="sidebar-link-icon">{item.icon}</span>
+            <span className="sidebar-link-label">{item.label}</span>
           </button>
         ))}
       </nav>
 
       {/* User */}
-      <div className="px-4 py-3 border-t" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
-        <div className="flex items-center gap-3">
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold"
-            style={{ background: "var(--accent)", color: "white" }}
-          >
-            LT
-          </div>
-          <div>
-            <div className="text-white text-sm font-medium">Luca T.</div>
-            <div className="text-[11px]" style={{ color: "var(--text-sidebar)" }}>
-              Discretionary · Macro
-            </div>
-          </div>
+      <div className="sidebar-user">
+        <div className="sidebar-user-avatar">LT</div>
+        <div className="sidebar-user-info">
+          <span className="sidebar-user-name">Luca T.</span>
+          <span className="sidebar-user-role">Discretionary · Macro</span>
         </div>
       </div>
     </aside>
