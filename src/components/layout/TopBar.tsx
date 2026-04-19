@@ -19,7 +19,7 @@ interface TopBarProps {
 export default function TopBar({ activePage, subtitle }: TopBarProps) {
   return (
     <header
-      className="sticky top-0 z-40 flex items-center justify-between px-6 border-b"
+      className="sticky top-0 z-40 flex items-center justify-between px-12 border-b"
       style={{
         height: "var(--topbar-height)",
         background: "var(--bg)",

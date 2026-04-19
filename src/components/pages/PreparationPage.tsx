@@ -2,13 +2,10 @@
 
 import { useState } from "react";
 import { currentWeek } from "@/lib/mock-data";
-import { EcoEvent, Scenario } from "@/types";
+import { EcoEvent } from "@/types";
 import {
-  CalendarDays,
-  Plus,
   CheckSquare,
-  Pencil,
-  MoreHorizontal,
+  Plus,
 } from "lucide-react";
 
 type ViewMode = "timeline" | "liste" | "grille";
@@ -27,12 +24,8 @@ function getEventSlot(event: EcoEvent): number {
 
 export default function PreparationPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("timeline");
-  const [selectedEvent, setSelectedEvent] = useState<EcoEvent | null>(
-    currentWeek.events.find((e) => e.impact === "high") || null
-  );
 
   const week = currentWeek;
-  const scenarios = week.scenarios.filter((s) => s.eventId === selectedEvent?.id);
 
   const dates = DAYS.map((d, i) => {
     const start = new Date(week.startDate);
@@ -41,9 +34,9 @@ export default function PreparationPage() {
   });
 
   return (
-    <div className="px-12 py-8 animate-in">
+    <div className="px-12 py-10 animate-in">
       {/* Header */}
-      <div className="flex items-start justify-between mb-2">
+      <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
           <span className="tag font-mono text-xs">S{week.weekNumber} · {week.year}</span>
           <span
@@ -88,15 +81,15 @@ export default function PreparationPage() {
       </div>
 
       {/* Title */}
-      <h1 className="text-3xl font-light mb-1" style={{ fontFamily: "var(--font-display)" }}>
+      <h1 className="text-4xl font-light mb-2" style={{ fontFamily: "var(--font-display)" }}>
         Preparation de la semaine
       </h1>
-      <p className="text-sm mb-6" style={{ color: "var(--text-secondary)" }}>
+      <p className="text-sm mb-8" style={{ color: "var(--text-secondary)" }}>
         Semaine {week.weekNumber} — {formatDateRange(week.startDate, week.endDate)} · theme — <em>{week.theme}</em>
       </p>
 
       {/* These macro */}
-      <div className="card mb-6">
+      <div className="card mb-8">
         <div className="card-body grid grid-cols-2 gap-0">
           <div className="pr-5 border-r" style={{ borderColor: "var(--border-light)" }}>
             <div className="flex items-center gap-2 mb-3">
@@ -119,204 +112,79 @@ export default function PreparationPage() {
         </div>
       </div>
 
-      {/* Calendar + Scenario panel */}
-      <div className="grid grid-cols-[1fr_380px] gap-4">
-        {/* Calendar grid */}
-        <div className="card overflow-hidden">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr>
+      {/* Calendar full width */}
+      <div className="card overflow-hidden">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr>
+              <th
+                className="text-[10px] font-bold tracking-wider uppercase text-left px-4 py-4 border-b"
+                style={{ color: "var(--text-muted)", borderColor: "var(--border-light)", width: "90px" }}
+              >
+                HORAIRE
+              </th>
+              {DAYS.map((day, i) => (
                 <th
-                  className="text-[10px] font-bold tracking-wider uppercase text-left px-3 py-3 border-b"
-                  style={{ color: "var(--text-muted)", borderColor: "var(--border-light)", width: "80px" }}
+                  key={day}
+                  className="text-left px-4 py-4 border-b border-l"
+                  style={{ borderColor: "var(--border-light)", width: "20%" }}
                 >
-                  HORAIRE
+                  <span className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>{day}</span>
+                  <span className="ml-2 font-mono text-xs" style={{ color: "var(--text-muted)" }}>{dates[i]}</span>
                 </th>
-                {DAYS.map((day, i) => (
-                  <th
-                    key={day}
-                    className="text-left px-2 py-3 border-b border-l"
-                    style={{ borderColor: "var(--border-light)" }}
-                  >
-                    <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>{day}</span>
-                    <span className="ml-2 font-mono text-xs" style={{ color: "var(--text-muted)" }}>{dates[i]}</span>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {TIME_SLOTS.map((time) => (
-                <tr key={time}>
-                  <td
-                    className="px-3 py-4 text-xs font-mono border-b align-top"
-                    style={{ color: "var(--text-muted)", borderColor: "var(--border-light)" }}
-                  >
-                    {time}
-                  </td>
-                  {DAYS.map((_, dayIndex) => {
-                    const event = week.events.find(
-                      (e) => getEventDay(e) === dayIndex && getEventSlot(e) === TIME_SLOTS.indexOf(time)
-                    );
-                    return (
-                      <td
-                        key={dayIndex}
-                        className="px-2 py-2 border-b border-l align-top"
-                        style={{ borderColor: "var(--border-light)", minHeight: "60px" }}
-                      >
-                        {event && (
-                          <button
-                            onClick={() => setSelectedEvent(event)}
-                            className="w-full text-left p-2 rounded-md border-l-[3px] transition-all hover:shadow-sm"
-                            style={{
-                              borderLeftColor: event.impact === "high" ? "var(--bear)" : event.impact === "medium" ? "var(--accent)" : "var(--text-faint)",
-                              background: selectedEvent?.id === event.id ? "var(--accent-light)" : "var(--bg-elevated)",
-                              boxShadow: selectedEvent?.id === event.id ? "0 0 0 2px var(--accent)" : "none",
-                            }}
-                          >
-                            <div className="text-[10px] font-mono mb-1" style={{ color: "var(--text-muted)" }}>
-                              {event.currency} · {event.time}
-                            </div>
-                            <div className="text-xs font-medium leading-snug">
-                              {event.title}
-                            </div>
-                            {event.impact === "high" && (
-                              <div className="w-full h-0.5 mt-1.5 rounded" style={{ background: "var(--bear)" }} />
-                            )}
-                          </button>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
               ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Scenario panel */}
-        <div>
-          {selectedEvent ? (
-            <div className="card sticky top-16">
-              {/* Event header */}
-              <div className="card-header">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="tag tag-high font-bold flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--high-impact)" }} />
-                      HIGH
-                    </span>
-                    <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                      USD · MAR 14 14:30
-                    </span>
-                  </div>
-                  <button className="p-1 rounded hover:bg-gray-100">
-                    <MoreHorizontal size={14} style={{ color: "var(--text-muted)" }} />
-                  </button>
-                </div>
-                <h3 className="text-base font-medium" style={{ fontFamily: "var(--font-display)" }}>
-                  {selectedEvent.title}
-                </h3>
-                {selectedEvent.forecast && (
-                  <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                    Consensus <strong className="font-mono">{selectedEvent.forecast}</strong>
-                    {selectedEvent.previous && (
-                      <> · Prec. <span className="font-mono">{selectedEvent.previous}</span></>
-                    )}
-                  </p>
-                )}
-              </div>
-
-              {/* Scenarios */}
-              <div className="card-body">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] font-bold tracking-wider uppercase" style={{ color: "var(--text-secondary)" }}>
-                    SCENARIOS
-                  </span>
-                  <span className="text-[10px] font-mono" style={{ color: "var(--bear)" }}>
-                    Total {scenarios.reduce((a, s) => a + s.probability, 0)}%
-                  </span>
-                </div>
-
-                <div className="space-y-3">
-                  {scenarios.map((s) => (
-                    <ScenarioCard key={s.id} scenario={s} />
-                  ))}
-                </div>
-
-                <button
-                  className="w-full mt-3 flex items-center justify-center gap-2 py-2 text-xs font-medium rounded-md border border-dashed transition-colors hover:bg-gray-50"
-                  style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+            </tr>
+          </thead>
+          <tbody>
+            {TIME_SLOTS.map((time) => (
+              <tr key={time}>
+                <td
+                  className="px-4 py-5 text-xs font-mono border-b align-top"
+                  style={{ color: "var(--text-muted)", borderColor: "var(--border-light)" }}
                 >
-                  <Plus size={13} /> Ajouter un scenario
-                </button>
-
-                <button
-                  className="w-full mt-3 py-2.5 text-sm font-medium text-white rounded-md transition-colors"
-                  style={{ background: "var(--text-primary)" }}
-                >
-                  <span className="flex items-center justify-center gap-2">
-                    <CheckSquare size={14} /> Valider apres l&apos;annonce
-                  </span>
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="card card-body text-center py-12">
-              <CalendarDays size={32} className="mx-auto mb-3" style={{ color: "var(--text-faint)" }} />
-              <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                Selectionne un evenement dans le calendrier
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ScenarioCard({ scenario }: { scenario: Scenario }) {
-  const colors = {
-    bear: { bg: "var(--bear-bg)", color: "var(--bear)", bar: "var(--bear)" },
-    neutral: { bg: "var(--neutral-bg)", color: "var(--neutral-c)", bar: "var(--accent)" },
-    bull: { bg: "var(--bull-bg)", color: "var(--bull)", bar: "var(--bull)" },
-  };
-  const c = colors[scenario.type];
-
-  return (
-    <div className="p-3 rounded-lg border" style={{ borderColor: "var(--border-light)" }}>
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span
-            className="text-[10px] font-bold px-2 py-0.5 rounded"
-            style={{ background: c.bg, color: c.color }}
-          >
-            {scenario.type.toUpperCase()}
-          </span>
-          <span className="text-sm font-medium">{scenario.title}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-sm" style={{ color: "var(--text-secondary)" }}>
-            {scenario.probability}%
-          </span>
-          <button className="p-0.5 rounded hover:bg-gray-100">
-            <Pencil size={12} style={{ color: "var(--text-muted)" }} />
-          </button>
-        </div>
-      </div>
-      {/* Probability bar */}
-      <div className="h-1 rounded-full mb-2" style={{ background: "var(--bg-elevated)" }}>
-        <div
-          className="h-full rounded-full"
-          style={{ width: `${scenario.probability}%`, background: c.bar }}
-        />
-      </div>
-      <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>
-        {scenario.description}
-      </p>
-      <div className="flex gap-1.5">
-        {scenario.instruments.map((inst) => (
-          <span key={inst} className="tag text-[10px]">{inst}</span>
-        ))}
+                  {time}
+                </td>
+                {DAYS.map((_, dayIndex) => {
+                  const event = week.events.find(
+                    (e) => getEventDay(e) === dayIndex && getEventSlot(e) === TIME_SLOTS.indexOf(time)
+                  );
+                  return (
+                    <td
+                      key={dayIndex}
+                      className="px-3 py-3 border-b border-l align-top"
+                      style={{ borderColor: "var(--border-light)", minHeight: "70px" }}
+                    >
+                      {event && (
+                        <div
+                          className="w-full text-left p-3 rounded-lg border-l-[3px] transition-all hover:shadow-sm cursor-pointer"
+                          style={{
+                            borderLeftColor: event.impact === "high" ? "var(--bear)" : event.impact === "medium" ? "var(--accent)" : "var(--text-faint)",
+                            background: "var(--bg-elevated)",
+                          }}
+                        >
+                          <div className="text-[10px] font-mono mb-1.5" style={{ color: "var(--text-muted)" }}>
+                            {event.currency} · {event.time}
+                          </div>
+                          <div className="text-sm font-medium leading-snug">
+                            {event.title}
+                          </div>
+                          {event.forecast && (
+                            <div className="text-[10px] font-mono mt-1.5" style={{ color: "var(--text-muted)" }}>
+                              Cons. {event.forecast} {event.previous && `· Prec. ${event.previous}`}
+                            </div>
+                          )}
+                          {event.impact === "high" && (
+                            <div className="w-full h-0.5 mt-2 rounded" style={{ background: "var(--bear)" }} />
+                          )}
+                        </div>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

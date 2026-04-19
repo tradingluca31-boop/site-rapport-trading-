@@ -27,7 +27,6 @@ export default function RapportPage() {
   const [activeSection, setActiveSection] = useState<Section>("pre-marche");
   const report = currentDailyReport;
 
-  // Form state
   const [biasMacro, setBiasMacro] = useState(report.biasMacro);
   const [announcements, setAnnouncements] = useState(report.announcements);
   const [techLevels, setTechLevels] = useState(report.technicalLevels);
@@ -53,35 +52,36 @@ export default function RapportPage() {
   const totalQuestions = SECTIONS.reduce((a, s) => a + s.count, 0);
 
   return (
-    <div className="max-w-[960px] mx-auto px-12 py-8 animate-in">
+    <div style={{ maxWidth: 880, margin: "0 auto", padding: "40px 48px" }} className="animate-in">
       {/* Header */}
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center gap-3">
-          <span className="tag font-mono text-xs">{report.date.split("-").reverse().join("-").slice(0, 6).replace("-", " AVR ")}</span>
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="tag font-mono text-xs">14 AVR 2026</span>
           <span
-            className="text-[10px] font-bold px-2 py-0.5 rounded tracking-wider"
+            className="text-[10px] font-bold px-2.5 py-1 rounded tracking-wider"
             style={{ background: "var(--accent-light)", color: "var(--accent)" }}
           >
-            {report.dayOfWeek.toUpperCase()}
+            MARDI
           </span>
           {report.catalysts.map((c) => (
-            <span key={c} className="tag tag-high font-bold flex items-center gap-1">
+            <span key={c} className="tag tag-high font-bold flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--high-impact)" }} />
               {c}
             </span>
           ))}
         </div>
-        <div className="flex items-center gap-3">
-          {/* View toggle */}
+        <div className="flex items-center gap-3 flex-shrink-0 ml-6">
           <div className="flex border rounded-md overflow-hidden" style={{ borderColor: "var(--border)" }}>
-            {([["form", "A · Form"], ["chat", "B · Chat"], ["split", "C · Split"]] as [ViewMode, string][]).map(([mode, label]) => (
+            {([["form", "A · Form"], ["chat", "B · Chat"], ["split", "C · Split"]] as [ViewMode, string][]).map(([mode, label], i) => (
               <button
+                type="button"
                 key={mode}
                 onClick={() => setViewMode(mode)}
-                className="px-3 py-1.5 text-xs font-medium transition-colors"
+                className="px-4 py-2 text-xs font-medium transition-colors"
                 style={{
                   background: viewMode === mode ? "var(--text-primary)" : "var(--bg-card)",
                   color: viewMode === mode ? "white" : "var(--text-secondary)",
+                  borderLeft: i > 0 ? "1px solid var(--border)" : "none",
                 }}
               >
                 {label}
@@ -89,13 +89,15 @@ export default function RapportPage() {
             ))}
           </div>
           <button
-            className="flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-medium hover:bg-gray-50"
+            type="button"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border text-xs font-medium hover:bg-gray-50"
             style={{ borderColor: "var(--border)" }}
           >
             <Save size={13} /> Brouillon
           </button>
           <button
-            className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium text-white"
+            type="button"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium text-white"
             style={{ background: "var(--bull)" }}
           >
             <CheckCircle2 size={13} /> Cloturer la journee
@@ -104,30 +106,31 @@ export default function RapportPage() {
       </div>
 
       {/* Title */}
-      <h1 className="text-3xl font-light mb-1" style={{ fontFamily: "var(--font-display)" }}>
+      <h1 className="text-4xl mb-2" style={{ fontFamily: "var(--font-display)", fontWeight: 400 }}>
         Rapport journalier
       </h1>
-      <p className="text-sm mb-6" style={{ color: "var(--text-secondary)" }}>
+      <p className="text-sm mb-8" style={{ color: "var(--text-secondary)" }}>
         Discipline · Process · Memoire. — {Math.round((totalCompleted / totalQuestions) * 100)}% complete · {totalQuestions - totalCompleted} questions restantes
       </p>
 
       {/* Section tabs */}
-      <div className="grid grid-cols-4 gap-0 mb-8 border rounded-lg overflow-hidden" style={{ borderColor: "var(--border)" }}>
-        {SECTIONS.map((s) => {
+      <div className="grid grid-cols-4 mb-10 border rounded-lg overflow-hidden" style={{ borderColor: "var(--border)" }}>
+        {SECTIONS.map((s, i) => {
           const isActive = activeSection === s.id;
           const completed = completedSections[s.id];
           const pct = (completed / s.count) * 100;
           return (
             <button
+              type="button"
               key={s.id}
               onClick={() => setActiveSection(s.id)}
-              className="relative py-3 px-4 text-left transition-colors"
+              className="relative py-4 px-5 text-left transition-colors"
               style={{
                 background: isActive ? "var(--bg-card)" : "var(--bg-elevated)",
-                borderRight: "1px solid var(--border-light)",
+                borderLeft: i > 0 ? "1px solid var(--border)" : "none",
               }}
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-2">
                 <span
                   className="text-[10px] font-bold tracking-wider"
                   style={{ color: isActive ? "var(--text-primary)" : "var(--text-muted)" }}
@@ -138,7 +141,7 @@ export default function RapportPage() {
                   {completed}/{s.count}
                 </span>
               </div>
-              <div className="progress-bar mt-2">
+              <div className="progress-bar">
                 <div className="progress-fill" style={{ width: `${pct}%` }} />
               </div>
             </button>
@@ -147,8 +150,7 @@ export default function RapportPage() {
       </div>
 
       {/* Section content */}
-      <div className="space-y-8">
-        {/* PRE-MARCHE */}
+      <div>
         {activeSection === "pre-marche" && (
           <div className="animate-in">
             <SectionTitle label="PRE-MARCHE" count={4} />
@@ -171,10 +173,10 @@ export default function RapportPage() {
             </QuestionBlock>
 
             <QuestionBlock label="ETAT MENTAL & PHYSIQUE (SOMMEIL, STRESS, CLARTE) ?">
-              <div className="flex items-center gap-4">
-                <span className="text-xs" style={{ color: "var(--text-muted)" }}>Faible</span>
+              <div className="flex items-center gap-6 py-2">
+                <span className="text-xs flex-shrink-0" style={{ color: "var(--text-muted)" }}>Faible</span>
                 <div className="flex-1 flex flex-col items-center">
-                  <span className="text-2xl font-light font-mono mb-2">{mentalState}/10</span>
+                  <span className="text-3xl font-light font-mono mb-3">{mentalState}/10</span>
                   <input
                     type="range"
                     min={1}
@@ -183,13 +185,12 @@ export default function RapportPage() {
                     onChange={(e) => setMentalState(Number(e.target.value))}
                   />
                 </div>
-                <span className="text-xs" style={{ color: "var(--text-muted)" }}>Excellent</span>
+                <span className="text-xs flex-shrink-0" style={{ color: "var(--text-muted)" }}>Excellent</span>
               </div>
             </QuestionBlock>
           </div>
         )}
 
-        {/* EXECUTION */}
         {activeSection === "execution" && (
           <div className="animate-in">
             <SectionTitle label="EXECUTION" count={3} />
@@ -203,12 +204,13 @@ export default function RapportPage() {
             </QuestionBlock>
 
             <QuestionBlock label="LE SETUP RESPECTAIT-IL TON PLAN / CHECKLIST ?">
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 {([
                   [true, "Oui, plan respecte"],
                   [false, "Non, hors plan"],
                 ] as [boolean, string][]).map(([val, label]) => (
                   <button
+                    type="button"
                     key={label}
                     onClick={() => setPlanRespected(val)}
                     className="chip"
@@ -225,21 +227,22 @@ export default function RapportPage() {
             </QuestionBlock>
 
             <QuestionBlock label="QUALITE DE L'EXECUTION (ENTRY, GESTION, SORTIE) /5">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 {[1, 2, 3, 4, 5].map((n) => (
                   <button
+                    type="button"
                     key={n}
                     onClick={() => setExecQuality(n)}
                     className="p-1 transition-colors"
                   >
                     <Star
-                      size={24}
+                      size={28}
                       fill={n <= execQuality ? "var(--accent-gold)" : "none"}
                       stroke={n <= execQuality ? "var(--accent-gold)" : "var(--text-faint)"}
                     />
                   </button>
                 ))}
-                <span className="ml-2 font-mono text-sm" style={{ color: "var(--text-muted)" }}>
+                <span className="ml-3 font-mono text-sm" style={{ color: "var(--text-muted)" }}>
                   {execQuality}/5
                 </span>
               </div>
@@ -247,18 +250,18 @@ export default function RapportPage() {
           </div>
         )}
 
-        {/* EMOTIONNEL */}
         {activeSection === "emotionnel" && (
           <div className="animate-in">
             <SectionTitle label="EMOTIONNEL" count={2} />
 
             <QuestionBlock label="AS-TU RESSENTI FOMO, PEUR, REVENGE, OVERCONFIDENCE ?">
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-3">
                 {EMOTIONS.map((e) => {
                   const isActive = emotions.includes(e);
                   const isDanger = ["FOMO", "Revenge", "Overconfidence"].includes(e);
                   return (
                     <button
+                      type="button"
                       key={e}
                       onClick={() => {
                         if (isActive) setEmotions(emotions.filter((x) => x !== e));
@@ -279,11 +282,12 @@ export default function RapportPage() {
             </QuestionBlock>
 
             <QuestionBlock label="DECISION PRISE SOUS EMOTION OU SOUS PROCESS ?">
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 {(["process", "mix", "emotion"] as const).map((val) => {
                   const labels = { process: "Process pur", mix: "Mix", emotion: "Emotion dominante" };
                   return (
                     <button
+                      type="button"
                       key={val}
                       onClick={() => setDecisionProcess(val)}
                       className="chip"
@@ -302,7 +306,6 @@ export default function RapportPage() {
           </div>
         )}
 
-        {/* DEBRIEF */}
         {activeSection === "debrief" && (
           <div className="animate-in">
             <SectionTitle label="DEBRIEF" count={3} />
@@ -334,17 +337,17 @@ export default function RapportPage() {
 
             {/* Synthese */}
             <div
-              className="mt-6 p-5 rounded-lg border-2 border-dashed"
+              className="mt-10 p-6 rounded-xl border-2 border-dashed"
               style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}
             >
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-4">
                 <span className="section-label" style={{ color: "var(--text-secondary)" }}>SYNTHESE DU JOUR</span>
               </div>
               <textarea
                 value={synthesis}
                 onChange={(e) => setSynthesis(e.target.value)}
                 placeholder="Les 3 takeaways de la journee. Que retiens-tu ? Qu'est-ce qui change pour demain ?"
-                className="min-h-[120px]"
+                className="min-h-[140px]"
               />
             </div>
           </div>
@@ -356,7 +359,7 @@ export default function RapportPage() {
 
 function SectionTitle({ label, count }: { label: string; count: number }) {
   return (
-    <div className="flex items-center gap-2 mb-6 pb-3 border-b" style={{ borderColor: "var(--border-light)" }}>
+    <div className="flex items-center gap-3 mb-8 pb-4 border-b" style={{ borderColor: "var(--border-light)" }}>
       <span className="text-sm font-bold tracking-wider" style={{ color: "var(--text-primary)" }}>
         {label}
       </span>
@@ -369,8 +372,8 @@ function SectionTitle({ label, count }: { label: string; count: number }) {
 
 function QuestionBlock({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="mb-6">
-      <label className="block text-[11px] font-bold tracking-wider uppercase mb-3" style={{ color: "var(--text-secondary)" }}>
+    <div className="mb-8">
+      <label className="block text-[11px] font-bold tracking-wider uppercase mb-4" style={{ color: "var(--text-secondary)" }}>
         {label}
       </label>
       {children}
@@ -397,19 +400,20 @@ function MultiInput({
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {values.map((v, i) => (
-        <div key={i} className="flex items-center gap-2">
+        <div key={i} className="flex items-center gap-3">
           <input type="text" value={v} readOnly className="flex-1" />
           <button
+            type="button"
             onClick={() => onChange(values.filter((_, j) => j !== i))}
-            className="p-2 rounded hover:bg-gray-100"
+            className="p-2 rounded-md hover:bg-gray-100 flex-shrink-0"
           >
             <X size={14} style={{ color: "var(--text-muted)" }} />
           </button>
         </div>
       ))}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
         <input
           type="text"
           value={draft}
@@ -421,8 +425,9 @@ function MultiInput({
         />
       </div>
       <button
+        type="button"
         onClick={add}
-        className="flex items-center gap-1 text-xs font-medium px-2 py-1"
+        className="flex items-center gap-1.5 text-xs font-medium px-2 py-1.5"
         style={{ color: "var(--text-secondary)" }}
       >
         <Plus size={12} /> Ajouter

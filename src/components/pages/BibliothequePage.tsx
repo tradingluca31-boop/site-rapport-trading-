@@ -30,9 +30,9 @@ export default function BibliothequePage() {
   });
 
   return (
-    <div className="px-12 py-8 animate-in">
+    <div className="px-12 py-10 animate-in">
       {/* Header */}
-      <div className="flex items-start justify-between mb-2">
+      <div className="flex items-start justify-between mb-3">
         <span className="tag text-xs">{recentReports.length} entrees · archivees</span>
         <div className="flex gap-3">
           <button
@@ -50,15 +50,15 @@ export default function BibliothequePage() {
         </div>
       </div>
 
-      <h1 className="text-3xl font-light mb-1" style={{ fontFamily: "var(--font-display)" }}>
+      <h1 className="text-4xl font-light mb-2" style={{ fontFamily: "var(--font-display)" }}>
         Bibliotheque fondamentale
       </h1>
-      <p className="text-sm mb-6" style={{ color: "var(--text-secondary)" }}>
+      <p className="text-sm mb-8" style={{ color: "var(--text-secondary)" }}>
         Tes rapports quotidiens, hebdo et theses fondamentales — consultables, filtrables, chainables.
       </p>
 
       {/* Search + Filter */}
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex items-center gap-5 mb-8">
         <div className="relative flex-1 max-w-md">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }} />
           <input
@@ -95,7 +95,7 @@ export default function BibliothequePage() {
       </div>
 
       {/* Cards grid */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-4 gap-5">
         {filtered.map((r) => (
           <ReportCard key={r.id} report={r} />
         ))}
@@ -114,8 +114,8 @@ function ReportCard({ report }: { report: typeof recentReports[0] }) {
 
   return (
     <div
-      className="card p-4 flex flex-col hover:shadow-md transition-shadow cursor-pointer"
-      style={{ minHeight: "180px" }}
+      className="card p-5 flex flex-col hover:shadow-md transition-shadow cursor-pointer"
+      style={{ minHeight: "200px" }}
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
