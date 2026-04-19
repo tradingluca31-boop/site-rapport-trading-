@@ -20,6 +20,7 @@ fondamentaux, un suivi du sentiment de marché et un bilan hebdomadaire.
 | **📊 Dashboard** | Vue d'ensemble : KPI sur 30 jours, jours tradés, note moyenne, rappel du dernier rapport et checklist quotidienne. |
 | **📓 Journal quotidien** | Un **assistant de questions** (wizard) avec questions **conditionnelles**. Réponds simplement, les questions suivantes s'adaptent à tes réponses. |
 | **📅 Bilan hebdomadaire** | Synthèse de la semaine : statistiques automatiques (R net, discipline, note moyenne) + rédaction libre (points forts, erreurs, leçons, plan). |
+| **🗓️ Préparation de la semaine** | Planifie **semaine par semaine, jour par jour** : plan global, biais dominant, paires prioritaires. Pour chaque jour : heure, pays, événement macro, niveau d'impact (élevé/moyen/faible), devise, prévu/précédent, note. Templates rapides (NFP, CPI, FOMC, BCE, BoE, BoJ, SNB, BoC, RBA, RBNZ, OPEP…). |
 | **📈 Positions & captures** | Upload tes **screenshots de trades** (glisser-déposer), avec instrument, direction, R multiple, notes. Filtrage par instrument / direction / résultat. |
 | **📰 Rapports fondamentaux** | Rédige tes **rapports macro** quotidiens et hebdomadaires, avec biais directionnel (bullish / bearish / neutre), devises concernées, événements à venir, images. |
 | **🌡️ Sentiment de marché** | Onglets dédiés pour : **Fear & Greed**, **attentes banques centrales**, **devises non pondérées** (hebdo), **COT / positionnement**, autres. Images + notes. |

@@ -6,6 +6,7 @@ const STORAGE = {
   fundamentals: 'fx.fundamentals.v1',
   sentiment: 'fx.sentiment.v1',
   weekly: 'fx.weekly.v1',
+  preparation: 'fx.preparation.v1',
 };
 
 const load = (k, def = []) => {
@@ -80,6 +81,8 @@ function mountLayout({ page, title, subtitle, actions = '' }) {
           <a href="index.html" data-p="dashboard">📊  Dashboard</a>
           <a href="journal.html" data-p="journal">📓  Journal quotidien</a>
           <a href="bilan.html" data-p="bilan">📅  Bilan hebdomadaire</a>
+          <div class="sect">Préparation</div>
+          <a href="preparation.html" data-p="preparation">🗓️  Préparation de la semaine</a>
           <div class="sect">Analyse</div>
           <a href="positions.html" data-p="positions">📈  Positions & captures</a>
           <a href="fondamentaux.html" data-p="fondamentaux">📰  Rapports fondamentaux</a>
