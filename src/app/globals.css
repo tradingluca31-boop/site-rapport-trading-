@@ -6,8 +6,8 @@
   --bg: #f8f7f4;
   --bg-card: #ffffff;
   --bg-elevated: #f2f0ec;
-  --bg-sidebar: #1a1d28;
-  --bg-sidebar-hover: #252836;
+  --bg-sidebar: #f8f7f4;
+  --bg-sidebar-hover: #efece4;
   --bg-input: #ffffff;
   --bg-tag: #f0eee9;
 
@@ -16,8 +16,8 @@
   --text-secondary: #555555;
   --text-muted: #999999;
   --text-faint: #c4bfb4;
-  --text-sidebar: #8a8780;
-  --text-sidebar-active: #c49a4a;
+  --text-sidebar: #555555;
+  --text-sidebar-active: var(--accent);
 
   /* Accent */
   --accent: #2c5282;
@@ -39,7 +39,7 @@
   /* Borders */
   --border: #e8e2d8;
   --border-light: #f0ebe3;
-  --border-sidebar: rgba(255, 255, 255, 0.04);
+  --border-sidebar: rgba(0, 0, 0, 0.06);
 
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
@@ -254,7 +254,7 @@ input[type="range"]::-webkit-slider-thumb {
   background: var(--bg-sidebar);
   display: flex;
   flex-direction: column;
-  border-right: 1px solid rgba(255,255,255,0.06);
+  border-right: 1px solid var(--border-sidebar);
   transition: width 0.2s ease;
 }
 
@@ -290,7 +290,7 @@ input[type="range"]::-webkit-slider-thumb {
   align-items: center;
   gap: 12px;
   padding: 20px 20px 18px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid var(--border-sidebar);
 }
 
 .sidebar-logo-icon {
@@ -314,7 +314,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .sidebar-logo-title {
-  color: #e8e4dc;
+  color: var(--text-primary);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -365,7 +365,7 @@ input[type="range"]::-webkit-slider-thumb {
 
 .sidebar-link:hover {
   background: var(--bg-sidebar-hover);
-  color: #ccc;
+  color: var(--text-primary);
 }
 
 .sidebar-link.active {
@@ -416,7 +416,7 @@ input[type="range"]::-webkit-slider-thumb {
 
 .sidebar-toggle:hover {
   background: var(--bg-sidebar-hover);
-  color: #ccc;
+  color: var(--text-primary);
 }
 
 .sidebar-collapsed .sidebar-toggle {
@@ -429,7 +429,7 @@ input[type="range"]::-webkit-slider-thumb {
 
 .sidebar-divider {
   height: 1px;
-  background: rgba(255,255,255,0.06);
+  background: var(--border-sidebar);
   margin: 12px 8px;
 }
 
@@ -449,7 +449,7 @@ input[type="range"]::-webkit-slider-thumb {
   align-items: center;
   gap: 10px;
   padding: 16px 20px;
-  border-top: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid var(--border-sidebar);
 }
 
 .sidebar-user-avatar {
@@ -473,7 +473,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .sidebar-user-name {
-  color: white;
+  color: var(--text-primary);
   font-size: 13px;
   font-weight: 500;
 }
