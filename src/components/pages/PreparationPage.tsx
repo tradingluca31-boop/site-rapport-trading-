@@ -98,6 +98,17 @@ function toYMD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+function getValueTrend(forecast: string | undefined, actual: string | undefined): "up" | "down" | "eq" | null {
+  if (!forecast || !actual) return null;
+  const parse = (v: string) => parseFloat(v.replace(/[%MK\s,]/g, ""));
+  const a = parse(actual);
+  const f = parse(forecast);
+  if (isNaN(a) || isNaN(f)) return null;
+  if (a > f) return "up";
+  if (a < f) return "down";
+  return "eq";
+}
+
 export default function PreparationPage() {
   const [section, setSection] = useState<PageSection>("preparation");
   const [openEvent, setOpenEvent] = useState<string | null>(null);
@@ -548,194 +559,210 @@ export default function PreparationPage() {
         )}
       </div>
 
-      {/* Calendrier — 5 colonnes Lun→Ven, events verticalement triés par heure */}
+      {/* Calendrier — Variante 1 : table lignes 21st.dev style, groupée par jour, sticky headers */}
       <div
-        className="rounded-xl overflow-hidden"
-        style={{ background: "var(--bg-card)", border: "1px solid var(--border-light)" }}
+        className="rounded-xl overflow-hidden shadow-2xl"
+        style={{ background: "#111111", border: "1px solid #1f1f1f" }}
       >
-        <div className="grid grid-cols-5">
-          {DAYS.map((day, i) => {
-            const now = new Date();
-            const todayDDMM = `${now.getDate().toString().padStart(2, "0")}/${(now.getMonth() + 1).toString().padStart(2, "0")}`;
-            const isToday = dates[i] === todayDDMM;
-            return (
-              <div
-                key={day}
-                className="flex flex-col"
-                style={{
-                  borderLeft: i > 0 ? "1px solid var(--border-light)" : "none",
-                  minHeight: 480,
-                }}
-              >
-                <div
-                  className="flex items-center justify-between px-4 py-4 border-b"
-                  style={{
-                    borderColor: "var(--border-light)",
-                    background: isToday ? "var(--accent-bg, var(--bg-elevated))" : "var(--bg-elevated)",
-                  }}
-                >
-                  <div className="flex items-baseline gap-2">
-                    <span
-                      className="text-base font-bold tracking-wide"
-                      style={{ color: "var(--text-primary)" }}
-                    >
-                      {day}
-                    </span>
-                    <span
-                      className="font-mono text-[13px]"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {dates[i]}
-                    </span>
-                  </div>
-                  <span
-                    className="text-[11px] font-mono px-2 py-0.5 rounded"
-                    style={{
-                      background: "var(--bg-card)",
-                      color: "var(--text-muted)",
-                      border: "1px solid var(--border-light)",
-                    }}
-                  >
-                    {eventsByDay[i].length}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-2.5 p-3 flex-1">
-                  {loadingEvents ? (
+        <div className="overflow-x-auto">
+          <div className="min-w-[1000px]">
+            {/* Header colonnes */}
+            <div
+              className="grid gap-4 px-6 py-3 text-[11px] font-bold uppercase tracking-wider"
+              style={{
+                gridTemplateColumns: "80px 120px 100px 1fr 120px 120px 120px",
+                background: "#0d0d0d",
+                borderBottom: "1px solid #1f1f1f",
+                color: "#9ca3af",
+              }}
+            >
+              <div>Heure</div>
+              <div>Devise</div>
+              <div>Impact</div>
+              <div>Événement</div>
+              <div className="text-right">Consensus</div>
+              <div className="text-right">Précédent</div>
+              <div className="text-right">Réel</div>
+            </div>
+
+            {loadingEvents ? (
+              <div className="p-6">
+                <div className="h-10 rounded animate-pulse" style={{ background: "#1f1f1f" }} />
+              </div>
+            ) : filteredEvents.length === 0 ? (
+              <div className="px-4 py-16 text-center text-sm" style={{ color: "#9ca3af" }}>
+                Aucune annonce pour cette semaine avec ces filtres
+              </div>
+            ) : (
+              DAYS.map((day, i) => {
+                const dayEvents = eventsByDay[i];
+                if (dayEvents.length === 0) return null;
+                const now = new Date();
+                const todayDDMM = `${now.getDate().toString().padStart(2, "0")}/${(now.getMonth() + 1).toString().padStart(2, "0")}`;
+                const isToday = dates[i] === todayDDMM;
+                return (
+                  <div key={day}>
+                    {/* Séparateur de jour — sticky */}
                     <div
-                      className="rounded-lg h-20 animate-pulse"
-                      style={{ background: "var(--bg-elevated)", opacity: 0.5 }}
-                    />
-                  ) : eventsByDay[i].length === 0 ? (
-                    <div
-                      className="flex items-center justify-center h-full text-xs"
-                      style={{ color: "var(--text-faint)", minHeight: 120 }}
+                      className="sticky top-0 z-10 px-6 py-3"
+                      style={{
+                        background: "#0d0d0d",
+                        borderTop: "1px solid rgba(31,31,31,0.5)",
+                        borderBottom: "1px solid rgba(31,31,31,0.5)",
+                      }}
                     >
-                      Aucune annonce
+                      <div className="flex items-center gap-3">
+                        <h2 className="text-sm font-semibold" style={{ color: "#d1d5db" }}>
+                          {day} {dates[i]}
+                        </h2>
+                        {isToday && (
+                          <span
+                            className="text-[9px] font-bold tracking-[0.15em] px-2 py-0.5 rounded"
+                            style={{ background: "#22d3ee", color: "#0a0a0a" }}
+                          >
+                            AUJOURD&apos;HUI
+                          </span>
+                        )}
+                        <span
+                          className="ml-auto text-[11px] font-mono"
+                          style={{ color: "#6b7280" }}
+                        >
+                          {dayEvents.length} annonce{dayEvents.length > 1 ? "s" : ""}
+                        </span>
+                      </div>
                     </div>
-                  ) : (
-                    eventsByDay[i].map((event) => {
-                      const impactStyles =
+                    {/* Rows */}
+                    {dayEvents.map((event) => {
+                      const isHighImpact = event.impact === "high";
+                      const impactColors =
                         event.impact === "high"
-                          ? {
-                              borderLeft: "4px solid var(--bear)",
-                              background:
-                                "linear-gradient(90deg, var(--bear-bg) 0%, var(--bg-elevated) 60%)",
-                            }
+                          ? { bg: "rgba(239,68,68,0.2)", text: "#f87171", border: "rgba(239,68,68,0.3)", label: "HAUT" }
                           : event.impact === "medium"
-                          ? {
-                              borderLeft: "4px solid var(--neutral-color)",
-                              background: "var(--bg-elevated)",
-                            }
-                          : {
-                              borderLeft: "3px solid var(--border-light)",
-                              background: "var(--bg-elevated)",
-                              opacity: 0.85,
-                            };
-                      const impactBadge =
-                        event.impact === "high"
-                          ? { label: "HAUT", color: "var(--bear)", bg: "var(--bear-bg)" }
-                          : event.impact === "medium"
-                          ? { label: "MOY.", color: "var(--neutral-color)", bg: "var(--neutral-bg)" }
-                          : { label: "BAS", color: "var(--text-muted)", bg: "var(--bg-muted)" };
+                          ? { bg: "rgba(249,115,22,0.2)", text: "#fb923c", border: "rgba(249,115,22,0.3)", label: "MOY." }
+                          : { bg: "rgba(234,179,8,0.2)", text: "#facc15", border: "rgba(234,179,8,0.3)", label: "BAS" };
                       const flag = CURRENCY_FLAGS[event.currency] ?? "";
+                      const trend = getValueTrend(event.forecast, event.actual);
+                      const baseBg = isHighImpact ? "rgba(127,29,29,0.1)" : "transparent";
                       return (
                         <div
                           key={event.id}
-                          className="w-full text-left rounded-lg transition-all cursor-pointer hover:shadow-md"
+                          className="grid gap-4 px-6 py-3 cursor-pointer transition-all duration-150"
                           style={{
-                            ...impactStyles,
-                            padding: "12px 14px",
+                            gridTemplateColumns: "80px 120px 100px 1fr 120px 120px 120px",
+                            background: baseBg,
+                            borderBottom: "1px solid rgba(31,31,31,0.3)",
+                          }}
+                          onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLDivElement).style.background = "rgba(31,41,55,0.3)";
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLDivElement).style.background = baseBg;
                           }}
                         >
-                          {/* Header: devise + heure + badge impact */}
-                          <div className="flex items-center justify-between gap-2 mb-2">
-                            <div className="flex items-center gap-2">
-                              <span
-                                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[12px] font-bold"
-                                style={{
-                                  background: "var(--bg-card)",
-                                  color: "var(--text-primary)",
-                                  border: "1px solid var(--border-light)",
-                                }}
-                              >
-                                <span className="text-base leading-none">{flag}</span>
-                                <span className="font-mono tracking-wider">{event.currency}</span>
-                              </span>
-                              <span
-                                className="font-mono text-[13px] font-semibold"
-                                style={{ color: "var(--text-secondary)" }}
-                              >
-                                {event.time}
-                              </span>
-                            </div>
+                          {/* Heure */}
+                          <div className="text-sm font-mono flex items-center" style={{ color: "#d1d5db" }}>
+                            {event.time}
+                          </div>
+                          {/* Devise */}
+                          <div className="flex items-center">
                             <span
-                              className="text-[10px] font-bold px-1.5 py-0.5 rounded tracking-wider"
+                              className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-semibold"
                               style={{
-                                color: impactBadge.color,
-                                background: impactBadge.bg,
+                                background: "rgba(31,41,55,0.5)",
+                                borderColor: "#374151",
+                                color: "#e5e7eb",
                               }}
                             >
-                              {impactBadge.label}
+                              <span className="text-base leading-none">{flag}</span>
+                              <span className="font-mono tracking-wider">{event.currency}</span>
                             </span>
                           </div>
-
-                          {/* Titre */}
+                          {/* Impact */}
+                          <div className="flex items-center">
+                            <span
+                              className="inline-flex items-center justify-center rounded-md border px-2 py-1 text-xs font-bold tracking-wider"
+                              style={{
+                                background: impactColors.bg,
+                                color: impactColors.text,
+                                borderColor: impactColors.border,
+                              }}
+                            >
+                              {impactColors.label}
+                            </span>
+                          </div>
+                          {/* Événement */}
                           <div
-                            className="text-[14px] font-semibold leading-snug mb-2"
-                            style={{ color: "var(--text-primary)" }}
+                            className="text-sm flex items-center font-medium truncate"
+                            style={{ color: "#e5e7eb" }}
+                            title={event.title}
                           >
                             {event.title}
                           </div>
-
-                          {/* Valeurs */}
-                          {(event.actual || event.forecast || event.previous) && (
-                            <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                              {event.actual && (
-                                <span
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-mono"
-                                  style={{
-                                    background: "var(--bull-bg)",
-                                    color: "var(--bull)",
-                                  }}
-                                >
-                                  <span className="font-sans font-semibold">Réel</span>
-                                  <span>{event.actual}</span>
-                                </span>
-                              )}
-                              {event.forecast && (
-                                <span
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-mono"
-                                  style={{
-                                    background: "var(--bg-card)",
-                                    color: "var(--text-secondary)",
-                                    border: "1px solid var(--border-light)",
-                                  }}
-                                >
-                                  <span className="font-sans font-semibold">Cons.</span>
-                                  <span>{event.forecast}</span>
-                                </span>
-                              )}
-                              {event.previous && (
-                                <span
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-mono"
-                                  style={{
-                                    color: "var(--text-muted)",
-                                  }}
-                                >
-                                  <span className="font-sans font-semibold">Préc.</span>
-                                  <span>{event.previous}</span>
-                                </span>
-                              )}
-                            </div>
-                          )}
+                          {/* Consensus */}
+                          <div
+                            className="text-sm text-right flex items-center justify-end font-mono"
+                            style={{ color: event.forecast ? "#d1d5db" : "#4b5563" }}
+                          >
+                            {event.forecast ?? "—"}
+                          </div>
+                          {/* Précédent */}
+                          <div
+                            className="text-sm text-right flex items-center justify-end font-mono"
+                            style={{ color: event.previous ? "#9ca3af" : "#4b5563" }}
+                          >
+                            {event.previous ?? "—"}
+                          </div>
+                          {/* Réel */}
+                          <div
+                            className="text-sm text-right flex items-center justify-end font-mono font-semibold gap-1"
+                            style={{ color: event.actual ? "#ffffff" : "#4b5563" }}
+                          >
+                            <span>{event.actual ?? "—"}</span>
+                            {trend === "up" && <TrendingUp className="w-3 h-3" style={{ color: "#4ade80" }} />}
+                            {trend === "down" && <TrendingDown className="w-3 h-3" style={{ color: "#f87171" }} />}
+                            {trend === "eq" && <Minus className="w-3 h-3" style={{ color: "#6b7280" }} />}
+                          </div>
                         </div>
                       );
-                    })
-                  )}
+                    })}
+                  </div>
+                );
+              })
+            )}
+
+            {/* Footer légende */}
+            <div
+              className="px-6 py-4"
+              style={{ background: "#0d0d0d", borderTop: "1px solid #1f1f1f" }}
+            >
+              <div className="flex items-center justify-between text-xs" style={{ color: "#6b7280" }}>
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded-full border"
+                      style={{ background: "rgba(239,68,68,0.3)", borderColor: "rgba(239,68,68,0.5)" }}
+                    />
+                    <span>Impact Haut</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded-full border"
+                      style={{ background: "rgba(249,115,22,0.3)", borderColor: "rgba(249,115,22,0.5)" }}
+                    />
+                    <span>Impact Moyen</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded-full border"
+                      style={{ background: "rgba(234,179,8,0.3)", borderColor: "rgba(234,179,8,0.5)" }}
+                    />
+                    <span>Impact Bas</span>
+                  </div>
                 </div>
+                <div>{filteredEvents.length} annonce{filteredEvents.length > 1 ? "s" : ""} au total</div>
               </div>
-            );
-          })}
+            </div>
+          </div>
         </div>
         {!loadingEvents && realEvents.length === 0 && (
           <div
