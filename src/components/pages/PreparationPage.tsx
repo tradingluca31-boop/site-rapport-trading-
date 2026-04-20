@@ -1281,7 +1281,7 @@ function PillChip({
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all"
+      className="inline-flex items-center gap-2.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all"
       style={{
         background: active ? `${accent}15` : "var(--bg-card)",
         border: `1px solid ${active ? accent : "var(--border-light)"}`,
@@ -1291,8 +1291,8 @@ function PillChip({
       {dot && (
         <span
           style={{
-            width: 7,
-            height: 7,
+            width: 10,
+            height: 10,
             borderRadius: "50%",
             background: dot,
             flexShrink: 0,
