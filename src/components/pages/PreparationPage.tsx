@@ -19,6 +19,7 @@ import {
   BookOpen,
   Rewind,
   Filter,
+  Flame,
   X as XIcon,
 } from "lucide-react";
 
@@ -291,6 +292,67 @@ export default function PreparationPage() {
     week.scenarios.some((s) => s.eventId === e.id)
   );
 
+  // Event principal de la semaine : prochain HIGH impact (ou premier HIGH si passé)
+  const mainEvent = useMemo<EcoEvent | null>(() => {
+    const highs = realEvents.filter((e) => e.impact === "high");
+    if (highs.length === 0) return null;
+    const now = new Date();
+    const upcoming = highs
+      .map((e) => ({ e, t: new Date(`${e.date}T${e.time}:00`).getTime() }))
+      .filter((x) => !isNaN(x.t))
+      .sort((a, b) => a.t - b.t);
+    const next = upcoming.find((x) => x.t >= now.getTime());
+    return (next ?? upcoming[0])?.e ?? highs[0];
+  }, [realEvents]);
+
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const mainEventCountdown = useMemo(() => {
+    if (!mainEvent) return null;
+    const t = new Date(`${mainEvent.date}T${mainEvent.time}:00`).getTime();
+    if (isNaN(t)) return null;
+    const diffMs = t - nowTick;
+    if (diffMs <= 0) return "MAINTENANT";
+    const totalMin = Math.floor(diffMs / 60000);
+    const days = Math.floor(totalMin / 1440);
+    const hours = Math.floor((totalMin % 1440) / 60);
+    const min = totalMin % 60;
+    if (days > 0) return `DANS ${days}J ${hours}H`;
+    if (hours > 0) return `DANS ${hours}H ${min}MIN`;
+    return `DANS ${min}MIN`;
+  }, [mainEvent, nowTick]);
+
+  const mainEventFormatted = useMemo(() => {
+    if (!mainEvent) return null;
+    const d = new Date(`${mainEvent.date}T00:00:00`);
+    const days = ["DIMANCHE", "LUNDI", "MARDI", "MERCREDI", "JEUDI", "VENDREDI", "SAMEDI"];
+    const months = ["JANVIER", "FEVRIER", "MARS", "AVRIL", "MAI", "JUIN", "JUILLET", "AOUT", "SEPTEMBRE", "OCTOBRE", "NOVEMBRE", "DECEMBRE"];
+    return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]} · ${mainEvent.time} GMT+2`;
+  }, [mainEvent]);
+
+  const mainEventScenariosCount = useMemo(() => {
+    if (!mainEvent) return 0;
+    return week.scenarios.filter((s) => s.eventId === mainEvent.id).length;
+  }, [mainEvent, week.scenarios]);
+
+  // Jour "point chaud" = jour avec le plus d'events HIGH (>= 2)
+  const hotDayIdx = useMemo(() => {
+    let bestIdx = -1;
+    let bestCount = 1;
+    eventsByDay.forEach((grp, i) => {
+      const highs = grp.filter((e) => e.impact === "high").length;
+      if (highs >= 2 && highs > bestCount) {
+        bestCount = highs;
+        bestIdx = i;
+      }
+    });
+    return bestIdx;
+  }, [eventsByDay]);
+
   const dates = DAYS.map((d, i) => {
     const start = new Date(week.startDate);
     start.setDate(start.getDate() + i);
@@ -495,98 +557,247 @@ export default function PreparationPage() {
 
       {section === "preparation" && (<>
 
-      {/* Filtres annonces — dropdowns */}
-      <div
-        className="rounded-xl mb-5 px-5 py-4 flex items-center gap-3 flex-wrap"
-        style={{ background: "var(--bg-card)", border: "1px solid var(--border-light)" }}
-      >
-        <div className="flex items-center gap-2">
-          <Filter size={14} style={{ color: "var(--text-muted)" }} />
-          <span
-            className="text-[10px] font-bold tracking-[1.5px] uppercase"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            Filtres
-          </span>
-        </div>
+      {/* Filtres pills compactes (Option A) */}
+      <div className="flex items-center gap-1.5 mb-5 flex-wrap">
+        <span
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-semibold"
+          style={{
+            background: "var(--bg-card)",
+            border: "1px solid var(--border-light)",
+            color: "var(--text-secondary)",
+          }}
+        >
+          <Filter size={11} />
+          Filtres
+          {activeFilterCount > 0 && (
+            <span
+              className="inline-flex items-center justify-center text-[9px] font-bold rounded"
+              style={{
+                minWidth: 16,
+                padding: "1px 5px",
+                background: "var(--bg-elevated)",
+                color: "var(--text-muted)",
+              }}
+            >
+              {activeFilterCount}
+            </span>
+          )}
+        </span>
 
-        <FilterDropdown
-          label="Importance"
-          count={filterImpact.size}
-          options={ALL_IMPACTS.map((imp) => ({
-            value: imp,
-            selected: filterImpact.has(imp),
-            render: (
-              <div className="flex items-center gap-2.5">
-                <span
-                  className="w-2 h-2 rounded-full inline-block flex-shrink-0"
-                  style={{ background: IMPACT_LABELS[imp].color }}
-                />
-                <span>{IMPACT_LABELS[imp].label}</span>
-              </div>
-            ),
-            onToggle: () => setFilterImpact((s) => toggleFrom(s, imp)),
-          }))}
+        {ALL_IMPACTS.map((imp) => (
+          <PillChip
+            key={imp}
+            label={IMPACT_LABELS[imp].label}
+            active={filterImpact.has(imp)}
+            color={IMPACT_LABELS[imp].color}
+            onClick={() => setFilterImpact((s) => toggleFrom(s, imp))}
+          />
+        ))}
+
+        <span
+          className="inline-block mx-1"
+          style={{ width: 1, height: 18, background: "var(--border-light)" }}
         />
 
-        <FilterDropdown
-          label="Pays"
-          count={filterCurrency.size}
-          options={ALL_CURRENCIES.map((cur) => ({
-            value: cur,
-            selected: filterCurrency.has(cur),
-            render: (
-              <div className="flex items-center gap-2.5">
-                <span className="text-base leading-none flex-shrink-0">{CURRENCY_FLAGS[cur] ?? "🌐"}</span>
-                <span className="font-mono font-semibold">{cur}</span>
-              </div>
-            ),
-            onToggle: () => setFilterCurrency((s) => toggleFrom(s, cur)),
-          }))}
-        />
+        {availableCurrencies.length > 0
+          ? availableCurrencies.slice(0, 6).map((cur) => (
+              <PillChip
+                key={cur}
+                label={cur}
+                flag={CURRENCY_FLAGS[cur]}
+                active={filterCurrency.has(cur)}
+                color="var(--accent)"
+                onClick={() => setFilterCurrency((s) => toggleFrom(s, cur))}
+              />
+            ))
+          : ALL_CURRENCIES.slice(0, 6).map((cur) => (
+              <PillChip
+                key={cur}
+                label={cur}
+                flag={CURRENCY_FLAGS[cur]}
+                active={filterCurrency.has(cur)}
+                color="var(--accent)"
+                onClick={() => setFilterCurrency((s) => toggleFrom(s, cur))}
+              />
+            ))}
 
-        <FilterDropdown
-          label="Catégorie"
-          count={filterCategory.size}
-          options={ALL_CATEGORIES.map((cat) => ({
-            value: cat,
-            selected: filterCategory.has(cat),
-            render: <span>{CATEGORY_LABELS[cat]}</span>,
-            onToggle: () => setFilterCategory((s) => toggleFrom(s, cat)),
-          }))}
-        />
+        {availableCategories.length > 0 && (
+          <>
+            <span
+              className="inline-block mx-1"
+              style={{ width: 1, height: 18, background: "var(--border-light)" }}
+            />
+            {availableCategories.map((cat) => (
+              <PillChip
+                key={cat}
+                label={CATEGORY_LABELS[cat]}
+                active={filterCategory.has(cat)}
+                color="var(--accent-gold)"
+                onClick={() => setFilterCategory((s) => toggleFrom(s, cat))}
+              />
+            ))}
+          </>
+        )}
 
         <div className="flex-1" />
 
-        <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
-          {filteredEvents.length} / {realEvents.length} annonces
+        <span className="text-[11px] font-mono" style={{ color: "var(--text-muted)" }}>
+          {filteredEvents.length} / {realEvents.length}
         </span>
 
         {activeFilterCount > 0 && (
           <button
             type="button"
             onClick={resetFilters}
-            className="flex items-center gap-1 text-xs font-semibold transition-colors px-2.5 py-1.5 rounded-md"
+            className="inline-flex items-center gap-1 text-[11px] font-semibold transition-colors px-2 py-1 rounded-md"
             style={{ color: "var(--text-secondary)", background: "var(--bg-elevated)" }}
           >
-            <XIcon size={12} /> Réinitialiser ({activeFilterCount})
+            <XIcon size={11} /> Reset
           </button>
         )}
       </div>
 
-      {/* Calendrier — Variante 1 : table lignes 21st.dev style, groupée par jour, sticky headers */}
+      {/* Hero Event principal de la semaine (Option B) */}
+      {mainEvent && (
+        <div
+          className="rounded-xl mb-5 relative overflow-hidden"
+          style={{
+            padding: "26px 32px",
+            background: "linear-gradient(135deg, #1a1a1a 0%, #2c3e50 100%)",
+            color: "white",
+            boxShadow: "0 8px 24px rgba(10, 11, 14, 0.18)",
+          }}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Flame size={14} style={{ color: "#f8c471" }} />
+              <span
+                className="text-[10px] font-bold"
+                style={{ letterSpacing: 2, color: "#f8c471" }}
+              >
+                EVENT PRINCIPAL DE LA SEMAINE
+                {mainEventCountdown && (
+                  <>
+                    <span style={{ margin: "0 8px", opacity: 0.6 }}>·</span>
+                    <span>{mainEventCountdown}</span>
+                  </>
+                )}
+              </span>
+            </div>
+            <span
+              className="text-[10px] font-bold tracking-wider"
+              style={{
+                padding: "3px 8px",
+                borderRadius: 4,
+                background: "rgba(239,68,68,0.2)",
+                color: "#f87171",
+              }}
+            >
+              HIGH IMPACT
+            </span>
+          </div>
+          <div className="flex items-start gap-4 mb-5">
+            <span style={{ fontSize: 36, lineHeight: 1 }}>
+              {CURRENCY_FLAGS[mainEvent.currency] ?? "🌐"}
+            </span>
+            <div className="flex-1 min-w-0">
+              <div
+                className="text-[11px] font-mono mb-1"
+                style={{ opacity: 0.55 }}
+              >
+                {mainEventFormatted}
+              </div>
+              <h2
+                className="font-medium leading-tight mb-1.5"
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: 26,
+                }}
+              >
+                {mainEvent.title}
+              </h2>
+              <p className="text-[13px]" style={{ opacity: 0.82, maxWidth: 640 }}>
+                {mainEvent.forecast || mainEvent.previous ? (
+                  <>
+                    Consensus{" "}
+                    <strong style={{ color: "#f8c471" }}>
+                      {mainEvent.forecast ?? "—"}
+                    </strong>
+                    <span style={{ margin: "0 6px", opacity: 0.4 }}>·</span>
+                    précédent{" "}
+                    <strong style={{ opacity: 0.7 }}>
+                      {mainEvent.previous ?? "—"}
+                    </strong>
+                    .{" "}
+                  </>
+                ) : null}
+                {mainEventScenariosCount > 0
+                  ? `${mainEventScenariosCount} scénarios préparés.`
+                  : "Aucun scénario préparé pour le moment."}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                setOpenEvent(mainEvent.id);
+                document
+                  .getElementById(`scenarios-anchor`)
+                  ?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+              className="text-[12px] font-semibold transition-colors"
+              style={{
+                padding: "8px 16px",
+                borderRadius: 6,
+                background: "white",
+                color: "#1a1a1a",
+                border: "none",
+              }}
+            >
+              Voir les scénarios
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                document
+                  .getElementById("theses-anchor")
+                  ?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+              className="text-[12px] font-semibold transition-colors"
+              style={{
+                padding: "8px 16px",
+                borderRadius: 6,
+                background: "rgba(255,255,255,0.1)",
+                color: "white",
+                border: "1px solid rgba(255,255,255,0.2)",
+              }}
+            >
+              Éditer ma thèse
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Calendrier — Terminal Bloomberg (Option C) */}
       <div
         className="rounded-xl overflow-hidden shadow-2xl"
-        style={{ background: "#111111", border: "1px solid #1f1f1f" }}
+        style={{ background: "#0d0d0d", border: "1px solid #1f1f1f" }}
       >
-        {/* Header Card : titre + sous-titre */}
-        <div className="p-6" style={{ borderBottom: "1px solid #1f1f1f" }}>
-          <h1 className="text-2xl font-bold mb-1" style={{ color: "#ffffff" }}>
-            Calendrier Économique
-          </h1>
-          <p className="text-sm" style={{ color: "#9ca3af" }}>
-            Événements et indicateurs économiques — Semaine {week.weekNumber}
-          </p>
+        {/* Header Terminal */}
+        <div className="px-6 py-4" style={{ borderBottom: "1px solid #1f1f1f", background: "#0d0d0d" }}>
+          <div
+            className="text-[11px] font-bold"
+            style={{ letterSpacing: 2, color: "#f8c471" }}
+          >
+            CALENDRIER ECONOMIQUE · S{week.weekNumber}
+          </div>
+          <div
+            className="text-[10px] mt-1 font-mono"
+            style={{ color: "#9ca3af" }}
+          >
+            {formatDateRange(week.startDate, week.endDate)} · {filteredEvents.length} événement{filteredEvents.length > 1 ? "s" : ""} après filtres
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -627,19 +838,27 @@ export default function PreparationPage() {
                 const isToday = dates[i] === todayDDMM;
                 return (
                   <div key={day}>
-                    {/* Séparateur de jour — sticky */}
+                    {/* Séparateur de jour — POINT CHAUD highlight si jour avec >=2 HIGH */}
                     <div
                       className="sticky top-0 z-10 px-6 py-3"
                       style={{
-                        background: "#0d0d0d",
+                        background: hotDayIdx === i ? "rgba(127,29,29,0.15)" : "#0d0d0d",
                         borderTop: "1px solid rgba(31,31,31,0.5)",
                         borderBottom: "1px solid rgba(31,31,31,0.5)",
                       }}
                     >
                       <div className="flex items-center gap-3">
-                        <h2 className="text-sm font-semibold" style={{ color: "#d1d5db" }}>
+                        <h2 className="text-sm font-semibold" style={{ color: hotDayIdx === i ? "#fca5a5" : "#d1d5db" }}>
                           {formatDayFull(week.startDate, i)}
                         </h2>
+                        {hotDayIdx === i && (
+                          <span
+                            className="text-[9px] font-bold tracking-[0.15em] px-2 py-0.5 rounded"
+                            style={{ background: "#f8c471", color: "#0a0a0a" }}
+                          >
+                            POINT CHAUD
+                          </span>
+                        )}
                         {isToday && (
                           <span
                             className="text-[9px] font-bold tracking-[0.15em] px-2 py-0.5 rounded"
@@ -802,7 +1021,7 @@ export default function PreparationPage() {
       </div>
 
       {/* Thèses macro — déplacé après le calendrier */}
-      <div className="card mt-10">
+      <div id="theses-anchor" className="card mt-10">
         <div className="card-header flex items-center gap-3">
           <BookOpen size={15} style={{ color: "var(--text-muted)" }} />
           <span className="section-label">THÈSES MACRO EN COURS</span>
@@ -828,7 +1047,7 @@ export default function PreparationPage() {
       </div>
 
       {/* Scenarios par annonce (accordeon) */}
-      <div className="mt-10">
+      <div id="scenarios-anchor" className="mt-10">
         <div className="flex items-baseline justify-between mb-4">
           <h2 className="text-xl font-light" style={{ fontFamily: "var(--font-display)" }}>
             Scénarios par annonce
@@ -1038,6 +1257,37 @@ function FilterDropdown({
         </div>
       )}
     </div>
+  );
+}
+
+function PillChip({
+  label,
+  flag,
+  active,
+  color,
+  onClick,
+}: {
+  label: string;
+  flag?: string;
+  active: boolean;
+  color?: string;
+  onClick: () => void;
+}) {
+  const accent = color ?? "var(--accent)";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-semibold transition-all"
+      style={{
+        background: active ? `${accent}15` : "var(--bg-card)",
+        border: `1px solid ${active ? accent : "var(--border-light)"}`,
+        color: active ? accent : "var(--text-secondary)",
+      }}
+    >
+      {flag && <span style={{ fontSize: 12, lineHeight: 1 }}>{flag}</span>}
+      <span className="font-mono tracking-wider">{label}</span>
+    </button>
   );
 }
 
