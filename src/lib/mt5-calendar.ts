@@ -33,10 +33,25 @@ function normalizeImpact(importance: string): Impact {
   return "low";
 }
 
+const UNIT_MAP: Record<string, string> = {
+  currency: " M$",
+  percentage: "%",
+  percent: "%",
+  "%": "%",
+};
+
+function formatUnit(unit: string | null): string {
+  if (!unit) return "";
+  const key = unit.trim().toLowerCase();
+  if (key === "") return "";
+  if (UNIT_MAP[key] !== undefined) return UNIT_MAP[key];
+  // fallback : espace + unit si non reconnu
+  return ` ${unit.trim()}`;
+}
+
 function formatNumber(n: number | null, unit: string | null): string | undefined {
   if (n === null || n === undefined) return undefined;
-  const suffix = unit && unit.trim() !== "" ? unit : "";
-  return `${n}${suffix}`;
+  return `${n}${formatUnit(unit)}`;
 }
 
 function toLocalIsoDate(isoTs: string): string {
