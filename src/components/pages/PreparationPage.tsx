@@ -98,6 +98,14 @@ function toYMD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+function formatDayFull(weekStartDate: string, dayOffset: number): string {
+  const d = new Date(weekStartDate);
+  d.setDate(d.getDate() + dayOffset);
+  const days = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+  const months = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+  return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+
 function getValueTrend(forecast: string | undefined, actual: string | undefined): "up" | "down" | "eq" | null {
   if (!forecast || !actual) return null;
   const parse = (v: string) => parseFloat(v.replace(/[%MK\s,]/g, ""));
@@ -182,13 +190,20 @@ export default function PreparationPage() {
   // Events réels depuis Supabase mt5_calendar
   const [realEvents, setRealEvents] = useState<EcoEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
+  const [lastUpdateTime, setLastUpdateTime] = useState("—");
 
   useEffect(() => {
     let cancelled = false;
     setLoadingEvents(true);
     fetchWeekEvents(week.startDate, week.endDate)
       .then((evts) => {
-        if (!cancelled) setRealEvents(evts);
+        if (!cancelled) {
+          setRealEvents(evts);
+          const now = new Date();
+          setLastUpdateTime(
+            `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`
+          );
+        }
       })
       .finally(() => {
         if (!cancelled) setLoadingEvents(false);
@@ -564,6 +579,16 @@ export default function PreparationPage() {
         className="rounded-xl overflow-hidden shadow-2xl"
         style={{ background: "#111111", border: "1px solid #1f1f1f" }}
       >
+        {/* Header Card : titre + sous-titre */}
+        <div className="p-6" style={{ borderBottom: "1px solid #1f1f1f" }}>
+          <h1 className="text-2xl font-bold mb-1" style={{ color: "#ffffff" }}>
+            Calendrier Économique
+          </h1>
+          <p className="text-sm" style={{ color: "#9ca3af" }}>
+            Événements et indicateurs économiques — Semaine {week.weekNumber}
+          </p>
+        </div>
+
         <div className="overflow-x-auto">
           <div className="min-w-[1000px]">
             {/* Header colonnes */}
@@ -613,7 +638,7 @@ export default function PreparationPage() {
                     >
                       <div className="flex items-center gap-3">
                         <h2 className="text-sm font-semibold" style={{ color: "#d1d5db" }}>
-                          {day} {dates[i]}
+                          {formatDayFull(week.startDate, i)}
                         </h2>
                         {isToday && (
                           <span
@@ -759,7 +784,9 @@ export default function PreparationPage() {
                     <span>Impact Bas</span>
                   </div>
                 </div>
-                <div>{filteredEvents.length} annonce{filteredEvents.length > 1 ? "s" : ""} au total</div>
+                <div>
+                  {filteredEvents.length} annonce{filteredEvents.length > 1 ? "s" : ""} · Dernière mise à jour : {lastUpdateTime}
+                </div>
               </div>
             </div>
           </div>
