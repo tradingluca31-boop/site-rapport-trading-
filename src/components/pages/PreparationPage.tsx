@@ -554,98 +554,188 @@ export default function PreparationPage() {
         style={{ background: "var(--bg-card)", border: "1px solid var(--border-light)" }}
       >
         <div className="grid grid-cols-5">
-          {DAYS.map((day, i) => (
-            <div
-              key={day}
-              className="flex flex-col"
-              style={{
-                borderLeft: i > 0 ? "1px solid var(--border-light)" : "none",
-                minHeight: 360,
-              }}
-            >
+          {DAYS.map((day, i) => {
+            const now = new Date();
+            const todayDDMM = `${now.getDate().toString().padStart(2, "0")}/${(now.getMonth() + 1).toString().padStart(2, "0")}`;
+            const isToday = dates[i] === todayDDMM;
+            return (
               <div
-                className="flex items-baseline gap-2 px-4 py-3.5 border-b"
-                style={{ borderColor: "var(--border-light)", background: "var(--bg-elevated)" }}
+                key={day}
+                className="flex flex-col"
+                style={{
+                  borderLeft: i > 0 ? "1px solid var(--border-light)" : "none",
+                  minHeight: 480,
+                }}
               >
-                <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                  {day}
-                </span>
-                <span className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>
-                  {dates[i]}
-                </span>
-              </div>
-              <div className="flex flex-col gap-2 p-2.5 flex-1">
-                {loadingEvents ? (
-                  <div
-                    className="rounded-md h-14"
-                    style={{ background: "var(--bg-elevated)", opacity: 0.4 }}
-                  />
-                ) : eventsByDay[i].length === 0 ? (
-                  <div
-                    className="flex items-center justify-center h-full text-xs"
-                    style={{ color: "var(--text-faint)", minHeight: 80 }}
-                  >
-                    —
-                  </div>
-                ) : (
-                  eventsByDay[i].map((event) => (
-                    <div
-                      key={event.id}
-                      className="w-full text-left p-2.5 rounded-lg border-l-[3px] transition-all hover:shadow-sm cursor-pointer"
-                      style={{
-                        borderLeftColor:
-                          event.impact === "high"
-                            ? "var(--bear)"
-                            : event.impact === "medium"
-                            ? "var(--accent)"
-                            : "var(--text-faint)",
-                        background: "var(--bg-elevated)",
-                      }}
+                <div
+                  className="flex items-center justify-between px-4 py-4 border-b"
+                  style={{
+                    borderColor: "var(--border-light)",
+                    background: isToday ? "var(--accent-bg, var(--bg-elevated))" : "var(--bg-elevated)",
+                  }}
+                >
+                  <div className="flex items-baseline gap-2">
+                    <span
+                      className="text-base font-bold tracking-wide"
+                      style={{ color: "var(--text-primary)" }}
                     >
-                      <div
-                        className="text-[10px] font-mono mb-1 flex items-center gap-1.5"
-                        style={{ color: "var(--text-muted)" }}
-                      >
-                        <span
-                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-bold"
+                      {day}
+                    </span>
+                    <span
+                      className="font-mono text-[13px]"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      {dates[i]}
+                    </span>
+                  </div>
+                  <span
+                    className="text-[11px] font-mono px-2 py-0.5 rounded"
+                    style={{
+                      background: "var(--bg-card)",
+                      color: "var(--text-muted)",
+                      border: "1px solid var(--border-light)",
+                    }}
+                  >
+                    {eventsByDay[i].length}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-2.5 p-3 flex-1">
+                  {loadingEvents ? (
+                    <div
+                      className="rounded-lg h-20 animate-pulse"
+                      style={{ background: "var(--bg-elevated)", opacity: 0.5 }}
+                    />
+                  ) : eventsByDay[i].length === 0 ? (
+                    <div
+                      className="flex items-center justify-center h-full text-xs"
+                      style={{ color: "var(--text-faint)", minHeight: 120 }}
+                    >
+                      Aucune annonce
+                    </div>
+                  ) : (
+                    eventsByDay[i].map((event) => {
+                      const impactStyles =
+                        event.impact === "high"
+                          ? {
+                              borderLeft: "4px solid var(--bear)",
+                              background:
+                                "linear-gradient(90deg, var(--bear-bg) 0%, var(--bg-elevated) 60%)",
+                            }
+                          : event.impact === "medium"
+                          ? {
+                              borderLeft: "4px solid var(--neutral-color)",
+                              background: "var(--bg-elevated)",
+                            }
+                          : {
+                              borderLeft: "3px solid var(--border-light)",
+                              background: "var(--bg-elevated)",
+                              opacity: 0.85,
+                            };
+                      const impactBadge =
+                        event.impact === "high"
+                          ? { label: "HAUT", color: "var(--bear)", bg: "var(--bear-bg)" }
+                          : event.impact === "medium"
+                          ? { label: "MOY.", color: "var(--neutral-color)", bg: "var(--neutral-bg)" }
+                          : { label: "BAS", color: "var(--text-muted)", bg: "var(--bg-muted)" };
+                      const flag = CURRENCY_FLAGS[event.currency] ?? "";
+                      return (
+                        <div
+                          key={event.id}
+                          className="w-full text-left rounded-lg transition-all cursor-pointer hover:shadow-md"
                           style={{
-                            background:
-                              event.impact === "high"
-                                ? "var(--bear-bg)"
-                                : event.impact === "medium"
-                                ? "var(--neutral-bg)"
-                                : "var(--bg-muted)",
-                            color:
-                              event.impact === "high"
-                                ? "var(--bear)"
-                                : event.impact === "medium"
-                                ? "var(--neutral-color)"
-                                : "var(--text-muted)",
+                            ...impactStyles,
+                            padding: "12px 14px",
                           }}
                         >
-                          {event.currency}
-                        </span>
-                        <span>·</span>
-                        <span>{event.time}</span>
-                      </div>
-                      <div className="text-[13px] font-medium leading-snug">
-                        {event.title}
-                      </div>
-                      {event.forecast && (
-                        <div
-                          className="text-[10px] font-mono mt-1"
-                          style={{ color: "var(--text-muted)" }}
-                        >
-                          Cons. {event.forecast}
-                          {event.previous && ` · Préc. ${event.previous}`}
+                          {/* Header: devise + heure + badge impact */}
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[12px] font-bold"
+                                style={{
+                                  background: "var(--bg-card)",
+                                  color: "var(--text-primary)",
+                                  border: "1px solid var(--border-light)",
+                                }}
+                              >
+                                <span className="text-base leading-none">{flag}</span>
+                                <span className="font-mono tracking-wider">{event.currency}</span>
+                              </span>
+                              <span
+                                className="font-mono text-[13px] font-semibold"
+                                style={{ color: "var(--text-secondary)" }}
+                              >
+                                {event.time}
+                              </span>
+                            </div>
+                            <span
+                              className="text-[10px] font-bold px-1.5 py-0.5 rounded tracking-wider"
+                              style={{
+                                color: impactBadge.color,
+                                background: impactBadge.bg,
+                              }}
+                            >
+                              {impactBadge.label}
+                            </span>
+                          </div>
+
+                          {/* Titre */}
+                          <div
+                            className="text-[14px] font-semibold leading-snug mb-2"
+                            style={{ color: "var(--text-primary)" }}
+                          >
+                            {event.title}
+                          </div>
+
+                          {/* Valeurs */}
+                          {(event.actual || event.forecast || event.previous) && (
+                            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                              {event.actual && (
+                                <span
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-mono"
+                                  style={{
+                                    background: "var(--bull-bg)",
+                                    color: "var(--bull)",
+                                  }}
+                                >
+                                  <span className="font-sans font-semibold">Réel</span>
+                                  <span>{event.actual}</span>
+                                </span>
+                              )}
+                              {event.forecast && (
+                                <span
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-mono"
+                                  style={{
+                                    background: "var(--bg-card)",
+                                    color: "var(--text-secondary)",
+                                    border: "1px solid var(--border-light)",
+                                  }}
+                                >
+                                  <span className="font-sans font-semibold">Cons.</span>
+                                  <span>{event.forecast}</span>
+                                </span>
+                              )}
+                              {event.previous && (
+                                <span
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-mono"
+                                  style={{
+                                    color: "var(--text-muted)",
+                                  }}
+                                >
+                                  <span className="font-sans font-semibold">Préc.</span>
+                                  <span>{event.previous}</span>
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  ))
-                )}
+                      );
+                    })
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
         {!loadingEvents && realEvents.length === 0 && (
           <div
