@@ -538,7 +538,7 @@ export default function PreparationPage() {
       </p>
 
       {/* Onglets section */}
-      <div className="flex items-center gap-1 mb-10 border-b" style={{ borderColor: "var(--border)" }}>
+      <div className="flex items-center gap-1 mb-14 border-b" style={{ borderColor: "var(--border)" }}>
         {([
           ["preparation", "Préparation", CalendarDays],
           ["retro", "Fin de semaine", Rewind],
