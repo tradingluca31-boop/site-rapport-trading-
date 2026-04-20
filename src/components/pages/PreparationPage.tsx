@@ -150,6 +150,9 @@ export default function PreparationPage() {
   const weekPickerRef = useRef<HTMLDivElement>(null);
   const [customScenarios, setCustomScenarios] = useState<CustomScenario[]>([]);
   const [scenarioFormOpen, setScenarioFormOpen] = useState(false);
+  const [thesesOverride, setThesesOverride] = useState<{ shortTerm?: string; longTerm?: string }>({});
+  const [editingThesis, setEditingThesis] = useState<"short" | "long" | null>(null);
+  const [thesisDraft, setThesisDraft] = useState("");
   const [newScenario, setNewScenario] = useState<{
     eventId: string;
     type: ScenarioType;
@@ -262,6 +265,49 @@ export default function PreparationPage() {
       JSON.stringify(customScenarios)
     );
   }, [customScenarios, week.startDate]);
+
+  // Theses macro editables — persistees en localStorage par semaine
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem(`prep-theses-${week.startDate}`);
+      setThesesOverride(raw ? JSON.parse(raw) : {});
+    } catch {
+      setThesesOverride({});
+    }
+    setEditingThesis(null);
+  }, [week.startDate]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(
+      `prep-theses-${week.startDate}`,
+      JSON.stringify(thesesOverride)
+    );
+  }, [thesesOverride, week.startDate]);
+
+  const startEditThesis = (which: "short" | "long", currentText: string) => {
+    setEditingThesis(which);
+    setThesisDraft(currentText);
+  };
+
+  const saveThesis = () => {
+    if (!editingThesis) return;
+    const key = editingThesis === "short" ? "shortTerm" : "longTerm";
+    setThesesOverride((prev) => ({ ...prev, [key]: thesisDraft.trim() }));
+    setEditingThesis(null);
+    setThesisDraft("");
+  };
+
+  const resetThesis = (which: "short" | "long") => {
+    const key = which === "short" ? "shortTerm" : "longTerm";
+    setThesesOverride((prev) => {
+      const copy = { ...prev };
+      delete copy[key];
+      return copy;
+    });
+    setEditingThesis(null);
+  };
 
   const addCustomScenario = () => {
     if (!newScenario.eventId || !newScenario.title.trim()) return;
@@ -1110,18 +1156,32 @@ export default function PreparationPage() {
           <ThesisPanel
             label="COURT TERME"
             period={`Semaine ${week.weekNumber}`}
-            text={week.thesisShortTerm}
+            text={thesesOverride.shortTerm ?? week.thesisShortTerm}
             accent="var(--accent)"
             tint="var(--accent-light)"
             icon={<CalendarDays size={13} />}
+            isEditing={editingThesis === "short"}
+            draft={thesisDraft}
+            onDraftChange={setThesisDraft}
+            onEdit={() => startEditThesis("short", thesesOverride.shortTerm ?? week.thesisShortTerm)}
+            onSave={saveThesis}
+            onCancel={() => setEditingThesis(null)}
+            onReset={thesesOverride.shortTerm !== undefined ? () => resetThesis("short") : undefined}
           />
           <ThesisPanel
             label="LONG TERME"
             period="Q2 2026"
-            text={week.thesisLongTerm}
+            text={thesesOverride.longTerm ?? week.thesisLongTerm}
             accent="var(--accent-gold)"
             tint="var(--accent-gold-light)"
             icon={<Clock size={13} />}
+            isEditing={editingThesis === "long"}
+            draft={thesisDraft}
+            onDraftChange={setThesisDraft}
+            onEdit={() => startEditThesis("long", thesesOverride.longTerm ?? week.thesisLongTerm)}
+            onSave={saveThesis}
+            onCancel={() => setEditingThesis(null)}
+            onReset={thesesOverride.longTerm !== undefined ? () => resetThesis("long") : undefined}
           />
         </div>
       </div>
@@ -1574,6 +1634,13 @@ function ThesisPanel({
   accent,
   tint,
   icon,
+  isEditing,
+  draft,
+  onDraftChange,
+  onEdit,
+  onSave,
+  onCancel,
+  onReset,
 }: {
   label: string;
   period: string;
@@ -1581,6 +1648,13 @@ function ThesisPanel({
   accent: string;
   tint: string;
   icon: React.ReactNode;
+  isEditing: boolean;
+  draft: string;
+  onDraftChange: (v: string) => void;
+  onEdit: () => void;
+  onSave: () => void;
+  onCancel: () => void;
+  onReset?: () => void;
 }) {
   return (
     <div
@@ -1642,34 +1716,111 @@ function ThesisPanel({
             {period}
           </span>
         </div>
+        <div className="flex items-center gap-2 relative">
+          {!isEditing ? (
+            <>
+              {onReset && (
+                <button
+                  type="button"
+                  onClick={onReset}
+                  className="text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded transition-all"
+                  style={{
+                    color: "var(--text-muted)",
+                    background: "white",
+                    border: "1px solid var(--border-light)",
+                  }}
+                  title="Restaurer le texte par defaut"
+                >
+                  Reset
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onEdit}
+                className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded transition-all"
+                style={{
+                  color: accent,
+                  background: "white",
+                  border: `1px solid ${accent}40`,
+                }}
+              >
+                Modifier
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={onCancel}
+                className="text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded"
+                style={{
+                  color: "var(--text-muted)",
+                  background: "white",
+                  border: "1px solid var(--border-light)",
+                }}
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={onSave}
+                className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded"
+                style={{ color: "white", background: accent, border: "none" }}
+              >
+                Enregistrer
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="relative">
-        <span
-          className="absolute font-serif"
-          style={{
-            left: -36,
-            top: -20,
-            fontSize: 60,
-            color: accent,
-            opacity: 0.25,
-            lineHeight: 1,
-            fontFamily: "var(--font-display)",
-          }}
-        >
-          &ldquo;
-        </span>
-        <p
-          className="text-[18px] leading-[1.9]"
-          style={{
-            color: "var(--text-primary)",
-            fontFamily: "var(--font-display)",
-            fontWeight: 400,
-            position: "relative",
-          }}
-        >
-          {text}
-        </p>
+        {!isEditing && (
+          <span
+            className="absolute font-serif"
+            style={{
+              left: -36,
+              top: -20,
+              fontSize: 60,
+              color: accent,
+              opacity: 0.25,
+              lineHeight: 1,
+              fontFamily: "var(--font-display)",
+            }}
+          >
+            &ldquo;
+          </span>
+        )}
+        {isEditing ? (
+          <textarea
+            value={draft}
+            onChange={(e) => onDraftChange(e.target.value)}
+            autoFocus
+            rows={8}
+            aria-label={`Texte these ${label}`}
+            placeholder="Ecris ta these macro ici..."
+            className="w-full text-[16px] leading-[1.8] rounded-md p-3 outline-none resize-vertical"
+            style={{
+              color: "var(--text-primary)",
+              fontFamily: "var(--font-display)",
+              background: "white",
+              border: `1px solid ${accent}50`,
+              minHeight: 200,
+            }}
+          />
+        ) : (
+          <p
+            className="text-[18px] leading-[1.9]"
+            style={{
+              color: "var(--text-primary)",
+              fontFamily: "var(--font-display)",
+              fontWeight: 400,
+              position: "relative",
+            }}
+          >
+            {text}
+          </p>
+        )}
       </div>
     </div>
   );
