@@ -13,7 +13,19 @@ import {
   BarChart3,
   TrendingUp,
   TrendingDown,
+  Pencil,
+  Check,
+  X,
 } from "lucide-react";
+
+const THESES_STORAGE_KEY = "edgefx:theses-macro:v1";
+
+interface ThesesState {
+  shortTerm: string;
+  longTerm: string;
+  shortLabel: string;
+  longLabel: string;
+}
 
 interface DashboardPageProps {
   onNavigate: (page: PageId) => void;
@@ -47,11 +59,52 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
     summary: "",
   });
 
+  const defaultTheses: ThesesState = {
+    shortTerm: currentWeek.thesisShortTerm,
+    longTerm: currentWeek.thesisLongTerm,
+    shortLabel: `COURT TERME · S${currentWeek.weekNumber}`,
+    longLabel: "LONG TERME · Q2 2026",
+  };
+  const [theses, setTheses] = useState<ThesesState>(defaultTheses);
+  const [editingTheses, setEditingTheses] = useState(false);
+  const [draft, setDraft] = useState<ThesesState>(defaultTheses);
+
   useEffect(() => {
     setHeroDate(formatHeroDate());
     const id = setInterval(() => setHeroDate(formatHeroDate()), 60_000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(THESES_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<ThesesState>;
+        setTheses((prev) => ({ ...prev, ...parsed }));
+      }
+    } catch {
+      // ignore malformed storage
+    }
+  }, []);
+
+  function openThesesEditor() {
+    setDraft(theses);
+    setEditingTheses(true);
+  }
+
+  function cancelThesesEdit() {
+    setEditingTheses(false);
+  }
+
+  function saveTheses() {
+    setTheses(draft);
+    try {
+      localStorage.setItem(THESES_STORAGE_KEY, JSON.stringify(draft));
+    } catch {
+      // ignore quota errors
+    }
+    setEditingTheses(false);
+  }
 
   return (
     <div className="px-24 py-10 animate-in" style={{ maxWidth: 1400, margin: "0 auto" }}>
@@ -255,53 +308,227 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
 
         {/* Theses Macro */}
         <div className="card" style={{ padding: "20px 24px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-            <BookOpen size={14} style={{ color: "var(--text-muted)" }} />
-            <span className="section-label">THESES MACRO</span>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 10,
+              marginBottom: 14,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <BookOpen size={14} style={{ color: "var(--text-muted)" }} />
+              <span className="section-label">THESES MACRO</span>
+            </div>
+            {editingTheses ? (
+              <div style={{ display: "flex", gap: 6 }}>
+                <button
+                  type="button"
+                  onClick={cancelThesesEdit}
+                  aria-label="Annuler"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    padding: "4px 8px",
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 500,
+                    background: "transparent",
+                    color: "var(--text-muted)",
+                    border: "1px solid var(--border-light)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <X size={12} />
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={saveTheses}
+                  aria-label="Enregistrer"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    padding: "4px 10px",
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    background: "var(--text-primary)",
+                    color: "white",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <Check size={12} />
+                  Enregistrer
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={openThesesEditor}
+                aria-label="Editer les theses"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  padding: "4px 8px",
+                  borderRadius: 6,
+                  fontSize: 11,
+                  fontWeight: 500,
+                  color: "var(--text-secondary)",
+                  background: "transparent",
+                  border: "1px solid var(--border-light)",
+                  cursor: "pointer",
+                }}
+              >
+                <Pencil size={11} />
+                Editer
+              </button>
+            )}
           </div>
+
+          {/* COURT TERME */}
           <div style={{ marginBottom: 14 }}>
-            <div
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: 1.2,
-                color: "var(--accent)",
-                marginBottom: 5,
-              }}
-            >
-              COURT TERME · S{currentWeek.weekNumber}
-            </div>
-            <p
-              style={{
-                fontSize: 13,
-                color: "var(--text-secondary)",
-                lineHeight: 1.55,
-              }}
-            >
-              {currentWeek.thesisShortTerm}
-            </p>
+            {editingTheses ? (
+              <input
+                type="text"
+                aria-label="Titre court terme"
+                placeholder="COURT TERME · S17"
+                value={draft.shortLabel}
+                onChange={(e) => setDraft((d) => ({ ...d, shortLabel: e.target.value }))}
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: 1.2,
+                  color: "var(--accent)",
+                  marginBottom: 6,
+                  padding: "3px 6px",
+                  border: "1px solid var(--border-light)",
+                  borderRadius: 4,
+                  background: "var(--bg)",
+                  width: "100%",
+                  fontFamily: "inherit",
+                  textTransform: "uppercase",
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: 1.2,
+                  color: "var(--accent)",
+                  marginBottom: 5,
+                }}
+              >
+                {theses.shortLabel}
+              </div>
+            )}
+            {editingTheses ? (
+              <textarea
+                aria-label="These court terme"
+                placeholder="These court terme..."
+                value={draft.shortTerm}
+                onChange={(e) => setDraft((d) => ({ ...d, shortTerm: e.target.value }))}
+                rows={4}
+                style={{
+                  width: "100%",
+                  fontSize: 13,
+                  lineHeight: 1.55,
+                  color: "var(--text-primary)",
+                  padding: "8px 10px",
+                  border: "1px solid var(--border-light)",
+                  borderRadius: 6,
+                  background: "var(--bg)",
+                  fontFamily: "inherit",
+                  resize: "vertical",
+                }}
+              />
+            ) : (
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-secondary)",
+                  lineHeight: 1.55,
+                }}
+              >
+                {theses.shortTerm}
+              </p>
+            )}
           </div>
+
+          {/* LONG TERME */}
           <div>
-            <div
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: 1.2,
-                color: "var(--accent-gold)",
-                marginBottom: 5,
-              }}
-            >
-              LONG TERME · Q2 2026
-            </div>
-            <p
-              style={{
-                fontSize: 13,
-                color: "var(--text-secondary)",
-                lineHeight: 1.55,
-              }}
-            >
-              {currentWeek.thesisLongTerm}
-            </p>
+            {editingTheses ? (
+              <input
+                type="text"
+                aria-label="Titre long terme"
+                placeholder="LONG TERME · Q2 2026"
+                value={draft.longLabel}
+                onChange={(e) => setDraft((d) => ({ ...d, longLabel: e.target.value }))}
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: 1.2,
+                  color: "var(--accent-gold)",
+                  marginBottom: 6,
+                  padding: "3px 6px",
+                  border: "1px solid var(--border-light)",
+                  borderRadius: 4,
+                  background: "var(--bg)",
+                  width: "100%",
+                  fontFamily: "inherit",
+                  textTransform: "uppercase",
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: 1.2,
+                  color: "var(--accent-gold)",
+                  marginBottom: 5,
+                }}
+              >
+                {theses.longLabel}
+              </div>
+            )}
+            {editingTheses ? (
+              <textarea
+                aria-label="These long terme"
+                placeholder="These long terme..."
+                value={draft.longTerm}
+                onChange={(e) => setDraft((d) => ({ ...d, longTerm: e.target.value }))}
+                rows={5}
+                style={{
+                  width: "100%",
+                  fontSize: 13,
+                  lineHeight: 1.55,
+                  color: "var(--text-primary)",
+                  padding: "8px 10px",
+                  border: "1px solid var(--border-light)",
+                  borderRadius: 6,
+                  background: "var(--bg)",
+                  fontFamily: "inherit",
+                  resize: "vertical",
+                }}
+              />
+            ) : (
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-secondary)",
+                  lineHeight: 1.55,
+                }}
+              >
+                {theses.longTerm}
+              </p>
+            )}
           </div>
         </div>
       </div>
