@@ -58,6 +58,18 @@ const CURRENCY_FLAGS: Record<string, string> = {
   CNY: "🇨🇳",
 };
 
+const CURRENCY_COLORS: Record<string, string> = {
+  USD: "#2563eb",
+  EUR: "#7c3aed",
+  GBP: "#db2777",
+  JPY: "#dc2626",
+  CHF: "#ea580c",
+  AUD: "#16a34a",
+  NZD: "#0891b2",
+  CAD: "#c026d3",
+  CNY: "#eab308",
+};
+
 const IMPACT_LABELS: Record<Impact, { label: string; color: string; bg: string }> = {
   high:   { label: "HAUT",  color: "var(--bear)",          bg: "var(--bear-bg)" },
   medium: { label: "MOYEN", color: "var(--neutral-color)", bg: "var(--neutral-bg)" },
@@ -557,24 +569,26 @@ export default function PreparationPage() {
 
       {section === "preparation" && (<>
 
-      {/* Filtres pills compactes (Option A) */}
-      <div className="flex items-center gap-1.5 mb-5 flex-wrap">
-        <span
-          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-semibold"
-          style={{
-            background: "var(--bg-card)",
-            border: "1px solid var(--border-light)",
-            color: "var(--text-secondary)",
-          }}
-        >
-          <Filter size={11} />
-          Filtres
+      {/* Filtres — sections bien separees (IMPACT / DEVISES / CATEGORIE) */}
+      <div
+        className="mb-6"
+        style={{
+          padding: "18px 22px",
+          background: "var(--bg-card)",
+          border: "1px solid var(--border-light)",
+          borderRadius: 12,
+          boxShadow: "var(--shadow-sm)",
+        }}
+      >
+        <div className="flex items-center gap-2 mb-4">
+          <Filter size={13} style={{ color: "var(--text-muted)" }} />
+          <span className="section-label">FILTRES</span>
           {activeFilterCount > 0 && (
             <span
-              className="inline-flex items-center justify-center text-[9px] font-bold rounded"
+              className="inline-flex items-center justify-center text-[9px] font-bold rounded ml-1"
               style={{
                 minWidth: 16,
-                padding: "1px 5px",
+                padding: "1px 6px",
                 background: "var(--bg-elevated)",
                 color: "var(--text-muted)",
               }}
@@ -582,104 +596,99 @@ export default function PreparationPage() {
               {activeFilterCount}
             </span>
           )}
-        </span>
-
-        {ALL_IMPACTS.map((imp) => (
-          <PillChip
-            key={imp}
-            label={IMPACT_LABELS[imp].label}
-            active={filterImpact.has(imp)}
-            color={IMPACT_LABELS[imp].color}
-            onClick={() => setFilterImpact((s) => toggleFrom(s, imp))}
-          />
-        ))}
-
-        <span
-          className="inline-block mx-1"
-          style={{ width: 1, height: 18, background: "var(--border-light)" }}
-        />
-
-        {availableCurrencies.length > 0
-          ? availableCurrencies.slice(0, 6).map((cur) => (
-              <PillChip
-                key={cur}
-                label={cur}
-                flag={CURRENCY_FLAGS[cur]}
-                active={filterCurrency.has(cur)}
-                color="var(--accent)"
-                onClick={() => setFilterCurrency((s) => toggleFrom(s, cur))}
-              />
-            ))
-          : ALL_CURRENCIES.slice(0, 6).map((cur) => (
-              <PillChip
-                key={cur}
-                label={cur}
-                flag={CURRENCY_FLAGS[cur]}
-                active={filterCurrency.has(cur)}
-                color="var(--accent)"
-                onClick={() => setFilterCurrency((s) => toggleFrom(s, cur))}
-              />
-            ))}
-
-        {availableCategories.length > 0 && (
-          <>
-            <span
-              className="inline-block mx-1"
-              style={{ width: 1, height: 18, background: "var(--border-light)" }}
-            />
-            {availableCategories.map((cat) => (
-              <PillChip
-                key={cat}
-                label={CATEGORY_LABELS[cat]}
-                active={filterCategory.has(cat)}
-                color="var(--accent-gold)"
-                onClick={() => setFilterCategory((s) => toggleFrom(s, cat))}
-              />
-            ))}
-          </>
-        )}
-
-        <div className="flex-1" />
-
-        <span className="text-[11px] font-mono" style={{ color: "var(--text-muted)" }}>
-          {filteredEvents.length} / {realEvents.length}
-        </span>
-
-        {activeFilterCount > 0 && (
-          <button
-            type="button"
-            onClick={resetFilters}
-            className="inline-flex items-center gap-1 text-[11px] font-semibold transition-colors px-2 py-1 rounded-md"
-            style={{ color: "var(--text-secondary)", background: "var(--bg-elevated)" }}
+          <span
+            className="text-[11px] font-mono ml-auto"
+            style={{ color: "var(--text-muted)" }}
           >
-            <XIcon size={11} /> Reset
-          </button>
-        )}
+            {filteredEvents.length} / {realEvents.length} annonce{realEvents.length > 1 ? "s" : ""}
+          </span>
+          {activeFilterCount > 0 && (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="inline-flex items-center gap-1 text-[11px] font-semibold transition-colors px-2 py-1 rounded-md"
+              style={{ color: "var(--text-secondary)", background: "var(--bg-elevated)" }}
+            >
+              <XIcon size={11} /> Reset
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <FilterRow label="Impact">
+            {ALL_IMPACTS.map((imp) => (
+              <PillChip
+                key={imp}
+                label={IMPACT_LABELS[imp].label}
+                active={filterImpact.has(imp)}
+                color={IMPACT_LABELS[imp].color}
+                onClick={() => setFilterImpact((s) => toggleFrom(s, imp))}
+              />
+            ))}
+          </FilterRow>
+
+          <FilterRow label="Devises">
+            {(availableCurrencies.length > 0 ? availableCurrencies : ALL_CURRENCIES).map((cur) => (
+              <PillChip
+                key={cur}
+                label={cur}
+                dot={CURRENCY_COLORS[cur] ?? "var(--accent)"}
+                active={filterCurrency.has(cur)}
+                color={CURRENCY_COLORS[cur] ?? "var(--accent)"}
+                onClick={() => setFilterCurrency((s) => toggleFrom(s, cur))}
+              />
+            ))}
+          </FilterRow>
+
+          {availableCategories.length > 0 && (
+            <FilterRow label="Categorie">
+              {availableCategories.map((cat) => (
+                <PillChip
+                  key={cat}
+                  label={CATEGORY_LABELS[cat]}
+                  active={filterCategory.has(cat)}
+                  color="var(--accent-gold)"
+                  onClick={() => setFilterCategory((s) => toggleFrom(s, cat))}
+                />
+              ))}
+            </FilterRow>
+          )}
+        </div>
       </div>
 
-      {/* Hero Event principal de la semaine (Option B) */}
+      {/* Hero Event principal — version claire fond site */}
       {mainEvent && (
         <div
-          className="rounded-xl mb-5 relative overflow-hidden"
+          className="rounded-xl mb-6 relative overflow-hidden"
           style={{
-            padding: "26px 32px",
-            background: "linear-gradient(135deg, #1a1a1a 0%, #2c3e50 100%)",
-            color: "white",
-            boxShadow: "0 8px 24px rgba(10, 11, 14, 0.18)",
+            padding: "28px 32px",
+            background: "var(--bg-card)",
+            border: "1px solid var(--border)",
+            boxShadow: "var(--shadow-md)",
           }}
         >
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 3,
+              background: "linear-gradient(90deg, var(--accent-gold) 0%, var(--bear) 100%)",
+            }}
+          />
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Flame size={14} style={{ color: "#f8c471" }} />
+              <Flame size={13} style={{ color: "var(--accent-gold)" }} />
               <span
                 className="text-[10px] font-bold"
-                style={{ letterSpacing: 2, color: "#f8c471" }}
+                style={{ letterSpacing: 2, color: "var(--accent-gold)" }}
               >
                 EVENT PRINCIPAL DE LA SEMAINE
                 {mainEventCountdown && (
                   <>
-                    <span style={{ margin: "0 8px", opacity: 0.6 }}>·</span>
-                    <span>{mainEventCountdown}</span>
+                    <span style={{ margin: "0 8px", color: "var(--text-muted)" }}>·</span>
+                    <span style={{ color: "var(--text-secondary)" }}>{mainEventCountdown}</span>
                   </>
                 )}
               </span>
@@ -689,21 +698,38 @@ export default function PreparationPage() {
               style={{
                 padding: "3px 8px",
                 borderRadius: 4,
-                background: "rgba(239,68,68,0.2)",
-                color: "#f87171",
+                background: "var(--bear-bg)",
+                color: "var(--bear)",
               }}
             >
               HIGH IMPACT
             </span>
           </div>
           <div className="flex items-start gap-4 mb-5">
-            <span style={{ fontSize: 36, lineHeight: 1 }}>
-              {CURRENCY_FLAGS[mainEvent.currency] ?? "🌐"}
-            </span>
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 44,
+                height: 44,
+                borderRadius: 12,
+                background: `${CURRENCY_COLORS[mainEvent.currency] ?? "var(--accent)"}15`,
+                border: `1px solid ${CURRENCY_COLORS[mainEvent.currency] ?? "var(--accent)"}40`,
+                color: CURRENCY_COLORS[mainEvent.currency] ?? "var(--accent)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 13,
+                fontWeight: 700,
+                letterSpacing: 1,
+                flexShrink: 0,
+              }}
+            >
+              {mainEvent.currency}
+            </div>
             <div className="flex-1 min-w-0">
               <div
                 className="text-[11px] font-mono mb-1"
-                style={{ opacity: 0.55 }}
+                style={{ color: "var(--text-muted)" }}
               >
                 {mainEventFormatted}
               </div>
@@ -712,20 +738,21 @@ export default function PreparationPage() {
                 style={{
                   fontFamily: "var(--font-display)",
                   fontSize: 26,
+                  color: "var(--text-primary)",
                 }}
               >
                 {mainEvent.title}
               </h2>
-              <p className="text-[13px]" style={{ opacity: 0.82, maxWidth: 640 }}>
+              <p className="text-[13px]" style={{ color: "var(--text-secondary)", maxWidth: 640 }}>
                 {mainEvent.forecast || mainEvent.previous ? (
                   <>
                     Consensus{" "}
-                    <strong style={{ color: "#f8c471" }}>
+                    <strong style={{ color: "var(--accent-gold)" }}>
                       {mainEvent.forecast ?? "—"}
                     </strong>
-                    <span style={{ margin: "0 6px", opacity: 0.4 }}>·</span>
+                    <span style={{ margin: "0 6px", color: "var(--text-muted)" }}>·</span>
                     précédent{" "}
-                    <strong style={{ opacity: 0.7 }}>
+                    <strong style={{ color: "var(--text-primary)" }}>
                       {mainEvent.previous ?? "—"}
                     </strong>
                     .{" "}
@@ -750,8 +777,8 @@ export default function PreparationPage() {
               style={{
                 padding: "8px 16px",
                 borderRadius: 6,
-                background: "white",
-                color: "#1a1a1a",
+                background: "#0A0B0E",
+                color: "#FFFFFF",
                 border: "none",
               }}
             >
@@ -768,9 +795,9 @@ export default function PreparationPage() {
               style={{
                 padding: "8px 16px",
                 borderRadius: 6,
-                background: "rgba(255,255,255,0.1)",
-                color: "white",
-                border: "1px solid rgba(255,255,255,0.2)",
+                background: "var(--bg-elevated)",
+                color: "var(--text-primary)",
+                border: "1px solid var(--border)",
               }}
             >
               Éditer ma thèse
@@ -779,246 +806,222 @@ export default function PreparationPage() {
         </div>
       )}
 
-      {/* Calendrier — Terminal Bloomberg (Option C) */}
-      <div
-        className="rounded-xl overflow-hidden shadow-2xl"
-        style={{ background: "#0d0d0d", border: "1px solid #1f1f1f" }}
-      >
-        {/* Header Terminal */}
-        <div className="px-6 py-4" style={{ borderBottom: "1px solid #1f1f1f", background: "#0d0d0d" }}>
-          <div
-            className="text-[11px] font-bold"
-            style={{ letterSpacing: 2, color: "#f8c471" }}
-          >
-            CALENDRIER ECONOMIQUE · S{week.weekNumber}
-          </div>
-          <div
-            className="text-[10px] mt-1 font-mono"
-            style={{ color: "#9ca3af" }}
-          >
+      {/* Calendrier — cards claires groupees par jour */}
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <div className="section-label">CALENDRIER ECONOMIQUE · S{week.weekNumber}</div>
+          <div className="text-[11px] mt-1 font-mono" style={{ color: "var(--text-muted)" }}>
             {formatDateRange(week.startDate, week.endDate)} · {filteredEvents.length} événement{filteredEvents.length > 1 ? "s" : ""} après filtres
           </div>
         </div>
-
-        <div className="overflow-x-auto">
-          <div className="min-w-[1000px]">
-            {/* Header colonnes */}
-            <div
-              className="grid gap-4 px-6 py-3 text-[11px] font-bold uppercase tracking-wider"
-              style={{
-                gridTemplateColumns: "80px 120px 100px 1fr 120px 120px 120px",
-                background: "#0d0d0d",
-                borderBottom: "1px solid #1f1f1f",
-                color: "#9ca3af",
-              }}
-            >
-              <div>Heure</div>
-              <div>Devise</div>
-              <div>Impact</div>
-              <div>Événement</div>
-              <div className="text-right">Consensus</div>
-              <div className="text-right">Précédent</div>
-              <div className="text-right">Réel</div>
-            </div>
-
-            {loadingEvents ? (
-              <div className="p-6">
-                <div className="h-10 rounded animate-pulse" style={{ background: "#1f1f1f" }} />
-              </div>
-            ) : filteredEvents.length === 0 ? (
-              <div className="px-4 py-16 text-center text-sm" style={{ color: "#9ca3af" }}>
-                Aucune annonce pour cette semaine avec ces filtres
-              </div>
-            ) : (
-              DAYS.map((day, i) => {
-                const dayEvents = eventsByDay[i];
-                if (dayEvents.length === 0) return null;
-                const now = new Date();
-                const todayDDMM = `${now.getDate().toString().padStart(2, "0")}/${(now.getMonth() + 1).toString().padStart(2, "0")}`;
-                const isToday = dates[i] === todayDDMM;
-                return (
-                  <div key={day}>
-                    {/* Séparateur de jour — POINT CHAUD highlight si jour avec >=2 HIGH */}
-                    <div
-                      className="sticky top-0 z-10 px-6 py-3"
-                      style={{
-                        background: hotDayIdx === i ? "rgba(127,29,29,0.15)" : "#0d0d0d",
-                        borderTop: "1px solid rgba(31,31,31,0.5)",
-                        borderBottom: "1px solid rgba(31,31,31,0.5)",
-                      }}
-                    >
-                      <div className="flex items-center gap-3">
-                        <h2 className="text-sm font-semibold" style={{ color: hotDayIdx === i ? "#fca5a5" : "#d1d5db" }}>
-                          {formatDayFull(week.startDate, i)}
-                        </h2>
-                        {hotDayIdx === i && (
-                          <span
-                            className="text-[9px] font-bold tracking-[0.15em] px-2 py-0.5 rounded"
-                            style={{ background: "#f8c471", color: "#0a0a0a" }}
-                          >
-                            POINT CHAUD
-                          </span>
-                        )}
-                        {isToday && (
-                          <span
-                            className="text-[9px] font-bold tracking-[0.15em] px-2 py-0.5 rounded"
-                            style={{ background: "#22d3ee", color: "#0a0a0a" }}
-                          >
-                            AUJOURD&apos;HUI
-                          </span>
-                        )}
-                        <span
-                          className="ml-auto text-[11px] font-mono"
-                          style={{ color: "#6b7280" }}
-                        >
-                          {dayEvents.length} annonce{dayEvents.length > 1 ? "s" : ""}
-                        </span>
-                      </div>
-                    </div>
-                    {/* Rows */}
-                    {dayEvents.map((event) => {
-                      const isHighImpact = event.impact === "high";
-                      const impactColors =
-                        event.impact === "high"
-                          ? { bg: "rgba(239,68,68,0.2)", text: "#f87171", border: "rgba(239,68,68,0.3)", label: "HAUT" }
-                          : event.impact === "medium"
-                          ? { bg: "rgba(249,115,22,0.2)", text: "#fb923c", border: "rgba(249,115,22,0.3)", label: "MOY." }
-                          : { bg: "rgba(234,179,8,0.2)", text: "#facc15", border: "rgba(234,179,8,0.3)", label: "BAS" };
-                      const flag = CURRENCY_FLAGS[event.currency] ?? "";
-                      const trend = getValueTrend(event.forecast, event.actual);
-                      const baseBg = isHighImpact ? "rgba(127,29,29,0.1)" : "transparent";
-                      return (
-                        <div
-                          key={event.id}
-                          className="grid gap-4 px-6 py-3 cursor-pointer transition-all duration-150"
-                          style={{
-                            gridTemplateColumns: "80px 120px 100px 1fr 120px 120px 120px",
-                            background: baseBg,
-                            borderBottom: "1px solid rgba(31,31,31,0.3)",
-                          }}
-                          onMouseEnter={(e) => {
-                            (e.currentTarget as HTMLDivElement).style.background = "rgba(31,41,55,0.3)";
-                          }}
-                          onMouseLeave={(e) => {
-                            (e.currentTarget as HTMLDivElement).style.background = baseBg;
-                          }}
-                        >
-                          {/* Heure */}
-                          <div className="text-sm font-mono flex items-center" style={{ color: "#d1d5db" }}>
-                            {event.time}
-                          </div>
-                          {/* Devise */}
-                          <div className="flex items-center">
-                            <span
-                              className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-semibold"
-                              style={{
-                                background: "rgba(31,41,55,0.5)",
-                                borderColor: "#374151",
-                                color: "#e5e7eb",
-                              }}
-                            >
-                              <span className="text-base leading-none">{flag}</span>
-                              <span className="font-mono tracking-wider">{event.currency}</span>
-                            </span>
-                          </div>
-                          {/* Impact */}
-                          <div className="flex items-center">
-                            <span
-                              className="inline-flex items-center justify-center rounded-md border px-2 py-1 text-xs font-bold tracking-wider"
-                              style={{
-                                background: impactColors.bg,
-                                color: impactColors.text,
-                                borderColor: impactColors.border,
-                              }}
-                            >
-                              {impactColors.label}
-                            </span>
-                          </div>
-                          {/* Événement */}
-                          <div
-                            className="text-sm flex items-center font-medium truncate"
-                            style={{ color: "#e5e7eb" }}
-                            title={event.title}
-                          >
-                            {event.title}
-                          </div>
-                          {/* Consensus */}
-                          <div
-                            className="text-sm text-right flex items-center justify-end font-mono"
-                            style={{ color: event.forecast ? "#d1d5db" : "#4b5563" }}
-                          >
-                            {event.forecast ?? "—"}
-                          </div>
-                          {/* Précédent */}
-                          <div
-                            className="text-sm text-right flex items-center justify-end font-mono"
-                            style={{ color: event.previous ? "#9ca3af" : "#4b5563" }}
-                          >
-                            {event.previous ?? "—"}
-                          </div>
-                          {/* Réel */}
-                          <div
-                            className="text-sm text-right flex items-center justify-end font-mono font-semibold gap-1"
-                            style={{ color: event.actual ? "#ffffff" : "#4b5563" }}
-                          >
-                            <span>{event.actual ?? "—"}</span>
-                            {trend === "up" && <TrendingUp className="w-3 h-3" style={{ color: "#4ade80" }} />}
-                            {trend === "down" && <TrendingDown className="w-3 h-3" style={{ color: "#f87171" }} />}
-                            {trend === "eq" && <Minus className="w-3 h-3" style={{ color: "#6b7280" }} />}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })
-            )}
-
-            {/* Footer légende */}
-            <div
-              className="px-6 py-4"
-              style={{ background: "#0d0d0d", borderTop: "1px solid #1f1f1f" }}
-            >
-              <div className="flex items-center justify-between text-xs" style={{ color: "#6b7280" }}>
-                <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full border"
-                      style={{ background: "rgba(239,68,68,0.3)", borderColor: "rgba(239,68,68,0.5)" }}
-                    />
-                    <span>Impact Haut</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full border"
-                      style={{ background: "rgba(249,115,22,0.3)", borderColor: "rgba(249,115,22,0.5)" }}
-                    />
-                    <span>Impact Moyen</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full border"
-                      style={{ background: "rgba(234,179,8,0.3)", borderColor: "rgba(234,179,8,0.5)" }}
-                    />
-                    <span>Impact Bas</span>
-                  </div>
-                </div>
-                <div>
-                  {filteredEvents.length} annonce{filteredEvents.length > 1 ? "s" : ""} · Dernière mise à jour : {lastUpdateTime}
-                </div>
-              </div>
-            </div>
-          </div>
+        <div className="text-[11px] font-mono" style={{ color: "var(--text-muted)" }}>
+          Dernière mise à jour : {lastUpdateTime}
         </div>
-        {!loadingEvents && realEvents.length === 0 && (
-          <div
-            className="text-center text-xs py-3 border-t"
-            style={{ color: "var(--text-muted)", borderColor: "var(--border-light)" }}
-          >
-            Aucune annonce Supabase pour cette semaine (S{week.weekNumber})
-          </div>
-        )}
       </div>
+
+      {loadingEvents ? (
+        <div
+          className="rounded-xl p-6"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border-light)" }}
+        >
+          <div className="h-10 rounded animate-pulse" style={{ background: "var(--bg-elevated)" }} />
+        </div>
+      ) : filteredEvents.length === 0 ? (
+        <div
+          className="rounded-xl px-4 py-16 text-center text-sm"
+          style={{
+            background: "var(--bg-card)",
+            border: "1px solid var(--border-light)",
+            color: "var(--text-muted)",
+          }}
+        >
+          Aucune annonce pour cette semaine avec ces filtres
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {DAYS.map((day, i) => {
+            const dayEvents = eventsByDay[i];
+            if (dayEvents.length === 0) return null;
+            const now = new Date();
+            const todayDDMM = `${now.getDate().toString().padStart(2, "0")}/${(now.getMonth() + 1).toString().padStart(2, "0")}`;
+            const isToday = dates[i] === todayDDMM;
+            const isHot = hotDayIdx === i;
+            return (
+              <div
+                key={day}
+                className="rounded-xl overflow-hidden"
+                style={{
+                  background: "var(--bg-card)",
+                  border: `1px solid ${isHot ? "var(--bear)" : "var(--border-light)"}`,
+                  boxShadow: "var(--shadow-sm)",
+                }}
+              >
+                {/* Header jour */}
+                <div
+                  className="px-5 py-3 flex items-center gap-3"
+                  style={{
+                    background: isHot ? "var(--bear-bg)" : "var(--bg-muted)",
+                    borderBottom: "1px solid var(--border-light)",
+                  }}
+                >
+                  <h3
+                    className="text-sm font-medium"
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      color: isHot ? "var(--bear)" : "var(--text-primary)",
+                    }}
+                  >
+                    {formatDayFull(week.startDate, i)}
+                  </h3>
+                  {isHot && (
+                    <span
+                      className="text-[9px] font-bold tracking-[0.15em] px-2 py-0.5 rounded"
+                      style={{ background: "var(--accent-gold)", color: "#0a0a0a" }}
+                    >
+                      POINT CHAUD
+                    </span>
+                  )}
+                  {isToday && (
+                    <span
+                      className="text-[9px] font-bold tracking-[0.15em] px-2 py-0.5 rounded"
+                      style={{ background: "var(--accent)", color: "#FFFFFF" }}
+                    >
+                      AUJOURD&apos;HUI
+                    </span>
+                  )}
+                  <span
+                    className="ml-auto text-[11px] font-mono"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    {dayEvents.length} annonce{dayEvents.length > 1 ? "s" : ""}
+                  </span>
+                </div>
+
+                {/* Events rows */}
+                <div>
+                  {dayEvents.map((event, idx) => {
+                    const isHighImpact = event.impact === "high";
+                    const impactColors =
+                      event.impact === "high"
+                        ? { bg: "var(--bear-bg)", text: "var(--bear)", label: "HAUT" }
+                        : event.impact === "medium"
+                        ? { bg: "var(--neutral-bg)", text: "var(--neutral-color)", label: "MOY." }
+                        : { bg: "var(--bg-muted)", text: "var(--text-muted)", label: "BAS" };
+                    const trend = getValueTrend(event.forecast, event.actual);
+                    const curColor = CURRENCY_COLORS[event.currency] ?? "var(--accent)";
+                    return (
+                      <div
+                        key={event.id}
+                        className="grid gap-4 px-5 py-3 items-center transition-colors"
+                        style={{
+                          gridTemplateColumns: "72px 80px 80px 1fr 100px 100px 100px",
+                          borderBottom:
+                            idx < dayEvents.length - 1
+                              ? "1px solid var(--border-light)"
+                              : "none",
+                          background: isHighImpact
+                            ? "rgba(255, 46, 99, 0.025)"
+                            : "transparent",
+                        }}
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLDivElement).style.background =
+                            "var(--bg-muted)";
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLDivElement).style.background =
+                            isHighImpact ? "rgba(255, 46, 99, 0.025)" : "transparent";
+                        }}
+                      >
+                        {/* Heure */}
+                        <div
+                          className="text-sm font-mono"
+                          style={{ color: "var(--text-primary)" }}
+                        >
+                          {event.time}
+                        </div>
+                        {/* Devise — code + dot, pas de drapeau */}
+                        <div>
+                          <span
+                            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold"
+                            style={{
+                              background: `${curColor}12`,
+                              border: `1px solid ${curColor}40`,
+                              color: curColor,
+                            }}
+                          >
+                            <span
+                              style={{
+                                width: 6,
+                                height: 6,
+                                borderRadius: "50%",
+                                background: curColor,
+                              }}
+                            />
+                            <span className="font-mono tracking-wider">{event.currency}</span>
+                          </span>
+                        </div>
+                        {/* Impact */}
+                        <div>
+                          <span
+                            className="inline-flex items-center justify-center rounded-md px-2 py-1 text-[10px] font-bold tracking-wider"
+                            style={{
+                              background: impactColors.bg,
+                              color: impactColors.text,
+                            }}
+                          >
+                            {impactColors.label}
+                          </span>
+                        </div>
+                        {/* Événement */}
+                        <div
+                          className="text-sm font-medium truncate"
+                          style={{ color: "var(--text-primary)" }}
+                          title={event.title}
+                        >
+                          {event.title}
+                        </div>
+                        {/* Consensus */}
+                        <div
+                          className="text-sm text-right font-mono"
+                          style={{ color: event.forecast ? "var(--text-secondary)" : "var(--text-muted)" }}
+                        >
+                          {event.forecast ?? "—"}
+                        </div>
+                        {/* Précédent */}
+                        <div
+                          className="text-sm text-right font-mono"
+                          style={{ color: event.previous ? "var(--text-muted)" : "var(--text-muted)" }}
+                        >
+                          {event.previous ?? "—"}
+                        </div>
+                        {/* Réel */}
+                        <div
+                          className="text-sm text-right font-mono font-semibold flex items-center justify-end gap-1"
+                          style={{ color: event.actual ? "var(--text-primary)" : "var(--text-muted)" }}
+                        >
+                          <span>{event.actual ?? "—"}</span>
+                          {trend === "up" && <TrendingUp className="w-3 h-3" style={{ color: "var(--bull)" }} />}
+                          {trend === "down" && <TrendingDown className="w-3 h-3" style={{ color: "var(--bear)" }} />}
+                          {trend === "eq" && <Minus className="w-3 h-3" style={{ color: "var(--text-muted)" }} />}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {!loadingEvents && realEvents.length === 0 && (
+        <div
+          className="text-center text-xs py-3 mt-2"
+          style={{ color: "var(--text-muted)" }}
+        >
+          Aucune annonce Supabase pour cette semaine (S{week.weekNumber})
+        </div>
+      )}
 
       {/* Thèses macro — déplacé après le calendrier */}
       <div id="theses-anchor" className="card mt-10">
@@ -1262,13 +1265,13 @@ function FilterDropdown({
 
 function PillChip({
   label,
-  flag,
+  dot,
   active,
   color,
   onClick,
 }: {
   label: string;
-  flag?: string;
+  dot?: string;
   active: boolean;
   color?: string;
   onClick: () => void;
@@ -1278,14 +1281,24 @@ function PillChip({
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-semibold transition-all"
+      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all"
       style={{
         background: active ? `${accent}15` : "var(--bg-card)",
         border: `1px solid ${active ? accent : "var(--border-light)"}`,
         color: active ? accent : "var(--text-secondary)",
       }}
     >
-      {flag && <span style={{ fontSize: 12, lineHeight: 1 }}>{flag}</span>}
+      {dot && (
+        <span
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: "50%",
+            background: dot,
+            flexShrink: 0,
+          }}
+        />
+      )}
       <span className="font-mono tracking-wider">{label}</span>
     </button>
   );
