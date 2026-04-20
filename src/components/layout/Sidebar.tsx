@@ -12,20 +12,28 @@ import {
   ChevronsRight,
 } from "lucide-react";
 
+type Section = "trading" | "analyse" | "reference";
+
 interface NavItem {
   id: PageId;
   label: string;
   icon: React.ReactNode;
   shortcut?: string;
-  section: "workspaces" | "meta";
+  section: Section;
 }
 
+const SECTION_LABELS: Record<Section, string> = {
+  trading: "TRADING",
+  analyse: "ANALYSE",
+  reference: "REFERENCE",
+};
+
 const NAV_ITEMS: NavItem[] = [
-  { id: "dashboard", label: "Tableau de bord", icon: <LayoutDashboard size={18} />, shortcut: "D", section: "workspaces" },
-  { id: "preparation", label: "Preparation semaine", icon: <CalendarRange size={18} />, shortcut: "P", section: "workspaces" },
-  { id: "rapport", label: "Rapport journalier", icon: <FileText size={18} />, shortcut: "J", section: "workspaces" },
-  { id: "bibliotheque", label: "Bibliotheque", icon: <Library size={18} />, shortcut: "B", section: "workspaces" },
-  { id: "parametres", label: "Parametres", icon: <Settings size={18} />, section: "meta" },
+  { id: "dashboard", label: "Tableau de bord", icon: <LayoutDashboard size={18} />, shortcut: "D", section: "trading" },
+  { id: "preparation", label: "Preparation semaine", icon: <CalendarRange size={18} />, shortcut: "P", section: "analyse" },
+  { id: "rapport", label: "Rapport journalier", icon: <FileText size={18} />, shortcut: "J", section: "analyse" },
+  { id: "bibliotheque", label: "Bibliotheque", icon: <Library size={18} />, shortcut: "B", section: "reference" },
+  { id: "parametres", label: "Parametres", icon: <Settings size={18} />, section: "reference" },
 ];
 
 interface SidebarProps {
@@ -36,8 +44,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ activePage, onNavigate, collapsed, onToggle }: SidebarProps) {
-  const workspaceItems = NAV_ITEMS.filter((i) => i.section === "workspaces");
-  const metaItems = NAV_ITEMS.filter((i) => i.section === "meta");
+  const sections: Section[] = ["trading", "analyse", "reference"];
 
   return (
     <aside className={`sidebar ${collapsed ? "sidebar-collapsed" : ""}`}>
@@ -55,58 +62,62 @@ export default function Sidebar({ activePage, onNavigate, collapsed, onToggle }:
         </button>
       </div>
 
-      {/* Navigation */}
+      {/* Navigation — 3 sections (Sidebar B) */}
       <nav className="sidebar-nav">
-        {!collapsed && <div className="sidebar-section-label">WORKSPACES</div>}
-
-        {workspaceItems.map((item) => {
-          const isActive = activePage === item.id;
+        {sections.map((sec, idx) => {
+          const items = NAV_ITEMS.filter((i) => i.section === sec);
+          if (items.length === 0) return null;
           return (
-            <button
-              type="button"
-              key={item.id}
-              onClick={() => onNavigate(item.id)}
-              className={`sidebar-link ${isActive ? "active" : ""}`}
-              title={collapsed ? item.label : undefined}
-            >
-              <span className="sidebar-link-icon">{item.icon}</span>
+            <div key={sec} className={idx > 0 ? "sidebar-section-meta" : undefined}>
               {!collapsed && (
-                <>
-                  <span className="sidebar-link-label">{item.label}</span>
-                  {item.shortcut && (
-                    <span className="sidebar-link-shortcut">{item.shortcut}</span>
-                  )}
-                </>
+                <div className="sidebar-section-label">{SECTION_LABELS[sec]}</div>
               )}
-            </button>
+              {collapsed && idx > 0 && <div className="sidebar-divider" />}
+
+              {items.map((item) => {
+                const isActive = activePage === item.id;
+                return (
+                  <button
+                    type="button"
+                    key={item.id}
+                    onClick={() => onNavigate(item.id)}
+                    className={`sidebar-link ${isActive ? "active" : ""}`}
+                    title={collapsed ? item.label : undefined}
+                  >
+                    <span className="sidebar-link-icon">{item.icon}</span>
+                    {!collapsed && (
+                      <>
+                        <span className="sidebar-link-label">{item.label}</span>
+                        {item.shortcut && (
+                          <span className="sidebar-link-shortcut">{item.shortcut}</span>
+                        )}
+                      </>
+                    )}
+                  </button>
+                );
+              })}
+
+              {/* Insights IA placeholder dans ANALYSE */}
+              {sec === "analyse" && (
+                <button
+                  type="button"
+                  className="sidebar-link"
+                  title={collapsed ? "Insights IA" : undefined}
+                >
+                  <span className="sidebar-link-icon">
+                    <Sparkles size={18} />
+                  </span>
+                  {!collapsed && (
+                    <>
+                      <span className="sidebar-link-label">Insights IA</span>
+                      <span className="sidebar-badge-soon">SOON</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
           );
         })}
-
-        {!collapsed && <div className="sidebar-section-label sidebar-section-meta">META</div>}
-        {collapsed && <div className="sidebar-divider" />}
-
-        <button type="button" className="sidebar-link" title={collapsed ? "Insights IA" : undefined}>
-          <span className="sidebar-link-icon"><Sparkles size={18} /></span>
-          {!collapsed && (
-            <>
-              <span className="sidebar-link-label">Insights IA</span>
-              <span className="sidebar-badge-soon">SOON</span>
-            </>
-          )}
-        </button>
-
-        {metaItems.map((item) => (
-          <button
-            type="button"
-            key={item.id}
-            onClick={() => onNavigate(item.id)}
-            className={`sidebar-link ${activePage === item.id ? "active" : ""}`}
-            title={collapsed ? item.label : undefined}
-          >
-            <span className="sidebar-link-icon">{item.icon}</span>
-            {!collapsed && <span className="sidebar-link-label">{item.label}</span>}
-          </button>
-        ))}
       </nav>
 
       {/* User */}
