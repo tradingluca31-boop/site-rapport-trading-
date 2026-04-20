@@ -81,7 +81,7 @@ export default function TopBar({ activePage, subtitle }: TopBarProps) {
   return (
     <header
       ref={containerRef}
-      className="sticky top-0 z-40 flex items-center px-8 border-b"
+      className="sticky top-0 z-40 flex items-center px-10 border-b"
       style={{
         height: "var(--topbar-height)",
         background: "var(--bg)",
@@ -89,7 +89,7 @@ export default function TopBar({ activePage, subtitle }: TopBarProps) {
       }}
     >
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm">
+      <div className="flex items-center gap-2.5 text-sm">
         <span style={{ color: "var(--text-muted)" }}>Workspace</span>
         <span style={{ color: "var(--text-faint)" }}>/</span>
         <span className="font-medium" style={{ color: "var(--text-primary)" }}>
@@ -105,8 +105,19 @@ export default function TopBar({ activePage, subtitle }: TopBarProps) {
         )}
       </div>
 
+      {/* Separateur vertical */}
+      <div
+        style={{
+          width: 1,
+          height: 20,
+          background: "var(--border)",
+          marginLeft: 24,
+          marginRight: 16,
+        }}
+      />
+
       {/* Menus deroulants (Nested Menu style) */}
-      <nav className="flex items-center gap-1 ml-10">
+      <nav className="flex items-center gap-2">
         {(Object.keys(MENUS) as Array<Exclude<MenuKey, null>>).map((key) => {
           const isOpen = openMenu === key;
           return (
@@ -114,7 +125,7 @@ export default function TopBar({ activePage, subtitle }: TopBarProps) {
               <button
                 type="button"
                 onClick={() => setOpenMenu(isOpen ? null : key)}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm transition-colors"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-md text-sm transition-colors"
                 style={{
                   background: isOpen ? "var(--bg-elevated)" : "transparent",
                   color: isOpen ? "var(--text-primary)" : "var(--text-secondary)",
