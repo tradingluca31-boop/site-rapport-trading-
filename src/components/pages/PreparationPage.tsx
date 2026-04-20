@@ -839,6 +839,22 @@ export default function PreparationPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-3">
+          {/* Header colonnes */}
+          <div
+            className="grid gap-4 px-5 py-2 text-[10px] font-bold uppercase tracking-[1px]"
+            style={{
+              gridTemplateColumns: "72px 80px 80px 1fr 100px 100px 100px",
+              color: "var(--text-muted)",
+            }}
+          >
+            <div>Heure</div>
+            <div>Devise</div>
+            <div>Impact</div>
+            <div>Événement</div>
+            <div className="text-right">Consensus</div>
+            <div className="text-right">Précédent</div>
+            <div className="text-right">Réel</div>
+          </div>
           {DAYS.map((day, i) => {
             const dayEvents = eventsByDay[i];
             if (dayEvents.length === 0) return null;
