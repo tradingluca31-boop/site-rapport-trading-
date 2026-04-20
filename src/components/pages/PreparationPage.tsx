@@ -130,6 +130,15 @@ function getValueTrend(forecast: string | undefined, actual: string | undefined)
   return "eq";
 }
 
+type CustomScenario = {
+  id: string;
+  eventId: string;
+  type: ScenarioType;
+  title: string;
+  description: string;
+  probability: number;
+};
+
 export default function PreparationPage() {
   const [section, setSection] = useState<PageSection>("preparation");
   const [openEvent, setOpenEvent] = useState<string | null>(null);
@@ -139,6 +148,15 @@ export default function PreparationPage() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [weekPickerOpen, setWeekPickerOpen] = useState(false);
   const weekPickerRef = useRef<HTMLDivElement>(null);
+  const [customScenarios, setCustomScenarios] = useState<CustomScenario[]>([]);
+  const [scenarioFormOpen, setScenarioFormOpen] = useState(false);
+  const [newScenario, setNewScenario] = useState<{
+    eventId: string;
+    type: ScenarioType;
+    title: string;
+    description: string;
+    probability: number;
+  }>({ eventId: "", type: "neutral", title: "", description: "", probability: 50 });
 
   useEffect(() => {
     if (!weekPickerOpen) return;
@@ -225,6 +243,46 @@ export default function PreparationPage() {
       cancelled = true;
     };
   }, [week.startDate, week.endDate]);
+
+  // Scenarios personnalises — persistes en localStorage par semaine
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem(`prep-scenarios-${week.startDate}`);
+      setCustomScenarios(raw ? (JSON.parse(raw) as CustomScenario[]) : []);
+    } catch {
+      setCustomScenarios([]);
+    }
+  }, [week.startDate]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(
+      `prep-scenarios-${week.startDate}`,
+      JSON.stringify(customScenarios)
+    );
+  }, [customScenarios, week.startDate]);
+
+  const addCustomScenario = () => {
+    if (!newScenario.eventId || !newScenario.title.trim()) return;
+    setCustomScenarios((prev) => [
+      ...prev,
+      {
+        id: `cs_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        eventId: newScenario.eventId,
+        type: newScenario.type,
+        title: newScenario.title.trim(),
+        description: newScenario.description.trim(),
+        probability: Math.max(0, Math.min(100, newScenario.probability)),
+      },
+    ]);
+    setNewScenario({ eventId: "", type: "neutral", title: "", description: "", probability: 50 });
+    setScenarioFormOpen(false);
+  };
+
+  const deleteCustomScenario = (id: string) => {
+    setCustomScenarios((prev) => prev.filter((s) => s.id !== id));
+  };
 
   // Filtres annonces (multiselect chips)
   const [filterImpact, setFilterImpact] = useState<Set<Impact>>(new Set());
@@ -1068,103 +1126,238 @@ export default function PreparationPage() {
         </div>
       </div>
 
-      {/* Scenarios par annonce (accordeon) */}
+      {/* Scenarios — crees manuellement, persistes en localStorage */}
       <div id="scenarios-anchor" className="mt-10">
         <div className="flex items-baseline justify-between mb-4">
           <h2 className="text-xl font-light" style={{ fontFamily: "var(--font-display)" }}>
-            Scénarios par annonce
+            Scénarios
           </h2>
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-            {validated.size} validé{validated.size > 1 ? "s" : ""} sur {week.scenarios.length + week.weeklyScenarios.length}
-          </span>
+          <button
+            type="button"
+            onClick={() => setScenarioFormOpen((v) => !v)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all"
+            style={{
+              background: scenarioFormOpen ? "var(--bg-elevated)" : "#0A0B0E",
+              color: scenarioFormOpen ? "var(--text-primary)" : "#FFFFFF",
+              border: scenarioFormOpen ? "1px solid var(--border)" : "none",
+            }}
+          >
+            {scenarioFormOpen ? (
+              <>
+                <XIcon size={12} /> Annuler
+              </>
+            ) : (
+              <>
+                <Plus size={12} /> Ajouter un scénario
+              </>
+            )}
+          </button>
         </div>
-        <div className="flex flex-col gap-2">
-          {eventsWithScenarios.map((event) => {
-            const eventScenarios = week.scenarios.filter((s) => s.eventId === event.id);
-            const isOpen = openEvent === event.id;
-            const validCount = eventScenarios.filter((s) => validated.has(s.id)).length;
-            return (
-              <div
-                key={event.id}
-                className="card overflow-hidden"
-                style={{ padding: 0 }}
-              >
-                <button
-                  type="button"
-                  onClick={() => toggleEvent(event.id)}
-                  className="w-full flex items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-gray-50"
-                >
-                  {isOpen ? (
-                    <ChevronDown size={16} style={{ color: "var(--text-muted)" }} />
-                  ) : (
-                    <ChevronRight size={16} style={{ color: "var(--text-muted)" }} />
-                  )}
-                  <span
-                    className="text-[10px] font-bold px-2 py-0.5 rounded tracking-wider"
-                    style={{
-                      background: event.impact === "high" ? "var(--bear-bg)" : "var(--neutral-bg)",
-                      color: event.impact === "high" ? "var(--bear)" : "var(--neutral-color)",
-                    }}
-                  >
-                    {event.impact === "high" ? "HAUT" : event.impact === "medium" ? "MOYEN" : "BAS"}
-                  </span>
-                  <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
-                    {event.currency} · {formatEventDate(event.date)} · {event.time}
-                  </span>
-                  <span className="text-sm font-medium flex-1">{event.title}</span>
-                  {validCount > 0 && (
-                    <span
-                      className="text-[10px] font-bold px-2 py-0.5 rounded"
-                      style={{ background: "var(--bull-bg)", color: "var(--bull)" }}
-                    >
-                      {validCount}/3 validé{validCount > 1 ? "s" : ""}
-                    </span>
-                  )}
-                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                    {eventScenarios.length} scénarios
-                  </span>
-                </button>
-                {isOpen && (
-                  <div
-                    className="grid grid-cols-3 gap-3 px-5 pb-5 pt-1 border-t"
-                    style={{ borderColor: "var(--border-light)" }}
-                  >
-                    {eventScenarios.map((sc) => (
-                      <ScenarioCard
-                        key={sc.id}
-                        scenario={sc}
-                        isValidated={validated.has(sc.id)}
-                        onToggle={() => toggleValidation(sc.id)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
 
-      {/* Scenarios semaine (globaux) */}
-      <div className="mt-10">
-        <div className="flex items-baseline justify-between mb-4">
-          <h2 className="text-xl font-light" style={{ fontFamily: "var(--font-display)" }}>
-            Scenarios semaine
-          </h2>
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-            Lecture globale — 3 chemins de la semaine
-          </span>
-        </div>
-        <div className="grid grid-cols-3 gap-3">
-          {week.weeklyScenarios.map((ws) => (
-            <WeeklyScenarioCard
-              key={ws.id}
-              scenario={ws}
-              isValidated={validated.has(ws.id)}
-              onToggle={() => toggleValidation(ws.id)}
-            />
-          ))}
-        </div>
+        {scenarioFormOpen && (
+          <div
+            className="rounded-lg mb-4 p-4"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+          >
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <label className="flex flex-col gap-1">
+                <span className="text-[10px] font-bold tracking-wider" style={{ color: "var(--text-muted)" }}>
+                  ANNONCE
+                </span>
+                <select
+                  value={newScenario.eventId}
+                  onChange={(e) => setNewScenario((s) => ({ ...s, eventId: e.target.value }))}
+                  className="px-2 py-1.5 rounded text-sm"
+                  style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
+                >
+                  <option value="">— Choisir une annonce —</option>
+                  {filteredEvents.map((ev) => (
+                    <option key={ev.id} value={ev.id}>
+                      {formatEventDate(ev.date)} {ev.time} · {ev.currency} · {ev.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-[10px] font-bold tracking-wider" style={{ color: "var(--text-muted)" }}>
+                  TYPE
+                </span>
+                <select
+                  value={newScenario.type}
+                  onChange={(e) =>
+                    setNewScenario((s) => ({ ...s, type: e.target.value as ScenarioType }))
+                  }
+                  className="px-2 py-1.5 rounded text-sm"
+                  style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
+                >
+                  <option value="bear">Bear</option>
+                  <option value="neutral">Neutre</option>
+                  <option value="bull">Bull</option>
+                </select>
+              </label>
+            </div>
+            <label className="flex flex-col gap-1 mb-3">
+              <span className="text-[10px] font-bold tracking-wider" style={{ color: "var(--text-muted)" }}>
+                TITRE
+              </span>
+              <input
+                type="text"
+                value={newScenario.title}
+                onChange={(e) => setNewScenario((s) => ({ ...s, title: e.target.value }))}
+                placeholder="Ex: CPI hot → pricing dovish repoussé"
+                className="px-2 py-1.5 rounded text-sm"
+                style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
+              />
+            </label>
+            <label className="flex flex-col gap-1 mb-3">
+              <span className="text-[10px] font-bold tracking-wider" style={{ color: "var(--text-muted)" }}>
+                DESCRIPTION
+              </span>
+              <textarea
+                value={newScenario.description}
+                onChange={(e) => setNewScenario((s) => ({ ...s, description: e.target.value }))}
+                rows={3}
+                placeholder="Détail, niveaux, instruments à surveiller..."
+                className="px-2 py-1.5 rounded text-sm"
+                style={{ background: "var(--bg)", border: "1px solid var(--border)", resize: "vertical" }}
+              />
+            </label>
+            <div className="flex items-center gap-4 mb-3">
+              <label className="flex flex-col gap-1 flex-1">
+                <span className="text-[10px] font-bold tracking-wider" style={{ color: "var(--text-muted)" }}>
+                  PROBABILITÉ ({newScenario.probability}%)
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={newScenario.probability}
+                  onChange={(e) =>
+                    setNewScenario((s) => ({ ...s, probability: parseInt(e.target.value, 10) }))
+                  }
+                />
+              </label>
+            </div>
+            <button
+              type="button"
+              onClick={addCustomScenario}
+              disabled={!newScenario.eventId || !newScenario.title.trim()}
+              className="px-4 py-2 rounded-md text-xs font-semibold transition-all disabled:opacity-40"
+              style={{ background: "#0A0B0E", color: "#FFFFFF" }}
+            >
+              Créer le scénario
+            </button>
+          </div>
+        )}
+
+        {customScenarios.length === 0 && !scenarioFormOpen ? (
+          <div
+            className="rounded-lg px-4 py-10 text-center text-sm"
+            style={{
+              background: "var(--bg-card)",
+              border: "1px dashed var(--border)",
+              color: "var(--text-muted)",
+            }}
+          >
+            Aucun scénario pour cette semaine. Utilise « Ajouter un scénario » pour en créer sur une annonce.
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {Object.entries(
+              customScenarios.reduce<Record<string, CustomScenario[]>>((acc, cs) => {
+                (acc[cs.eventId] = acc[cs.eventId] ?? []).push(cs);
+                return acc;
+              }, {})
+            ).map(([evId, scs]) => {
+              const event = realEvents.find((e) => e.id === evId);
+              if (!event) return null;
+              return (
+                <div key={evId} className="card overflow-hidden" style={{ padding: 0 }}>
+                  <div className="flex items-center gap-3 px-5 py-3 border-b" style={{ borderColor: "var(--border-light)" }}>
+                    <span
+                      className="text-[10px] font-bold px-2 py-0.5 rounded tracking-wider"
+                      style={{
+                        background: event.impact === "high" ? "var(--bear-bg)" : "var(--neutral-bg)",
+                        color: event.impact === "high" ? "var(--bear)" : "var(--neutral-color)",
+                      }}
+                    >
+                      {event.impact === "high" ? "HAUT" : event.impact === "medium" ? "MOYEN" : "BAS"}
+                    </span>
+                    <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+                      {event.currency} · {formatEventDate(event.date)} · {event.time}
+                    </span>
+                    <span className="text-sm font-medium flex-1">{event.title}</span>
+                    <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                      {scs.length} scénario{scs.length > 1 ? "s" : ""}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 p-4">
+                    {scs.map((sc) => {
+                      const meta = SCENARIO_COLORS[sc.type];
+                      const Icon =
+                        sc.type === "bear" ? TrendingDown : sc.type === "bull" ? TrendingUp : Minus;
+                      const isValid = validated.has(sc.id);
+                      return (
+                        <div
+                          key={sc.id}
+                          className="rounded-lg border p-4 flex flex-col gap-3 transition-all relative"
+                          style={{
+                            borderColor: isValid ? meta.color : "var(--border)",
+                            background: isValid ? meta.bg : "var(--bg-card)",
+                          }}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span
+                              className="text-[10px] font-bold px-2 py-0.5 rounded tracking-wider flex items-center gap-1"
+                              style={{ background: meta.bg, color: meta.color }}
+                            >
+                              <Icon size={11} /> {meta.label}
+                            </span>
+                            <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+                              {sc.probability}%
+                            </span>
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium leading-snug mb-1.5">{sc.title}</div>
+                            {sc.description && (
+                              <p className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+                                {sc.description}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex gap-2 mt-auto">
+                            <button
+                              type="button"
+                              onClick={() => toggleValidation(sc.id)}
+                              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors"
+                              style={{
+                                background: isValid ? meta.color : "var(--bg-elevated)",
+                                color: isValid ? "white" : "var(--text-secondary)",
+                              }}
+                            >
+                              <Check size={12} />
+                              {isValid ? "Validé" : "Valider"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteCustomScenario(sc.id)}
+                              className="px-2 py-1.5 rounded-md text-xs transition-colors"
+                              style={{ background: "var(--bg-elevated)", color: "var(--text-muted)" }}
+                              title="Supprimer"
+                            >
+                              <XIcon size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       </>)}
