@@ -77,6 +77,27 @@ const WEEKLY_COLORS: Record<WeeklyScenarioKind, { color: string; bg: string; lab
 
 const DAYS = ["Lun", "Mar", "Mer", "Jeu", "Ven"];
 
+function getMondayOfWeek(d: Date): Date {
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  const monday = new Date(d);
+  monday.setHours(0, 0, 0, 0);
+  monday.setDate(d.getDate() + diff);
+  return monday;
+}
+
+function getISOWeek(d: Date): number {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = t.getUTCDay() || 7;
+  t.setUTCDate(t.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return Math.ceil(((t.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+}
+
+function toYMD(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export default function PreparationPage() {
   const [section, setSection] = useState<PageSection>("preparation");
   const [openEvent, setOpenEvent] = useState<string | null>(null);
@@ -98,20 +119,32 @@ export default function PreparationPage() {
     return () => document.removeEventListener("mousedown", handle);
   }, [weekPickerOpen]);
 
-  // Base = currentWeek (mock). Pour le picker, on génère weekOffset semaines autour.
-  const baseWeek = currentWeek;
+  // Base = semaine courante calculée depuis new Date() (lun -> ven).
+  // Les champs narratifs (theme, thesis, scenarios...) restent importés du mock en fallback.
+  const baseWeek = useMemo(() => {
+    const today = new Date();
+    const monday = getMondayOfWeek(today);
+    const friday = new Date(monday);
+    friday.setDate(monday.getDate() + 4);
+    return {
+      ...currentWeek,
+      startDate: toYMD(monday),
+      endDate: toYMD(friday),
+      weekNumber: getISOWeek(monday),
+      year: monday.getFullYear(),
+    };
+  }, []);
+
   const shiftedDates = useMemo(() => {
     const start = new Date(baseWeek.startDate);
     start.setDate(start.getDate() + weekOffset * 7);
     const end = new Date(baseWeek.endDate);
     end.setDate(end.getDate() + weekOffset * 7);
-    const weekNumber = baseWeek.weekNumber + weekOffset;
-    const year = start.getFullYear();
     return {
-      startDate: start.toISOString().slice(0, 10),
-      endDate: end.toISOString().slice(0, 10),
-      weekNumber,
-      year,
+      startDate: toYMD(start),
+      endDate: toYMD(end),
+      weekNumber: getISOWeek(start),
+      year: start.getFullYear(),
     };
   }, [baseWeek, weekOffset]);
 
@@ -128,9 +161,9 @@ export default function PreparationPage() {
       e.setDate(e.getDate() + off * 7);
       return {
         offset: off,
-        weekNumber: baseWeek.weekNumber + off,
+        weekNumber: getISOWeek(s),
         year: s.getFullYear(),
-        range: formatDateRange(s.toISOString(), e.toISOString()),
+        range: formatDateRange(toYMD(s), toYMD(e)),
       };
     });
   }, [baseWeek]);
