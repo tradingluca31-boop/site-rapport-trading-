@@ -1,5 +1,6 @@
 import { createPublicClient } from "@/lib/supabase/public-client";
 import { EcoEvent, EventCategory, Impact } from "@/types";
+import { translateEventName } from "@/lib/event-translator";
 
 type Mt5CalendarRow = {
   event_id: number | string;
@@ -54,7 +55,7 @@ export function mapRowToEcoEvent(row: Mt5CalendarRow): EcoEvent {
     date: toLocalIsoDate(row.event_time),
     time: toLocalTime(row.event_time),
     currency: row.currency,
-    title: row.event_name,
+    title: translateEventName(row.event_name),
     impact: normalizeImpact(row.importance),
     category: inferCategory(row.event_name),
     forecast: formatNumber(row.forecast, row.unit),
