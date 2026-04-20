@@ -20,6 +20,8 @@ import {
   Rewind,
   Filter,
   Flame,
+  Pencil,
+  RotateCcw,
   X as XIcon,
 } from "lucide-react";
 
@@ -1700,7 +1702,7 @@ function ThesisPanel({
         {icon}
       </div>
 
-      <div className="flex items-center justify-between mb-8 relative">
+      <div className="flex items-center mb-8 relative">
         <div className="flex items-center gap-3">
           <span
             className="text-[11px] font-bold tracking-[2.5px] uppercase px-3.5 py-2 rounded-md inline-flex items-center gap-2"
@@ -1716,62 +1718,88 @@ function ThesisPanel({
             {period}
           </span>
         </div>
-        <div className="flex items-center gap-2 relative">
-          {!isEditing ? (
-            <>
-              {onReset && (
-                <button
-                  type="button"
-                  onClick={onReset}
-                  className="text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded transition-all"
-                  style={{
-                    color: "var(--text-muted)",
-                    background: "white",
-                    border: "1px solid var(--border-light)",
-                  }}
-                  title="Restaurer le texte par defaut"
-                >
-                  Reset
-                </button>
-              )}
+      </div>
+      {/* Boutons flottants en absolu (Variante B : icones rondes) */}
+      <div
+        className="absolute flex items-center"
+        style={{ top: 16, right: 16, gap: 6 }}
+      >
+        {!isEditing ? (
+          <>
+            {onReset && (
               <button
                 type="button"
-                onClick={onEdit}
-                className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded transition-all"
+                onClick={onReset}
+                title="Restaurer le texte par defaut"
+                className="flex items-center justify-center transition-all"
                 style={{
-                  color: accent,
+                  width: 32,
+                  height: 32,
+                  borderRadius: "50%",
                   background: "white",
-                  border: `1px solid ${accent}40`,
-                }}
-              >
-                Modifier
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={onCancel}
-                className="text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded"
-                style={{
+                  border: "1px solid rgba(0,0,0,0.08)",
                   color: "var(--text-muted)",
-                  background: "white",
-                  border: "1px solid var(--border-light)",
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
                 }}
               >
-                Annuler
+                <RotateCcw size={14} />
               </button>
-              <button
-                type="button"
-                onClick={onSave}
-                className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded"
-                style={{ color: "white", background: accent, border: "none" }}
-              >
-                Enregistrer
-              </button>
-            </>
-          )}
-        </div>
+            )}
+            <button
+              type="button"
+              onClick={onEdit}
+              title="Modifier"
+              className="flex items-center justify-center transition-all"
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                background: "white",
+                border: `1px solid ${accent}30`,
+                color: accent,
+                boxShadow: `0 2px 6px ${accent}20`,
+              }}
+            >
+              <Pencil size={14} />
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={onCancel}
+              title="Annuler"
+              className="flex items-center justify-center transition-all"
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                background: "white",
+                border: "1px solid rgba(0,0,0,0.08)",
+                color: "var(--text-muted)",
+              }}
+            >
+              <XIcon size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={onSave}
+              title="Enregistrer"
+              className="flex items-center justify-center transition-all"
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                background: accent,
+                border: "none",
+                color: "white",
+                boxShadow: `0 2px 6px ${accent}40`,
+              }}
+            >
+              <Check size={14} />
+            </button>
+          </>
+        )}
       </div>
 
       <div className="relative">
