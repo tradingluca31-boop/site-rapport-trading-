@@ -21,6 +21,7 @@ const PAGE_LABELS: Record<PageId, string> = {
   dashboard: "Tableau de bord",
   preparation: "Preparation",
   rapport: "Rapport",
+  "track-record": "Track record",
   bibliotheque: "Bibliotheque",
   parametres: "Parametres",
 };

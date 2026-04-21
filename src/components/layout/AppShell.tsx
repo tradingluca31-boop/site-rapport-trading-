@@ -8,12 +8,14 @@ import TopBar from "@/components/layout/TopBar";
 import DashboardPage from "@/components/pages/DashboardPage";
 import PreparationPage from "@/components/pages/PreparationPage";
 import RapportPage from "@/components/pages/RapportPage";
+import TrackRecordPage from "@/components/pages/TrackRecordPage";
 import BibliothequePage from "@/components/pages/BibliothequePage";
 
 const PAGE_ROUTES: Record<PageId, string> = {
   dashboard: "/",
   preparation: "/preparation",
   rapport: "/rapport",
+  "track-record": "/track-record",
   bibliotheque: "/bibliotheque",
   parametres: "/parametres",
 };
@@ -77,6 +79,7 @@ export default function AppShell({ initialPage }: { initialPage: PageId }) {
         {activePage === "dashboard" && <DashboardPage onNavigate={handleNavigate} />}
         {activePage === "preparation" && <PreparationPage />}
         {activePage === "rapport" && <RapportPage />}
+        {activePage === "track-record" && <TrackRecordPage />}
         {activePage === "bibliotheque" && <BibliothequePage />}
         {activePage === "parametres" && (
           <div className="page-root px-10 py-12 text-center">

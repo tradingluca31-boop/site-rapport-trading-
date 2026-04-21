@@ -2,6 +2,7 @@ export type PageId =
   | "dashboard"
   | "preparation"
   | "rapport"
+  | "track-record"
   | "bibliotheque"
   | "parametres";
 
