@@ -49,7 +49,7 @@ export default function BibliothequePage() {
 
   return (
     <>
-      <div className="px-12 py-10 animate-in">
+      <div className="page-root px-12 py-10 animate-in">
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
           <span className="tag text-xs">{recentReports.length} entrees · archivees</span>
@@ -95,7 +95,7 @@ export default function BibliothequePage() {
         </div>
 
         {/* Cards grid */}
-        <div className="grid grid-cols-3 gap-6">
+        <div className="grid grid-cols-3 gap-6 mobile-stack">
           {filtered.map((r) => (
             <ReportCard key={r.id} report={r} onClick={() => setSelected(r)} />
           ))}

@@ -107,9 +107,10 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
   }
 
   return (
-    <div className="px-24 py-10 animate-in" style={{ maxWidth: 1400, margin: "0 auto" }}>
+    <div className="page-root px-24 py-10 animate-in" style={{ maxWidth: 1400, margin: "0 auto" }}>
       {/* ==================== HERO (Option C) ==================== */}
       <section
+        className="dashboard-hero"
         style={{
           padding: "44px 52px",
           background: "linear-gradient(135deg, #1a1a1a 0%, #2c3e50 100%)",
@@ -230,6 +231,7 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
 
       {/* ==================== 4 KPI CARDS (Option A) ==================== */}
       <div
+        className="mobile-stack-2"
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(4, 1fr)",
@@ -245,6 +247,7 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
 
       {/* ==================== CATALYSEUR + THESES (Option A) ==================== */}
       <div
+        className="mobile-stack"
         style={{
           display: "grid",
           gridTemplateColumns: "1.3fr 1fr",
@@ -562,7 +565,7 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
             Tout voir →
           </button>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+        <div className="mobile-stack" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
           {recentReports.slice(0, 3).map((r) => (
             <MiniReport
               key={r.id}

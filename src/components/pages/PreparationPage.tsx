@@ -478,7 +478,7 @@ export default function PreparationPage() {
   });
 
   return (
-    <div className="px-12 py-10 animate-in">
+    <div className="page-root px-12 py-10 animate-in">
       {/* Header */}
       <div className="flex items-start justify-between mb-3 gap-4 flex-wrap">
         <div className="flex items-center gap-2">
@@ -647,7 +647,7 @@ export default function PreparationPage() {
 
       {/* Stats strip */}
       <div
-        className="grid mb-8"
+        className="grid mb-8 mobile-stats-strip"
         style={{
           gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr",
           border: "1px solid var(--border)",
@@ -1007,7 +1007,7 @@ export default function PreparationPage() {
           Aucune annonce pour cette semaine avec ces filtres
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="events-table-wrapper flex flex-col gap-3">
           {/* Header colonnes */}
           <div
             className="grid gap-4 px-5 py-2 text-[10px] font-bold uppercase tracking-[1px]"
@@ -1214,7 +1214,7 @@ export default function PreparationPage() {
           <BookOpen size={15} style={{ color: "var(--text-muted)" }} />
           <span className="section-label">THÈSES MACRO EN COURS</span>
         </div>
-        <div className="card-body grid grid-cols-2 gap-5">
+        <div className="card-body grid grid-cols-2 gap-5 mobile-stack">
           <ThesisPanel
             label="COURT TERME"
             period={`Semaine ${week.weekNumber}`}
@@ -1281,7 +1281,7 @@ export default function PreparationPage() {
             className="rounded-lg mb-4 p-4"
             style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
           >
-            <div className="grid grid-cols-2 gap-3 mb-3">
+            <div className="grid grid-cols-2 gap-3 mb-3 mobile-stack">
               <label className="flex flex-col gap-1">
                 <span className="text-[10px] font-bold tracking-wider" style={{ color: "var(--text-muted)" }}>
                   ANNONCE
@@ -1414,7 +1414,7 @@ export default function PreparationPage() {
                       {scs.length} scénario{scs.length > 1 ? "s" : ""}
                     </span>
                   </div>
-                  <div className="grid grid-cols-3 gap-3 p-4">
+                  <div className="grid grid-cols-3 gap-3 p-4 mobile-stack">
                     {scs.map((sc) => {
                       const meta = SCENARIO_COLORS[sc.type];
                       const Icon =

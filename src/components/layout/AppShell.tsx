@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PageId } from "@/types";
 import Sidebar from "@/components/layout/Sidebar";
@@ -22,6 +22,7 @@ export default function AppShell({ initialPage }: { initialPage: PageId }) {
   const router = useRouter();
   const [activePage, setActivePage] = useState<PageId>(initialPage);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const subtitles: Partial<Record<PageId, string>> = {
     preparation: "Semaine 16",
@@ -30,8 +31,18 @@ export default function AppShell({ initialPage }: { initialPage: PageId }) {
 
   const handleNavigate = (page: PageId) => {
     setActivePage(page);
+    setMobileOpen(false);
     router.push(PAGE_ROUTES[page]);
   };
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobileOpen]);
 
   return (
     <div className="flex min-h-screen">
@@ -40,22 +51,35 @@ export default function AppShell({ initialPage }: { initialPage: PageId }) {
         onNavigate={handleNavigate}
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        mobileOpen={mobileOpen}
       />
 
+      {mobileOpen && (
+        <div
+          className="mobile-overlay"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       <main
-        className="flex-1 min-w-0 overflow-x-hidden transition-[margin] duration-200"
+        className="main-content flex-1 min-w-0 overflow-x-hidden transition-[margin] duration-200"
         style={{
           marginLeft: sidebarCollapsed ? "var(--sidebar-collapsed)" : "var(--sidebar-width)",
         }}
       >
-        <TopBar activePage={activePage} subtitle={subtitles[activePage]} />
+        <TopBar
+          activePage={activePage}
+          subtitle={subtitles[activePage]}
+          onMobileMenuToggle={() => setMobileOpen((o) => !o)}
+        />
 
         {activePage === "dashboard" && <DashboardPage onNavigate={handleNavigate} />}
         {activePage === "preparation" && <PreparationPage />}
         {activePage === "rapport" && <RapportPage />}
         {activePage === "bibliotheque" && <BibliothequePage />}
         {activePage === "parametres" && (
-          <div className="px-10 py-12 text-center">
+          <div className="page-root px-10 py-12 text-center">
             <h1 className="text-2xl font-light mb-2" style={{ fontFamily: "var(--font-display)" }}>
               Parametres
             </h1>

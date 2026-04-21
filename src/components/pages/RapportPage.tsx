@@ -187,7 +187,7 @@ export default function RapportPage() {
   };
 
   return (
-    <div style={{ padding: "40px 32px", background: "var(--bg-page, #FAFAF9)", minHeight: "100vh" }}>
+    <div className="page-root" style={{ padding: "40px 32px", background: "var(--bg-page, #FAFAF9)", minHeight: "100vh" }}>
       <div style={{ maxWidth: 1440, margin: "0 auto" }}>
         <header style={{ marginBottom: 36 }}>
           <div
@@ -213,7 +213,7 @@ export default function RapportPage() {
           </h1>
         </header>
 
-        <div style={{ display: "grid", gridTemplateColumns: "3fr 1fr", gap: 28 }}>
+        <div className="mobile-stack" style={{ display: "grid", gridTemplateColumns: "3fr 1fr", gap: 28 }}>
           <main style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <EditoCard
               title={data.editoTitle}
@@ -248,7 +248,7 @@ export default function RapportPage() {
                 <EmptyState text="Aucune entree fondamentale pour aujourd'hui." />
               )}
               {data.fonda.length > 0 && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+                <div className="mobile-stack" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
                   {data.fonda.map((f) => (
                     <FondaCard key={f.id} fonda={f} onDelete={() => deleteFonda(f.id)} />
                   ))}
@@ -658,7 +658,7 @@ function FondaForm({
         marginBottom: 14,
       }}
     >
-      <div style={{ display: "grid", gridTemplateColumns: "100px 1fr 140px", gap: 10, marginBottom: 10 }}>
+      <div className="mobile-stack" style={{ display: "grid", gridTemplateColumns: "100px 1fr 140px", gap: 10, marginBottom: 10 }}>
         <input
           type="text"
           value={value.time}
@@ -825,7 +825,7 @@ function TradeForm({
         marginBottom: 14,
       }}
     >
-      <div style={{ display: "grid", gridTemplateColumns: "80px 120px 90px 140px", gap: 10, marginBottom: 10 }}>
+      <div className="mobile-stack-2" style={{ display: "grid", gridTemplateColumns: "80px 120px 90px 140px", gap: 10, marginBottom: 10 }}>
         <input
           type="text"
           value={value.time}
@@ -862,7 +862,7 @@ function TradeForm({
           <option value="closed-loss">Ferme LOSS</option>
         </select>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
+      <div className="mobile-stack-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
         <input
           type="text"
           value={value.entry}

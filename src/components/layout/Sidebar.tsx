@@ -41,13 +41,14 @@ interface SidebarProps {
   onNavigate: (page: PageId) => void;
   collapsed: boolean;
   onToggle: () => void;
+  mobileOpen?: boolean;
 }
 
-export default function Sidebar({ activePage, onNavigate, collapsed, onToggle }: SidebarProps) {
+export default function Sidebar({ activePage, onNavigate, collapsed, onToggle, mobileOpen }: SidebarProps) {
   const sections: Section[] = ["trading", "analyse", "reference"];
 
   return (
-    <aside className={`sidebar ${collapsed ? "sidebar-collapsed" : ""}`}>
+    <aside className={`sidebar ${collapsed ? "sidebar-collapsed" : ""} ${mobileOpen ? "mobile-open" : ""}`}>
       {/* Logo */}
       <div className="sidebar-logo">
         <div className="sidebar-logo-icon">R</div>

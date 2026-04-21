@@ -14,6 +14,7 @@ import {
   BookOpen,
   Keyboard,
   LifeBuoy,
+  Menu,
 } from "lucide-react";
 
 const PAGE_LABELS: Record<PageId, string> = {
@@ -27,6 +28,7 @@ const PAGE_LABELS: Record<PageId, string> = {
 interface TopBarProps {
   activePage: PageId;
   subtitle?: string;
+  onMobileMenuToggle?: () => void;
 }
 
 type MenuKey = "exporter" | "outils" | "aide" | null;
@@ -65,7 +67,7 @@ const MENUS: Record<Exclude<MenuKey, null>, { label: string; items: MenuItem[] }
   },
 };
 
-export default function TopBar({ activePage, subtitle }: TopBarProps) {
+export default function TopBar({ activePage, subtitle, onMobileMenuToggle }: TopBarProps) {
   const [openMenu, setOpenMenu] = useState<MenuKey>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -81,13 +83,23 @@ export default function TopBar({ activePage, subtitle }: TopBarProps) {
   return (
     <header
       ref={containerRef}
-      className="sticky top-0 z-40 flex items-center px-10 border-b"
+      className="topbar-root sticky top-0 z-40 flex items-center px-10 border-b"
       style={{
         height: "var(--topbar-height)",
         background: "var(--bg)",
         borderColor: "var(--border)",
       }}
     >
+      {/* Hamburger — mobile only (CSS controls visibility) */}
+      <button
+        type="button"
+        className="mobile-hamburger"
+        onClick={onMobileMenuToggle}
+        aria-label="Menu"
+      >
+        <Menu size={20} />
+      </button>
+
       {/* Breadcrumb */}
       <div className="flex items-center gap-2.5 text-sm">
         <span style={{ color: "var(--text-muted)" }}>Workspace</span>
@@ -107,6 +119,7 @@ export default function TopBar({ activePage, subtitle }: TopBarProps) {
 
       {/* Separateur vertical */}
       <div
+        className="topbar-separator"
         style={{
           width: 1,
           height: 20,
@@ -117,7 +130,7 @@ export default function TopBar({ activePage, subtitle }: TopBarProps) {
       />
 
       {/* Menus deroulants (Nested Menu style) */}
-      <nav className="flex items-center gap-2">
+      <nav className="topbar-menus flex items-center gap-2">
         {(Object.keys(MENUS) as Array<Exclude<MenuKey, null>>).map((key) => {
           const isOpen = openMenu === key;
           return (
