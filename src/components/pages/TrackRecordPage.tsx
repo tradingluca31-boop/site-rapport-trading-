@@ -439,7 +439,7 @@ function VariantTimeline({ trades, kpis }: { trades: Trade[]; kpis: Kpis }) {
   const dates = Object.keys(grouped).sort((a, b) => (a < b ? 1 : -1));
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 24, alignItems: "flex-start" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "260px minmax(0, 1fr)", gap: 24, alignItems: "flex-start" }}>
       <div style={{ position: "sticky", top: 24, display: "flex", flexDirection: "column", gap: 12 }}>
         <KpiCard icon={<Percent size={14} />} label="WIN RATE" value={kpis.winRate !== null ? `${kpis.winRate.toFixed(0)}%` : "—"} sub={`${kpis.wins}W / ${kpis.losses}L`} accent={GREEN} />
         <KpiCard icon={<DollarSign size={14} />} label="P&L NET" value={fmtUsd(kpis.pnlUsd)} sub={`${kpis.total} trades`} accent={kpis.pnlUsd >= 0 ? GREEN : RED} />
@@ -478,7 +478,7 @@ function VariantTimeline({ trades, kpis }: { trades: Trade[]; kpis: Kpis }) {
                       borderRadius: 10,
                       padding: "10px 14px",
                       display: "grid",
-                      gridTemplateColumns: "60px 80px auto 1fr auto",
+                      gridTemplateColumns: "60px 80px auto minmax(0, 1fr) auto",
                       gap: 12,
                       alignItems: "center",
                     }}
