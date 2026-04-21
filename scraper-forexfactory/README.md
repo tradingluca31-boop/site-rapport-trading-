@@ -7,7 +7,7 @@
 
 ## 🧭 Contexte : qui est Luca, c'est quoi le projet
 
-**Luca** est trader algorithmique. Il travaille sur XAUUSD (or) et les majors FX, avec pour objectif de passer un challenge **FTMO** (firme de prop trading, max DD 10 %, profit target 10 %). Il combine trading **manuel** (analyse technique + fondamentale) et bots/EA (stable-baselines3, MT5).
+**Luca** est avant tout **trader manuel** (analyse technique + fondamentale, XAUUSD / majors FX), objectif : passer un challenge **FTMO** (firme de prop trading, max DD 10 %, profit target 10 %). En parallèle il **expérimente** des EA et des agents RL (stable-baselines3, MT5) comme axe de recherche — mais ce n'est pas son activité principale, il faut le présenter comme trader manuel qui explore aussi les algos, pas comme "trader algo" tout court.
 
 Il a un écosystème de sites/outils :
 
