@@ -212,7 +212,7 @@ export default function RapportPage() {
     setImporting(true);
     setImportMsg(null);
     try {
-      const res = await fetch("/api/trades/import-notion", { method: "POST" });
+      const res = await fetch(`/api/trades/import-notion?date=${dayKey}`, { method: "POST" });
       const json = await res.json();
       if (!res.ok) {
         setImportMsg({ kind: "err", text: json.detail || json.error || "Erreur import Notion" });

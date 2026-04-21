@@ -174,7 +174,7 @@ function mapPageToDraft(page: NotionPage): NotionTradeDraft | null {
   };
 }
 
-export async function fetchNotionTrades(): Promise<NotionTradeDraft[]> {
+export async function fetchNotionTrades(filterDate?: string): Promise<NotionTradeDraft[]> {
   const token = process.env.NOTION_TOKEN;
   const dbId = process.env.NOTION_TRADES_DB_ID;
   if (!token) throw new Error("NOTION_TOKEN manquant (env Vercel)");
@@ -206,7 +206,9 @@ export async function fetchNotionTrades(): Promise<NotionTradeDraft[]> {
     const json = (await res.json()) as NotionQueryResponse;
     for (const page of json.results) {
       const draft = mapPageToDraft(page);
-      if (draft) drafts.push(draft);
+      if (!draft) continue;
+      if (filterDate && draft.date !== filterDate) continue;
+      drafts.push(draft);
     }
     cursor = json.has_more ? json.next_cursor : null;
   } while (cursor);
