@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createPublicClient } from "@/lib/supabase/public-client";
 
 export const revalidate = 1800;
 
@@ -11,6 +12,17 @@ type FFRawEvent = {
   impact: "low" | "medium" | "high";
   forecast?: string;
   previous?: string;
+};
+
+type FFCalendarRow = {
+  event_id: string;
+  event_time: string;
+  currency: string;
+  importance: "low" | "medium" | "high" | string;
+  event_name: string;
+  forecast: string | null;
+  previous: string | null;
+  actual: string | null;
 };
 
 function xmlCData(s: string): string {
@@ -40,6 +52,52 @@ function normImpact(s: string): "low" | "medium" | "high" {
   if (v === "high") return "high";
   if (v === "medium") return "medium";
   return "low";
+}
+
+function utcIsoToDateTime(iso: string): { date: string; time: string } {
+  const d = new Date(iso);
+  const date = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+  const time = `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+  return { date, time };
+}
+
+function mapRowToFFRawEvent(row: FFCalendarRow): FFRawEvent {
+  const utcIso = new Date(row.event_time).toISOString();
+  const { date, time } = utcIsoToDateTime(utcIso);
+  return {
+    title: row.event_name,
+    currency: row.currency.toUpperCase(),
+    date,
+    time,
+    utcIso,
+    impact: normImpact(row.importance),
+    forecast: row.forecast ?? undefined,
+    previous: row.previous ?? undefined,
+  };
+}
+
+async function fetchFromSupabase(fromStr: string, toStr: string): Promise<FFRawEvent[] | null> {
+  try {
+    const supabase = createPublicClient();
+    const start = new Date(`${fromStr}T00:00:00.000Z`).toISOString();
+    const end = new Date(`${toStr}T23:59:59.999Z`).toISOString();
+
+    const { data, error } = await supabase
+      .from("ff_calendar")
+      .select("event_id, event_time, currency, importance, event_name, forecast, previous, actual")
+      .gte("event_time", start)
+      .lte("event_time", end)
+      .order("event_time", { ascending: true });
+
+    if (error) {
+      console.error("[ff_calendar] supabase error", error);
+      return null;
+    }
+    return (data ?? []).map((r) => mapRowToFFRawEvent(r as FFCalendarRow));
+  } catch (err) {
+    console.error("[ff_calendar] supabase fetch threw", err);
+    return null;
+  }
 }
 
 function parseEvents(xml: string): FFRawEvent[] {
@@ -87,11 +145,7 @@ function parseEvents(xml: string): FFRawEvent[] {
   return events;
 }
 
-export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const fromStr = url.searchParams.get("from");
-  const toStr = url.searchParams.get("to");
-
+async function fetchFromXmlLive(fromStr: string | null, toStr: string | null): Promise<FFRawEvent[]> {
   const feeds = [
     "https://nfs.faireconomy.media/ff_calendar_thisweek.xml",
     "https://nfs.faireconomy.media/ff_calendar_nextweek.xml",
@@ -121,17 +175,43 @@ export async function GET(req: Request) {
     return true;
   });
 
-  let filtered = deduped;
   if (fromStr && toStr) {
     const fromMs = new Date(`${fromStr}T00:00:00.000Z`).getTime();
     const toMs = new Date(`${toStr}T23:59:59.999Z`).getTime();
-    filtered = deduped.filter((e) => {
+    return deduped.filter((e) => {
       const t = new Date(e.utcIso).getTime();
       return t >= fromMs && t <= toMs;
     });
   }
 
-  filtered.sort((a, b) => a.utcIso.localeCompare(b.utcIso));
+  return deduped;
+}
 
-  return NextResponse.json({ events: filtered, count: filtered.length });
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const fromStr = url.searchParams.get("from");
+  const toStr = url.searchParams.get("to");
+
+  let events: FFRawEvent[] = [];
+  let source: "supabase" | "xml-live" = "supabase";
+
+  if (fromStr && toStr) {
+    const fromSupabase = await fetchFromSupabase(fromStr, toStr);
+    if (fromSupabase && fromSupabase.length > 0) {
+      events = fromSupabase;
+    } else {
+      // Filet de securite : table vide ou erreur Supabase, on retombe sur le XML live.
+      console.warn("[ff_calendar] supabase vide ou indisponible, fallback XML live");
+      events = await fetchFromXmlLive(fromStr, toStr);
+      source = "xml-live";
+    }
+  } else {
+    // Sans filtre date, on prend directement le XML live (cas legacy).
+    events = await fetchFromXmlLive(fromStr, toStr);
+    source = "xml-live";
+  }
+
+  events.sort((a, b) => a.utcIso.localeCompare(b.utcIso));
+
+  return NextResponse.json({ events, count: events.length, source });
 }
