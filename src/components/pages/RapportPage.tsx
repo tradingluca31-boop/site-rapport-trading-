@@ -1,584 +1,1077 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { currentDailyReport } from "@/lib/mock-data";
+import { useEffect, useState } from "react";
 import {
-  Save,
-  CheckCircle2,
-  Star,
-  Sunrise,
+  TrendingUp,
+  TrendingDown,
+  Lightbulb,
   Target,
-  Heart,
-  BookOpenCheck,
-  Quote,
+  Newspaper,
+  Plus,
+  Pencil,
+  X as XIcon,
+  Check,
+  Trash2,
 } from "lucide-react";
 
-const EMOTIONS = ["FOMO", "Peur", "Revenge", "Overconfidence", "Hesitation", "Euphorie", "Aucun"];
+const ACCENT = "#7C5CFF";
+const GREEN = "#08D9D6";
+const RED = "#FF2E63";
+const GOLD = "#C59E3A";
 
-const CHAPTERS = [
-  { id: "pre-marche", num: "01", label: "Avant la seance", icon: Sunrise },
-  { id: "execution", num: "02", label: "Execution", icon: Target },
-  { id: "emotionnel", num: "03", label: "Etat emotionnel", icon: Heart },
-  { id: "debrief", num: "04", label: "Debrief", icon: BookOpenCheck },
-];
+type Sentiment = "hawkish" | "dovish" | "neutral";
+type TradeDirection = "long" | "short";
+type TradeStatus = "open" | "closed-win" | "closed-loss";
+
+type FondaEntry = {
+  id: string;
+  time: string;
+  title: string;
+  summary: string;
+  sentiment: Sentiment;
+};
+
+type TradeEntry = {
+  id: string;
+  time: string;
+  pair: string;
+  direction: TradeDirection;
+  entry: string;
+  sl: string;
+  tp: string;
+  size: string;
+  status: TradeStatus;
+  idea: string;
+  pnl: string;
+};
+
+type Idea = { id: string; text: string };
+
+type DayReport = {
+  editoTitle: string;
+  editoSummary: string;
+  fonda: FondaEntry[];
+  trades: TradeEntry[];
+  ideas: Idea[];
+};
+
+const EMPTY_DAY: DayReport = {
+  editoTitle: "",
+  editoSummary: "",
+  fonda: [],
+  trades: [],
+  ideas: [],
+};
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 function formatTodayHeader() {
   const now = new Date();
   const weekday = now.toLocaleDateString("fr-FR", { weekday: "long" }).toUpperCase();
-  const day = now.getDate();
-  const month = now.toLocaleDateString("fr-FR", { month: "short" }).toUpperCase().replace(".", "");
-  const year = now.getFullYear();
-  const full = now.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-  return { weekday, shortDate: `${day} ${month} ${year}`, full };
+  const full = now.toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  return { weekday, full };
+}
+
+function newId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export default function RapportPage() {
-  const report = currentDailyReport;
-  const today = formatTodayHeader();
+  const dayKey = todayKey();
+  const header = formatTodayHeader();
 
-  const [activeChapter, setActiveChapter] = useState("pre-marche");
+  const [data, setData] = useState<DayReport>(EMPTY_DAY);
+  const [editingEdito, setEditingEdito] = useState(false);
+  const [draftEdito, setDraftEdito] = useState({ title: "", summary: "" });
 
-  const [biasMacro, setBiasMacro] = useState(report.biasMacro);
-  const [announcementsText, setAnnouncementsText] = useState(report.announcements.join("\n"));
-  const [techLevelsText, setTechLevelsText] = useState(report.technicalLevels.join("\n"));
-  const [mentalState, setMentalState] = useState(report.mentalState);
-  const [mentalNote, setMentalNote] = useState("");
+  const [fondaFormOpen, setFondaFormOpen] = useState(false);
+  const [newFonda, setNewFonda] = useState<Omit<FondaEntry, "id">>({
+    time: "",
+    title: "",
+    summary: "",
+    sentiment: "neutral",
+  });
 
-  const [positionTaken, setPositionTaken] = useState(report.positionTaken);
-  const [planRespected, setPlanRespected] = useState<boolean | null>(report.planRespected);
-  const [planReason, setPlanReason] = useState("");
-  const [execQuality, setExecQuality] = useState(report.executionQuality);
-  const [execNote, setExecNote] = useState("");
+  const [tradeFormOpen, setTradeFormOpen] = useState(false);
+  const [newTrade, setNewTrade] = useState<Omit<TradeEntry, "id">>({
+    time: "",
+    pair: "",
+    direction: "long",
+    entry: "",
+    sl: "",
+    tp: "",
+    size: "",
+    status: "open",
+    idea: "",
+    pnl: "",
+  });
 
-  const [emotions, setEmotions] = useState<string[]>(report.emotions);
-  const [emotionsStory, setEmotionsStory] = useState("");
-  const [decisionProcess, setDecisionProcess] = useState(report.decisionProcess);
-  const [decisionNote, setDecisionNote] = useState("");
-
-  const [marketEvents, setMarketEvents] = useState(report.marketEvents);
-  const [surprises, setSurprises] = useState("");
-  const [mistakeToAvoid, setMistakeToAvoid] = useState(report.mistakeToAvoid);
-  const [lessonLearned, setLessonLearned] = useState(report.lessonLearned);
-  const [synthesis, setSynthesis] = useState(report.synthesis);
-
-  const chapterRefs = {
-    "pre-marche": useRef<HTMLDivElement>(null),
-    execution: useRef<HTMLDivElement>(null),
-    emotionnel: useRef<HTMLDivElement>(null),
-    debrief: useRef<HTMLDivElement>(null),
-  };
+  const [newIdea, setNewIdea] = useState("");
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setActiveChapter(entry.target.id);
-          }
-        });
-      },
-      { rootMargin: "-40% 0px -50% 0px" }
-    );
-    Object.values(chapterRefs).forEach((ref) => {
-      if (ref.current) observer.observe(ref.current);
-    });
-    return () => observer.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem(`rapport-${dayKey}`);
+      setData(raw ? (JSON.parse(raw) as DayReport) : EMPTY_DAY);
+    } catch {
+      setData(EMPTY_DAY);
+    }
+  }, [dayKey]);
 
-  const scrollToChapter = (id: string) => {
-    const ref = chapterRefs[id as keyof typeof chapterRefs];
-    ref?.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(`rapport-${dayKey}`, JSON.stringify(data));
+  }, [data, dayKey]);
+
+  const pnlTotal = data.trades.reduce((acc, t) => {
+    const n = parseFloat(t.pnl.replace(/[^\d.-]/g, ""));
+    return acc + (isNaN(n) ? 0 : t.pnl.startsWith("-") ? -Math.abs(n) : Math.abs(n));
+  }, 0);
+  const wins = data.trades.filter((t) => t.status === "closed-win").length;
+  const losses = data.trades.filter((t) => t.status === "closed-loss").length;
+  const opens = data.trades.filter((t) => t.status === "open").length;
+
+  const saveEdito = () => {
+    setData((prev) => ({ ...prev, editoTitle: draftEdito.title, editoSummary: draftEdito.summary }));
+    setEditingEdito(false);
+  };
+
+  const addFonda = () => {
+    if (!newFonda.title.trim()) return;
+    setData((prev) => ({ ...prev, fonda: [...prev.fonda, { ...newFonda, id: newId() }] }));
+    setNewFonda({ time: "", title: "", summary: "", sentiment: "neutral" });
+    setFondaFormOpen(false);
+  };
+
+  const deleteFonda = (id: string) => {
+    setData((prev) => ({ ...prev, fonda: prev.fonda.filter((f) => f.id !== id) }));
+  };
+
+  const addTrade = () => {
+    if (!newTrade.pair.trim()) return;
+    setData((prev) => ({ ...prev, trades: [...prev.trades, { ...newTrade, id: newId() }] }));
+    setNewTrade({
+      time: "",
+      pair: "",
+      direction: "long",
+      entry: "",
+      sl: "",
+      tp: "",
+      size: "",
+      status: "open",
+      idea: "",
+      pnl: "",
+    });
+    setTradeFormOpen(false);
+  };
+
+  const deleteTrade = (id: string) => {
+    setData((prev) => ({ ...prev, trades: prev.trades.filter((t) => t.id !== id) }));
+  };
+
+  const addIdea = () => {
+    if (!newIdea.trim()) return;
+    setData((prev) => ({ ...prev, ideas: [...prev.ideas, { id: newId(), text: newIdea.trim() }] }));
+    setNewIdea("");
+  };
+
+  const deleteIdea = (id: string) => {
+    setData((prev) => ({ ...prev, ideas: prev.ideas.filter((i) => i.id !== id) }));
   };
 
   return (
-    <div className="relative animate-in" style={{ background: "var(--bg)" }}>
-      {/* Sticky chapter sidebar */}
-      <aside
-        className="hidden xl:block fixed top-[120px] z-30"
-        style={{ left: "calc(var(--sidebar-width) + 40px)", width: 180 }}
-      >
-        <div className="text-[9px] font-bold tracking-[2.5px] uppercase mb-5" style={{ color: "var(--text-muted)" }}>
-          Chapitres
-        </div>
-        <nav className="flex flex-col gap-1">
-          {CHAPTERS.map((c) => {
-            const Icon = c.icon;
-            const isActive = activeChapter === c.id;
-            return (
-              <button
-                type="button"
-                key={c.id}
-                onClick={() => scrollToChapter(c.id)}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-md text-left transition-all"
-                style={{
-                  background: isActive ? "var(--bg-card)" : "transparent",
-                  color: isActive ? "var(--text-primary)" : "var(--text-muted)",
-                  border: isActive ? "1px solid var(--border-light)" : "1px solid transparent",
-                }}
-              >
-                <Icon size={14} style={{ color: isActive ? "var(--accent)" : "var(--text-faint)" }} />
-                <div className="flex-1 min-w-0">
-                  <div className="text-[10px] font-mono" style={{ color: "var(--text-faint)" }}>
-                    {c.num}
-                  </div>
-                  <div className="text-xs font-medium leading-tight">{c.label}</div>
-                </div>
-              </button>
-            );
-          })}
-        </nav>
-      </aside>
-
-      <div style={{ maxWidth: 760, margin: "0 auto", padding: "32px 48px 100px" }}>
-        {/* Header meta bar */}
-        <div className="flex items-center justify-between mb-16 gap-6">
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className="tag font-mono text-[11px]">{today.shortDate}</span>
-            <span
-              className="text-[10px] font-bold px-2.5 py-1 rounded tracking-wider"
-              style={{ background: "var(--accent-light)", color: "var(--accent)" }}
-            >
-              {today.weekday}
-            </span>
-            {report.catalysts.map((c) => (
-              <span key={c} className="tag tag-high font-bold flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--high-impact)" }} />
-                {c}
-              </span>
-            ))}
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button
-              type="button"
-              className="flex items-center gap-2 px-3.5 py-2 rounded-lg border text-xs font-medium hover:bg-gray-50"
-              style={{ borderColor: "var(--border)" }}
-            >
-              <Save size={13} /> Brouillon
-            </button>
-            <button
-              type="button"
-              className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium text-white"
-              style={{ background: "var(--bull)" }}
-            >
-              <CheckCircle2 size={13} /> Cloturer
-            </button>
-          </div>
-        </div>
-
-        {/* Hero cover */}
-        <section className="mb-24 relative">
-          <div className="text-[10px] font-bold tracking-[3px] uppercase mb-6" style={{ color: "var(--accent-gold)" }}>
-            Journal de trading — entree du jour
-          </div>
-          <h1
-            className="mb-8 leading-[0.95]"
+    <div style={{ padding: "40px 32px", background: "var(--bg-page, #FAFAF9)", minHeight: "100vh" }}>
+      <div style={{ maxWidth: 1440, margin: "0 auto" }}>
+        <header style={{ marginBottom: 36 }}>
+          <div
             style={{
-              fontFamily: "var(--font-display)",
-              fontWeight: 400,
-              fontSize: "clamp(56px, 7vw, 88px)",
-              letterSpacing: "-0.02em",
+              fontSize: 11,
+              fontWeight: 800,
+              letterSpacing: 2,
+              color: "var(--text-muted, #6B7280)",
+              marginBottom: 6,
             }}
           >
-            Journal <br />
-            <span style={{ fontStyle: "italic", color: "var(--text-secondary)" }}>du jour.</span>
+            {header.weekday} — RAPPORT DE SESSION
+          </div>
+          <h1
+            style={{
+              fontSize: 32,
+              fontWeight: 300,
+              letterSpacing: "-0.01em",
+              fontFamily: "var(--font-display, Georgia, serif)",
+            }}
+          >
+            {header.full}
           </h1>
-          <div className="flex items-start gap-4 max-w-xl">
-            <Quote size={24} style={{ color: "var(--accent-gold)", flexShrink: 0, marginTop: 4 }} />
-            <p
-              className="text-[17px] leading-[1.7]"
+        </header>
+
+        <div style={{ display: "grid", gridTemplateColumns: "3fr 1fr", gap: 28 }}>
+          <main style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <EditoCard
+              title={data.editoTitle}
+              summary={data.editoSummary}
+              editing={editingEdito}
+              draft={draftEdito}
+              onDraftChange={setDraftEdito}
+              onEdit={() => {
+                setDraftEdito({ title: data.editoTitle, summary: data.editoSummary });
+                setEditingEdito(true);
+              }}
+              onSave={saveEdito}
+              onCancel={() => setEditingEdito(false)}
+            />
+
+            <Section
+              icon={<Newspaper size={16} />}
+              title="FONDAMENTAL"
+              accent={ACCENT}
+              onAdd={() => setFondaFormOpen((v) => !v)}
+              addOpen={fondaFormOpen}
+            >
+              {fondaFormOpen && (
+                <FondaForm
+                  value={newFonda}
+                  onChange={setNewFonda}
+                  onCancel={() => setFondaFormOpen(false)}
+                  onSave={addFonda}
+                />
+              )}
+              {data.fonda.length === 0 && !fondaFormOpen && (
+                <EmptyState text="Aucune entree fondamentale pour aujourd'hui." />
+              )}
+              {data.fonda.length > 0 && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+                  {data.fonda.map((f) => (
+                    <FondaCard key={f.id} fonda={f} onDelete={() => deleteFonda(f.id)} />
+                  ))}
+                </div>
+              )}
+            </Section>
+
+            <Section
+              icon={<Target size={16} />}
+              title="TRADES DU JOUR"
+              accent={GREEN}
+              onAdd={() => setTradeFormOpen((v) => !v)}
+              addOpen={tradeFormOpen}
+            >
+              {tradeFormOpen && (
+                <TradeForm
+                  value={newTrade}
+                  onChange={setNewTrade}
+                  onCancel={() => setTradeFormOpen(false)}
+                  onSave={addTrade}
+                />
+              )}
+              {data.trades.length === 0 && !tradeFormOpen && (
+                <EmptyState text="Aucun trade enregistre aujourd'hui." />
+              )}
+              {data.trades.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {data.trades.map((t) => (
+                    <TradeCard key={t.id} trade={t} onDelete={() => deleteTrade(t.id)} />
+                  ))}
+                </div>
+              )}
+            </Section>
+          </main>
+
+          <aside style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <PnlCard pnl={pnlTotal} wins={wins} losses={losses} opens={opens} />
+            <IdeasCard
+              ideas={data.ideas}
+              newIdea={newIdea}
+              onNewIdeaChange={setNewIdea}
+              onAdd={addIdea}
+              onDelete={deleteIdea}
+            />
+          </aside>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditoCard({
+  title,
+  summary,
+  editing,
+  draft,
+  onDraftChange,
+  onEdit,
+  onSave,
+  onCancel,
+}: {
+  title: string;
+  summary: string;
+  editing: boolean;
+  draft: { title: string; summary: string };
+  onDraftChange: (v: { title: string; summary: string }) => void;
+  onEdit: () => void;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  const empty = !title && !summary;
+  return (
+    <div
+      style={{
+        position: "relative",
+        background: "white",
+        borderRadius: 20,
+        border: "1px solid var(--border, #E5E7EB)",
+        padding: 36,
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 4,
+          background: `linear-gradient(90deg, ${ACCENT}, ${GREEN})`,
+        }}
+      />
+      <div style={{ position: "absolute", top: 16, right: 16, display: "flex", gap: 6 }}>
+        {!editing ? (
+          <button
+            type="button"
+            onClick={onEdit}
+            title="Modifier l'edito"
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              background: "white",
+              border: `1px solid ${ACCENT}30`,
+              color: ACCENT,
+              boxShadow: `0 2px 6px ${ACCENT}20`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+            }}
+          >
+            <Pencil size={14} />
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={onCancel}
+              title="Annuler"
               style={{
-                color: "var(--text-secondary)",
-                fontFamily: "var(--font-display)",
-                fontStyle: "italic",
-                fontWeight: 400,
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                background: "white",
+                border: "1px solid rgba(0,0,0,0.08)",
+                color: "var(--text-muted, #6B7280)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
               }}
             >
-              Ecris comme tu penses. Pas de filtre, pas de jugement. Ce journal est ton miroir — relis-le dans un mois.
-            </p>
-          </div>
-          <div
-            className="mt-10 inline-flex items-center gap-3 px-4 py-2 rounded-full"
-            style={{ background: "var(--bg-card)", border: "1px solid var(--border-light)" }}
-          >
-            <span className="w-2 h-2 rounded-full" style={{ background: "var(--bull)" }} />
-            <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
-              {today.full}
-            </span>
-          </div>
-        </section>
-
-        {/* ===== CHAPITRE 01 ===== */}
-        <div id="pre-marche" ref={chapterRefs["pre-marche"]}>
-          <ChapterHeading icon={<Sunrise size={22} />} number="01" label="Avant la seance" subtitle="Prepare ta tete avant d'ouvrir le marche." />
-        </div>
-
-        <JournalCard question="Comment te sens-tu ce matin ?" hint="Sommeil, energie, clarte mentale. Ecris librement.">
-          <textarea
-            value={mentalNote}
-            onChange={(e) => setMentalNote(e.target.value)}
-            placeholder="Ex: Bien dormi, 7h30. Calme. Pas de news perso qui parasite..."
-            style={{ minHeight: 120 }}
-          />
-          <div
-            className="flex items-center gap-5 mt-5 px-5 py-4 rounded-lg"
-            style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-light)" }}
-          >
-            <span className="text-[10px] font-bold tracking-[2px] uppercase" style={{ color: "var(--text-secondary)" }}>
-              Forme
-            </span>
-            <input
-              type="range"
-              min={1}
-              max={10}
-              value={mentalState}
-              onChange={(e) => setMentalState(Number(e.target.value))}
-              className="flex-1"
-            />
-            <span className="font-mono text-lg font-medium min-w-[56px] text-right" style={{ color: "var(--text-primary)" }}>
-              {mentalState}
-              <span className="text-xs" style={{ color: "var(--text-muted)" }}>/10</span>
-            </span>
-          </div>
-        </JournalCard>
-
-        <JournalCard question="Quel est ton biais macro du jour ?" hint="En 1-2 phrases : direction, logique, conditions.">
-          <textarea
-            value={biasMacro}
-            onChange={(e) => setBiasMacro(e.target.value)}
-            placeholder="Ex: Biais DXY bear si CPI core < 3.0%. EURUSD long 1.0870..."
-            style={{ minHeight: 120 }}
-          />
-        </JournalCard>
-
-        <JournalCard question="Quelles annonces & catalyseurs aujourd'hui ?" hint="Une par ligne. Heure + nom + impact attendu.">
-          <textarea
-            value={announcementsText}
-            onChange={(e) => setAnnouncementsText(e.target.value)}
-            placeholder={"Ex:\n14:30 — CPI US core (consensus 3.1%)\n16:00 — Fed Powell speech"}
-            style={{ minHeight: 130 }}
-          />
-        </JournalCard>
-
-        <JournalCard question="Tes niveaux techniques a surveiller ?" hint="Instrument → R / S. Une ligne par paire.">
-          <textarea
-            value={techLevelsText}
-            onChange={(e) => setTechLevelsText(e.target.value)}
-            placeholder={"Ex:\nEURUSD : R 1.0935 / S 1.0870\nXAUUSD : R 3020 / S 2985"}
-            style={{ minHeight: 130 }}
-          />
-        </JournalCard>
-
-        {/* ===== CHAPITRE 02 ===== */}
-        <div id="execution" ref={chapterRefs.execution}>
-          <ChapterHeading icon={<Target size={22} />} number="02" label="Execution" subtitle="Ce que tu as fait pendant la seance." />
-        </div>
-
-        <JournalCard question="Qu'est-ce que tu as pris comme position ?" hint="Raconte : direction, taille, entry, SL, TP, et surtout pourquoi.">
-          <textarea
-            value={positionTaken}
-            onChange={(e) => setPositionTaken(e.target.value)}
-            placeholder="Ex: Long EURUSD 0.3%, entry 1.0888, SL 1.0865, TP 1.0940. Thesis : ..."
-            style={{ minHeight: 160 }}
-          />
-        </JournalCard>
-
-        <JournalCard question="As-tu respecte ton plan / checklist ?" hint="Choisis puis explique en 2-3 phrases.">
-          <div className="flex gap-3 mb-4">
-            {([
-              [true, "Oui, plan respecte"],
-              [false, "Non, hors plan"],
-            ] as [boolean, string][]).map(([val, label]) => (
-              <button
-                type="button"
-                key={label}
-                onClick={() => setPlanRespected(val)}
-                className="chip"
-                style={planRespected === val ? {
-                  background: val ? "var(--bull-bg)" : "var(--bear-bg)",
-                  borderColor: val ? "var(--bull)" : "var(--bear)",
-                  color: val ? "var(--bull)" : "var(--bear)",
-                } : {}}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <textarea
-            value={planReason}
-            onChange={(e) => setPlanReason(e.target.value)}
-            placeholder="Pourquoi ? Qu'est-ce qui t'a fait sortir du plan (ou y rester) ?"
-            style={{ minHeight: 110 }}
-          />
-        </JournalCard>
-
-        <JournalCard question="Qualite d'execution : entry, gestion, sortie" hint="Note et commente. Les 3 moments se jugent separement.">
-          <div
-            className="flex items-center gap-3 mb-4 px-5 py-4 rounded-lg"
-            style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-light)" }}
-          >
-            {[1, 2, 3, 4, 5].map((n) => (
-              <button
-                type="button"
-                key={n}
-                onClick={() => setExecQuality(n)}
-                title={`Note ${n}`}
-                className="p-1 transition-colors"
-              >
-                <Star
-                  size={28}
-                  fill={n <= execQuality ? "var(--accent-gold)" : "none"}
-                  stroke={n <= execQuality ? "var(--accent-gold)" : "var(--text-faint)"}
-                />
-              </button>
-            ))}
-            <span className="ml-auto font-mono text-sm" style={{ color: "var(--text-muted)" }}>
-              {execQuality}/5
-            </span>
-          </div>
-          <textarea
-            value={execNote}
-            onChange={(e) => setExecNote(e.target.value)}
-            placeholder="Ex: Entry timing bon, mais j'ai bouge mon SL 2x par peur. Sortie trop tot..."
-            style={{ minHeight: 110 }}
-          />
-        </JournalCard>
-
-        {/* ===== CHAPITRE 03 ===== */}
-        <div id="emotionnel" ref={chapterRefs.emotionnel}>
-          <ChapterHeading icon={<Heart size={22} />} number="03" label="Etat emotionnel" subtitle="La partie qu'on oublie toujours. La plus importante." />
-        </div>
-
-        <JournalCard question="Qu'as-tu ressenti pendant la seance ?" hint="Coche ce qui s'applique, puis raconte la scene.">
-          <div className="flex flex-wrap gap-2 mb-4">
-            {EMOTIONS.map((e) => {
-              const isActive = emotions.includes(e);
-              const isDanger = ["FOMO", "Revenge", "Overconfidence"].includes(e);
-              return (
-                <button
-                  type="button"
-                  key={e}
-                  onClick={() => {
-                    if (isActive) setEmotions(emotions.filter((x) => x !== e));
-                    else setEmotions([...emotions, e]);
-                  }}
-                  className="chip"
-                  style={isActive ? {
-                    background: isDanger ? "var(--bear-bg)" : "var(--bull-bg)",
-                    borderColor: isDanger ? "var(--bear)" : "var(--bull)",
-                    color: isDanger ? "var(--bear)" : "var(--bull)",
-                  } : {}}
-                >
-                  {e}
-                </button>
-              );
-            })}
-          </div>
-          <textarea
-            value={emotionsStory}
-            onChange={(e) => setEmotionsStory(e.target.value)}
-            placeholder="Raconte le moment precis. Qu'est-ce qui a declenche ? Comment as-tu reagi ?"
-            style={{ minHeight: 140 }}
-          />
-        </JournalCard>
-
-        <JournalCard question="Process ou emotion : qu'est-ce qui a dirige tes decisions ?" hint="Sois brutal avec toi-meme. C'est le seul moyen d'evoluer.">
-          <div className="flex gap-3 mb-4">
-            {(["process", "mix", "emotion"] as const).map((val) => {
-              const labels = { process: "Process pur", mix: "Mix", emotion: "Emotion dominante" };
-              return (
-                <button
-                  type="button"
-                  key={val}
-                  onClick={() => setDecisionProcess(val)}
-                  className="chip"
-                  style={decisionProcess === val ? {
-                    background: "var(--accent-light)",
-                    borderColor: "var(--accent)",
-                    color: "var(--accent)",
-                  } : {}}
-                >
-                  {labels[val]}
-                </button>
-              );
-            })}
-          </div>
-          <textarea
-            value={decisionNote}
-            onChange={(e) => setDecisionNote(e.target.value)}
-            placeholder="Explique : sur quelle decision tu as derive, et pourquoi."
-            style={{ minHeight: 110 }}
-          />
-        </JournalCard>
-
-        {/* ===== CHAPITRE 04 ===== */}
-        <div id="debrief" ref={chapterRefs.debrief}>
-          <ChapterHeading icon={<BookOpenCheck size={22} />} number="04" label="Debrief" subtitle="Ce que la journee t'apprend. A froid." />
-        </div>
-
-        <JournalCard question="Que s'est-il passe aujourd'hui sur les marches ?" hint="Raconte les mouvements cles, les news, ce qui a bouge l'aiguille.">
-          <textarea
-            value={marketEvents}
-            onChange={(e) => setMarketEvents(e.target.value)}
-            placeholder="Ex: CPI sorti a 3.0%, DXY cassure 104.20, Gold +1.8%..."
-            style={{ minHeight: 170 }}
-          />
-        </JournalCard>
-
-        <JournalCard question="Qu'est-ce qui t'a surpris ?" hint="Ce que tu n'avais pas anticipe. Les bonnes surprises comme les mauvaises.">
-          <textarea
-            value={surprises}
-            onChange={(e) => setSurprises(e.target.value)}
-            placeholder="Ex: La vigueur du rebond EUR alors que la BCE etait attendue dovish..."
-            style={{ minHeight: 140 }}
-          />
-        </JournalCard>
-
-        <JournalCard question="Une erreur a ne plus jamais repeter" hint="Sois specifique. Une seule erreur. La plus couteuse.">
-          <textarea
-            value={mistakeToAvoid}
-            onChange={(e) => setMistakeToAvoid(e.target.value)}
-            placeholder="Ex: Ne plus ajouter a une perte sans raison technique..."
-            style={{ minHeight: 100 }}
-          />
-        </JournalCard>
-
-        <JournalCard question="Une lecon a ancrer" hint="Une phrase que tu voudrais retenir dans 6 mois.">
-          <textarea
-            value={lessonLearned}
-            onChange={(e) => setLessonLearned(e.target.value)}
-            placeholder="Ex: La patience paye plus que l'anticipation..."
-            style={{ minHeight: 100 }}
-          />
-        </JournalCard>
-
-        {/* Synthese finale */}
-        <div
-          className="mt-16 relative overflow-hidden"
-          style={{
-            padding: "40px 44px 44px",
-            borderRadius: 16,
-            background: "linear-gradient(135deg, var(--accent-gold-light) 0%, transparent 70%)",
-            border: "1px solid var(--border)",
-          }}
-        >
-          <div
-            className="absolute top-0 left-0 bottom-0 w-[4px]"
-            style={{ background: "var(--accent-gold)" }}
-          />
-          <div className="flex items-center gap-3 mb-6">
-            <span
-              className="text-[10px] font-bold tracking-[2.5px] uppercase px-3 py-1.5 rounded"
-              style={{ background: "var(--accent-gold)", color: "white" }}
+              <XIcon size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={onSave}
+              title="Enregistrer"
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                background: ACCENT,
+                border: "none",
+                color: "white",
+                boxShadow: `0 2px 6px ${ACCENT}40`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+              }}
             >
-              SYNTHESE
-            </span>
-            <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              Les 3 takeaways du jour
-            </span>
-          </div>
-          <h3
-            className="text-2xl mb-5"
-            style={{ fontFamily: "var(--font-display)", fontWeight: 500, fontStyle: "italic" }}
-          >
-            Si tu ne devais retenir que 3 choses…
-          </h3>
+              <Check size={14} />
+            </button>
+          </>
+        )}
+      </div>
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 800,
+          letterSpacing: 2,
+          color: "var(--text-muted, #6B7280)",
+          marginBottom: 12,
+        }}
+      >
+        EDITO DU JOUR
+      </div>
+
+      {editing ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <input
+            type="text"
+            value={draft.title}
+            onChange={(e) => onDraftChange({ ...draft, title: e.target.value })}
+            placeholder="Titre du jour (ex: CPI hot renverse la narrative disinflation...)"
+            aria-label="Titre edito"
+            style={{
+              fontSize: 24,
+              fontWeight: 400,
+              fontFamily: "Georgia, serif",
+              padding: 12,
+              borderRadius: 10,
+              border: "1px solid rgba(0,0,0,0.1)",
+              outline: "none",
+              width: "100%",
+            }}
+          />
           <textarea
-            value={synthesis}
-            onChange={(e) => setSynthesis(e.target.value)}
-            placeholder={"1. …\n2. …\n3. …"}
-            style={{ minHeight: 200, background: "var(--bg-card)", fontSize: 14 }}
+            value={draft.summary}
+            onChange={(e) => onDraftChange({ ...draft, summary: e.target.value })}
+            placeholder="Synthese de ta journee, contexte, lessons..."
+            aria-label="Summary edito"
+            rows={6}
+            style={{
+              fontSize: 15,
+              fontFamily: "Georgia, serif",
+              lineHeight: 1.7,
+              padding: 12,
+              borderRadius: 10,
+              border: "1px solid rgba(0,0,0,0.1)",
+              outline: "none",
+              width: "100%",
+              resize: "vertical",
+              minHeight: 140,
+            }}
           />
         </div>
-      </div>
-    </div>
-  );
-}
-
-function ChapterHeading({
-  icon,
-  number,
-  label,
-  subtitle,
-}: {
-  icon: React.ReactNode;
-  number: string;
-  label: string;
-  subtitle: string;
-}) {
-  return (
-    <div className="mt-24 mb-10 relative">
-      <div className="flex items-center gap-4 mb-6">
-        <div
-          className="h-px flex-shrink-0"
-          style={{ width: 36, background: "var(--accent-gold)" }}
-        />
-        <span
-          className="text-[10px] font-bold tracking-[3px] uppercase"
-          style={{ color: "var(--accent-gold)" }}
-        >
-          Chapitre {number}
-        </span>
-      </div>
-      <div className="flex items-center gap-5">
-        <span
-          className="flex items-center justify-center rounded-xl flex-shrink-0"
-          style={{
-            width: 52,
-            height: 52,
-            background: "var(--bg-card)",
-            border: "1px solid var(--border-light)",
-            color: "var(--accent)",
-          }}
-        >
-          {icon}
-        </span>
-        <div>
-          <h2
-            className="text-4xl leading-none mb-1"
-            style={{ fontFamily: "var(--font-display)", fontWeight: 400 }}
-          >
-            {label}
-          </h2>
-          <p className="text-sm" style={{ color: "var(--text-muted)", fontStyle: "italic" }}>
-            {subtitle}
-          </p>
+      ) : empty ? (
+        <div style={{ color: "var(--text-muted, #9CA3AF)", fontSize: 14, padding: "8px 0" }}>
+          Clique sur le crayon pour ecrire ton edito du jour (titre + synthese).
         </div>
-      </div>
+      ) : (
+        <>
+          {title && (
+            <h3
+              style={{
+                fontSize: 28,
+                fontWeight: 400,
+                letterSpacing: "-0.01em",
+                lineHeight: 1.3,
+                marginBottom: 16,
+                fontFamily: "Georgia, serif",
+              }}
+            >
+              {title}
+            </h3>
+          )}
+          {summary && (
+            <p
+              style={{
+                fontSize: 15,
+                color: "var(--text-secondary, #374151)",
+                lineHeight: 1.8,
+                fontFamily: "Georgia, serif",
+                whiteSpace: "pre-wrap",
+              }}
+            >
+              {summary}
+            </p>
+          )}
+        </>
+      )}
     </div>
   );
 }
 
-function JournalCard({
-  question,
-  hint,
+function Section({
+  icon,
+  title,
+  accent,
+  onAdd,
+  addOpen,
   children,
 }: {
-  question: string;
-  hint: string;
+  icon: React.ReactNode;
+  title: string;
+  accent: string;
+  onAdd?: () => void;
+  addOpen?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <article
-      className="mb-6 relative"
+    <div
       style={{
-        padding: "28px 30px 30px",
-        borderRadius: 12,
-        background: "var(--bg-card)",
-        border: "1px solid var(--border-light)",
-        boxShadow: "0 1px 2px rgba(0,0,0,0.02)",
+        background: "white",
+        borderRadius: 16,
+        border: "1px solid var(--border, #E5E7EB)",
+        padding: 28,
       }}
     >
-      <h3
-        className="text-[19px] mb-2"
-        style={{ fontFamily: "var(--font-display)", fontWeight: 500, color: "var(--text-primary)", letterSpacing: "-0.01em" }}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          marginBottom: 18,
+        }}
       >
-        {question}
-      </h3>
-      <p className="text-[12px] mb-5" style={{ color: "var(--text-muted)", fontStyle: "italic" }}>
-        {hint}
-      </p>
+        <div style={{ color: accent }}>{icon}</div>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2 }}>{title}</span>
+        {onAdd && (
+          <button
+            type="button"
+            onClick={onAdd}
+            title={addOpen ? "Fermer" : "Ajouter"}
+            style={{
+              marginLeft: "auto",
+              width: 28,
+              height: 28,
+              borderRadius: 8,
+              background: addOpen ? "var(--bg-elevated, #F3F4F6)" : accent,
+              border: addOpen ? "1px solid var(--border, #E5E7EB)" : "none",
+              color: addOpen ? "var(--text-muted, #6B7280)" : "white",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+            }}
+          >
+            {addOpen ? <XIcon size={14} /> : <Plus size={14} />}
+          </button>
+        )}
+      </div>
       {children}
-    </article>
+    </div>
   );
 }
+
+function EmptyState({ text }: { text: string }) {
+  return (
+    <div
+      style={{
+        fontSize: 13,
+        color: "var(--text-muted, #9CA3AF)",
+        padding: "14px 0",
+        fontStyle: "italic",
+      }}
+    >
+      {text}
+    </div>
+  );
+}
+
+function FondaCard({ fonda, onDelete }: { fonda: FondaEntry; onDelete: () => void }) {
+  const color = fonda.sentiment === "hawkish" ? RED : fonda.sentiment === "dovish" ? GREEN : "#6B7280";
+  return (
+    <div
+      style={{
+        position: "relative",
+        padding: 16,
+        background: "var(--bg-page, #FAFAF9)",
+        borderRadius: 12,
+        border: "1px solid #F3F4F6",
+      }}
+    >
+      <button
+        type="button"
+        onClick={onDelete}
+        title="Supprimer"
+        style={{
+          position: "absolute",
+          top: 8,
+          right: 8,
+          width: 22,
+          height: 22,
+          borderRadius: 6,
+          background: "transparent",
+          border: "none",
+          color: "var(--text-muted, #9CA3AF)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+          opacity: 0.5,
+        }}
+      >
+        <Trash2 size={13} />
+      </button>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        {fonda.time && (
+          <span style={{ fontSize: 10, fontFamily: "monospace", color: "#9CA3AF" }}>{fonda.time}</span>
+        )}
+        <span
+          style={{
+            fontSize: 9,
+            fontWeight: 800,
+            padding: "2px 6px",
+            borderRadius: 3,
+            background: `${color}15`,
+            color,
+            letterSpacing: 1,
+          }}
+        >
+          {fonda.sentiment.toUpperCase()}
+        </span>
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, lineHeight: 1.4 }}>{fonda.title}</div>
+      {fonda.summary && (
+        <div style={{ fontSize: 11, color: "var(--text-secondary, #6B7280)", lineHeight: 1.5 }}>
+          {fonda.summary}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FondaForm({
+  value,
+  onChange,
+  onCancel,
+  onSave,
+}: {
+  value: Omit<FondaEntry, "id">;
+  onChange: (v: Omit<FondaEntry, "id">) => void;
+  onCancel: () => void;
+  onSave: () => void;
+}) {
+  return (
+    <div
+      style={{
+        background: "var(--bg-page, #FAFAF9)",
+        border: "1px solid var(--border, #E5E7EB)",
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 14,
+      }}
+    >
+      <div style={{ display: "grid", gridTemplateColumns: "100px 1fr 140px", gap: 10, marginBottom: 10 }}>
+        <input
+          type="text"
+          value={value.time}
+          onChange={(e) => onChange({ ...value, time: e.target.value })}
+          placeholder="09:15"
+          aria-label="Heure"
+          style={inputStyle}
+        />
+        <input
+          type="text"
+          value={value.title}
+          onChange={(e) => onChange({ ...value, title: e.target.value })}
+          placeholder="Titre du rapport (ex: CPI US core 3.1%)"
+          aria-label="Titre"
+          style={inputStyle}
+        />
+        <select
+          value={value.sentiment}
+          onChange={(e) => onChange({ ...value, sentiment: e.target.value as Sentiment })}
+          aria-label="Sentiment"
+          style={inputStyle}
+        >
+          <option value="neutral">Neutre</option>
+          <option value="hawkish">Hawkish</option>
+          <option value="dovish">Dovish</option>
+        </select>
+      </div>
+      <textarea
+        value={value.summary}
+        onChange={(e) => onChange({ ...value, summary: e.target.value })}
+        placeholder="Ton analyse / implications marche..."
+        aria-label="Summary"
+        rows={3}
+        style={{ ...inputStyle, width: "100%", resize: "vertical", minHeight: 70, marginBottom: 10 }}
+      />
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+        <button type="button" onClick={onCancel} style={btnGhost}>
+          Annuler
+        </button>
+        <button type="button" onClick={onSave} style={{ ...btnPrimary, background: ACCENT }}>
+          Ajouter
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function TradeCard({ trade, onDelete }: { trade: TradeEntry; onDelete: () => void }) {
+  const isLong = trade.direction === "long";
+  const statusColor = trade.status === "closed-win" ? GREEN : trade.status === "closed-loss" ? RED : "#6B7280";
+  return (
+    <div
+      style={{
+        position: "relative",
+        padding: 16,
+        borderRadius: 12,
+        border: "1px solid #F3F4F6",
+        background: "var(--bg-page, #FAFAF9)",
+        display: "grid",
+        gridTemplateColumns: "auto 1fr auto",
+        gap: 14,
+        alignItems: "center",
+      }}
+    >
+      <button
+        type="button"
+        onClick={onDelete}
+        title="Supprimer"
+        style={{
+          position: "absolute",
+          top: 8,
+          right: 8,
+          width: 22,
+          height: 22,
+          borderRadius: 6,
+          background: "transparent",
+          border: "none",
+          color: "var(--text-muted, #9CA3AF)",
+          cursor: "pointer",
+          opacity: 0.5,
+        }}
+      >
+        <Trash2 size={13} />
+      </button>
+      <div
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: "50%",
+          background: isLong ? `${GREEN}15` : `${RED}15`,
+          color: isLong ? GREEN : RED,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {isLong ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
+      </div>
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+          <span style={{ fontSize: 14, fontWeight: 700 }}>{trade.pair}</span>
+          {trade.time && (
+            <span style={{ fontSize: 10, fontFamily: "monospace", color: "#9CA3AF" }}>{trade.time}</span>
+          )}
+          {trade.size && (
+            <span style={{ fontSize: 10, color: "#9CA3AF", fontFamily: "monospace" }}>{trade.size}</span>
+          )}
+        </div>
+        <div style={{ fontSize: 11, color: "#9CA3AF", fontFamily: "monospace", marginBottom: trade.idea ? 4 : 0 }}>
+          {trade.entry && <>Entry {trade.entry}</>}
+          {trade.sl && <> · SL {trade.sl}</>}
+          {trade.tp && <> · TP {trade.tp}</>}
+        </div>
+        {trade.idea && (
+          <div style={{ fontSize: 12, color: "var(--text-secondary, #374151)", fontStyle: "italic" }}>
+            &ldquo;{trade.idea}&rdquo;
+          </div>
+        )}
+      </div>
+      <div style={{ textAlign: "right", paddingRight: 20 }}>
+        {trade.pnl && (
+          <div style={{ fontSize: 16, fontWeight: 700, color: statusColor, fontFamily: "monospace" }}>
+            {trade.pnl}
+          </div>
+        )}
+        {trade.status === "open" && (
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              color: "var(--text-muted, #6B7280)",
+              padding: "3px 8px",
+              border: "1px solid var(--border, #E5E7EB)",
+              borderRadius: 4,
+              marginTop: 4,
+            }}
+          >
+            EN COURS
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TradeForm({
+  value,
+  onChange,
+  onCancel,
+  onSave,
+}: {
+  value: Omit<TradeEntry, "id">;
+  onChange: (v: Omit<TradeEntry, "id">) => void;
+  onCancel: () => void;
+  onSave: () => void;
+}) {
+  return (
+    <div
+      style={{
+        background: "var(--bg-page, #FAFAF9)",
+        border: "1px solid var(--border, #E5E7EB)",
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 14,
+      }}
+    >
+      <div style={{ display: "grid", gridTemplateColumns: "80px 120px 90px 140px", gap: 10, marginBottom: 10 }}>
+        <input
+          type="text"
+          value={value.time}
+          onChange={(e) => onChange({ ...value, time: e.target.value })}
+          placeholder="10:42"
+          aria-label="Heure"
+          style={inputStyle}
+        />
+        <input
+          type="text"
+          value={value.pair}
+          onChange={(e) => onChange({ ...value, pair: e.target.value.toUpperCase() })}
+          placeholder="XAUUSD"
+          aria-label="Paire"
+          style={inputStyle}
+        />
+        <select
+          value={value.direction}
+          onChange={(e) => onChange({ ...value, direction: e.target.value as TradeDirection })}
+          aria-label="Direction"
+          style={inputStyle}
+        >
+          <option value="long">LONG</option>
+          <option value="short">SHORT</option>
+        </select>
+        <select
+          value={value.status}
+          onChange={(e) => onChange({ ...value, status: e.target.value as TradeStatus })}
+          aria-label="Status"
+          style={inputStyle}
+        >
+          <option value="open">En cours</option>
+          <option value="closed-win">Ferme WIN</option>
+          <option value="closed-loss">Ferme LOSS</option>
+        </select>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
+        <input
+          type="text"
+          value={value.entry}
+          onChange={(e) => onChange({ ...value, entry: e.target.value })}
+          placeholder="Entry"
+          aria-label="Entry"
+          style={inputStyle}
+        />
+        <input
+          type="text"
+          value={value.sl}
+          onChange={(e) => onChange({ ...value, sl: e.target.value })}
+          placeholder="SL"
+          aria-label="SL"
+          style={inputStyle}
+        />
+        <input
+          type="text"
+          value={value.tp}
+          onChange={(e) => onChange({ ...value, tp: e.target.value })}
+          placeholder="TP"
+          aria-label="TP"
+          style={inputStyle}
+        />
+        <input
+          type="text"
+          value={value.size}
+          onChange={(e) => onChange({ ...value, size: e.target.value })}
+          placeholder="Size (0.5 lot)"
+          aria-label="Size"
+          style={inputStyle}
+        />
+        <input
+          type="text"
+          value={value.pnl}
+          onChange={(e) => onChange({ ...value, pnl: e.target.value })}
+          placeholder="+$340 / -$125"
+          aria-label="PnL"
+          style={inputStyle}
+        />
+      </div>
+      <textarea
+        value={value.idea}
+        onChange={(e) => onChange({ ...value, idea: e.target.value })}
+        placeholder="Ta these / raison d'entree..."
+        aria-label="Idee"
+        rows={2}
+        style={{ ...inputStyle, width: "100%", resize: "vertical", minHeight: 50, marginBottom: 10 }}
+      />
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+        <button type="button" onClick={onCancel} style={btnGhost}>
+          Annuler
+        </button>
+        <button type="button" onClick={onSave} style={{ ...btnPrimary, background: GREEN }}>
+          Ajouter
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PnlCard({ pnl, wins, losses, opens }: { pnl: number; wins: number; losses: number; opens: number }) {
+  const positive = pnl >= 0;
+  return (
+    <div
+      style={{
+        background: positive
+          ? `linear-gradient(135deg, ${GREEN}, #06B6B4)`
+          : `linear-gradient(135deg, ${RED}, #E11D48)`,
+        color: "white",
+        borderRadius: 16,
+        padding: 24,
+      }}
+    >
+      <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 2, opacity: 0.85 }}>P&L DU JOUR</div>
+      <div style={{ fontSize: 36, fontWeight: 700, marginTop: 4, fontFamily: "monospace" }}>
+        {positive ? "+" : ""}${Math.round(pnl)}
+      </div>
+      <div style={{ fontSize: 12, opacity: 0.9, marginTop: 6 }}>
+        {wins} WIN · {losses} LOSS · {opens} en cours
+      </div>
+    </div>
+  );
+}
+
+function IdeasCard({
+  ideas,
+  newIdea,
+  onNewIdeaChange,
+  onAdd,
+  onDelete,
+}: {
+  ideas: Idea[];
+  newIdea: string;
+  onNewIdeaChange: (v: string) => void;
+  onAdd: () => void;
+  onDelete: (id: string) => void;
+}) {
+  return (
+    <div
+      style={{
+        background: "white",
+        borderRadius: 16,
+        border: "1px solid var(--border, #E5E7EB)",
+        padding: 20,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+        <Lightbulb size={14} style={{ color: GOLD }} />
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2 }}>IDEES / WATCHLIST</span>
+      </div>
+      {ideas.map((idea, i) => (
+        <div
+          key={idea.id}
+          style={{
+            fontSize: 12,
+            color: "var(--text-secondary, #374151)",
+            padding: "10px 0",
+            borderTop: i > 0 ? "1px solid #F3F4F6" : "none",
+            lineHeight: 1.5,
+            display: "flex",
+            gap: 6,
+            alignItems: "flex-start",
+          }}
+        >
+          <span style={{ color: GOLD, marginTop: 2 }}>•</span>
+          <span style={{ flex: 1 }}>{idea.text}</span>
+          <button
+            type="button"
+            onClick={() => onDelete(idea.id)}
+            title="Supprimer"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "var(--text-muted, #9CA3AF)",
+              cursor: "pointer",
+              padding: 0,
+              opacity: 0.4,
+            }}
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
+      ))}
+      <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
+        <input
+          type="text"
+          value={newIdea}
+          onChange={(e) => onNewIdeaChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") onAdd();
+          }}
+          placeholder="Nouvelle idee..."
+          aria-label="Nouvelle idee"
+          style={{ ...inputStyle, flex: 1, fontSize: 12 }}
+        />
+        <button
+          type="button"
+          onClick={onAdd}
+          title="Ajouter"
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            background: GOLD,
+            border: "none",
+            color: "white",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+          }}
+        >
+          <Plus size={14} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const inputStyle: React.CSSProperties = {
+  padding: "8px 10px",
+  borderRadius: 8,
+  border: "1px solid var(--border, #E5E7EB)",
+  fontSize: 13,
+  outline: "none",
+  background: "white",
+  color: "var(--text-primary, #111)",
+  fontFamily: "inherit",
+};
+
+const btnGhost: React.CSSProperties = {
+  padding: "7px 14px",
+  borderRadius: 8,
+  background: "white",
+  border: "1px solid var(--border, #E5E7EB)",
+  color: "var(--text-muted, #6B7280)",
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: "pointer",
+};
+
+const btnPrimary: React.CSSProperties = {
+  padding: "7px 16px",
+  borderRadius: 8,
+  background: ACCENT,
+  border: "none",
+  color: "white",
+  fontSize: 12,
+  fontWeight: 700,
+  cursor: "pointer",
+};
