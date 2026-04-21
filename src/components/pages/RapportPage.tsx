@@ -12,7 +12,6 @@ import {
   X as XIcon,
   Check,
   Trash2,
-  Download,
 } from "lucide-react";
 import {
   Trade,
@@ -123,9 +122,6 @@ export default function RapportPage() {
   const [newTrade, setNewTrade] = useState<TradeFormState>(EMPTY_TRADE_FORM);
   const [savingTrade, setSavingTrade] = useState(false);
 
-  const [importing, setImporting] = useState(false);
-  const [importMsg, setImportMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
-  const [notionUrl, setNotionUrl] = useState("");
   const [detailTrade, setDetailTrade] = useState<Trade | null>(null);
 
   const [newIdea, setNewIdea] = useState("");
@@ -208,38 +204,6 @@ export default function RapportPage() {
     const ok = await deleteTradeSb(id);
     if (!ok) return;
     setTrades((prev) => prev.filter((t) => t.id !== id));
-  };
-
-  const importFromUrl = async () => {
-    const url = notionUrl.trim();
-    if (!url || importing) return;
-    setImporting(true);
-    setImportMsg(null);
-    try {
-      const res = await fetch("/api/trades/import-notion-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        setImportMsg({ kind: "err", text: json.detail || json.error || "Erreur import Notion" });
-      } else {
-        const d: string | undefined = json.date;
-        setImportMsg({
-          kind: "ok",
-          text: d === dayKey
-            ? "Trade importe depuis Notion."
-            : `Trade importe (date ${d ?? "?"}) — hors journee courante.`,
-        });
-        setNotionUrl("");
-        await reloadTrades();
-      }
-    } catch (err) {
-      setImportMsg({ kind: "err", text: err instanceof Error ? err.message : String(err) });
-    } finally {
-      setImporting(false);
-    }
   };
 
   const saveDetailTrade = async (id: string, patch: Partial<Trade>) => {
@@ -336,72 +300,7 @@ export default function RapportPage() {
               accent={GREEN}
               onAdd={() => setTradeFormOpen((v) => !v)}
               addOpen={tradeFormOpen}
-              headerExtra={
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <input
-                    type="url"
-                    value={notionUrl}
-                    onChange={(e) => setNotionUrl(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        importFromUrl();
-                      }
-                    }}
-                    placeholder="Coller le lien Notion du trade..."
-                    disabled={importing}
-                    aria-label="Lien Notion du trade"
-                    style={{
-                      ...inputStyle,
-                      height: 28,
-                      padding: "4px 10px",
-                      fontSize: 11,
-                      width: 260,
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={importFromUrl}
-                    disabled={importing || !notionUrl.trim()}
-                    title="Importer ce trade Notion"
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 6,
-                      padding: "6px 12px",
-                      borderRadius: 8,
-                      background: importing || !notionUrl.trim() ? "#E5E7EB" : ACCENT,
-                      border: "none",
-                      color: importing || !notionUrl.trim() ? "#9CA3AF" : "white",
-                      fontSize: 11,
-                      fontWeight: 700,
-                      letterSpacing: 0.5,
-                      cursor: importing || !notionUrl.trim() ? "not-allowed" : "pointer",
-                      height: 28,
-                    }}
-                  >
-                    <Download size={12} />
-                    {importing ? "Import..." : "Ajouter"}
-                  </button>
-                </div>
-              }
             >
-              {importMsg && (
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: importMsg.kind === "ok" ? GREEN : RED,
-                    fontWeight: 600,
-                    marginBottom: 10,
-                    padding: "8px 12px",
-                    borderRadius: 8,
-                    background: importMsg.kind === "ok" ? `${GREEN}10` : `${RED}10`,
-                    lineHeight: 1.4,
-                  }}
-                >
-                  {importMsg.text}
-                </div>
-              )}
               {tradeFormOpen && (
                 <TradeForm
                   value={newTrade}
@@ -640,11 +539,6 @@ function TradeDetailModal({
             />
           </Field>
 
-          {trade.source === "notion" && (
-            <div style={{ fontSize: 11, color: "#6B7280", fontStyle: "italic" }}>
-              Importe depuis Notion · notion_id {trade.notion_id?.slice(0, 8)}...
-            </div>
-          )}
           {err && (
             <div style={{ fontSize: 12, color: RED, fontWeight: 600 }}>{err}</div>
           )}
@@ -1170,11 +1064,6 @@ function TradeCard({ trade, onDelete, onOpen }: { trade: Trade; onDelete: () => 
           ) : null}
           {trade.size ? (
             <span style={{ fontSize: 10, color: "#9CA3AF", fontFamily: "monospace" }}>{trade.size}</span>
-          ) : null}
-          {trade.source === "notion" ? (
-            <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 3, background: `${ACCENT}15`, color: ACCENT, fontWeight: 700, letterSpacing: 1 }}>
-              NOTION
-            </span>
           ) : null}
         </div>
         <div style={{ fontSize: 11, color: "#9CA3AF", fontFamily: "monospace", marginBottom: trade.idea ? 4 : 0 }}>
