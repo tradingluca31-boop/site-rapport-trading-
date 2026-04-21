@@ -1,7 +1,105 @@
 # ForexFactory Scraper — briefing Claude Code (exécution sur **VPS Windows**)
 
 > Ce document est destiné à **une instance de Claude Code qui tourne sur le VPS Windows de Luca** (pas le PC Windows local de dev).
-> Le VPS fait déjà tourner MetaTrader 5 + un scraper Python MT5 FTMO. On veut ajouter un **deuxième scraper indépendant** qui récupère le calendrier économique ForexFactory et le pousse dans la même base Supabase, de façon à ce que le site `site-rapport-trading.vercel.app` ait les IPC, IPP, chômage, discours, etc. manquants dans MT5 FTMO.
+> Il contient à la fois le **contexte projet** (pour que tu comprennes à quoi ça sert) et les **étapes techniques** de déploiement.
+
+---
+
+## 🧭 Contexte : qui est Luca, c'est quoi le projet
+
+**Luca** est trader algorithmique. Il travaille sur XAUUSD (or) et les majors FX, avec pour objectif de passer un challenge **FTMO** (firme de prop trading, max DD 10 %, profit target 10 %). Il combine trading **manuel** (analyse technique + fondamentale) et bots/EA (stable-baselines3, MT5).
+
+Il a un écosystème de sites/outils :
+
+- **`site-rapport-trading.vercel.app`** (où vit ce repo) → terminal web pour sa **préparation de semaine** : calendrier éco, thèses macro, scénarios d'events, analyses fonda, journal de trades. C'est son "cockpit" pour décider quoi trader.
+- **`edgefx.vercel.app`** → terminal de sentiment retail (Myfxbook Community Outlook).
+- **Un bot Telegram** qui relaie des wraps quotidiens / alertes.
+
+Ce scraper que tu vas déployer sert à **alimenter le site site-rapport-trading**. Sans lui, la page `/preparation` affiche un calendrier incomplet.
+
+## 🎯 À quoi sert ce scraper concrètement
+
+Le site a besoin d'afficher **tous** les events éco de la semaine pour que Luca puisse préparer ses trades :
+
+- **IPC / CPI** (inflation) — core, headline, m/m, y/y
+- **IPP / PPI** (producteurs)
+- **Taux de chômage / Claimant Count / NFP / Earnings**
+- **PMI, ISM, Retail Sales, ZEW, Ifo, Michigan**
+- **Décisions de taux** (Fed, BCE, BoE, BoJ, BoC, SNB, RBA, RBNZ)
+- **Discours** (Powell, Lagarde, Bailey, Waller, etc.)
+
+Ces events **déplacent les marchés** → Luca doit les avoir à l'œil, écrire des scénarios (bull / base / bear), et parfois s'abstenir de trader pendant les releases majeures (risque FTMO).
+
+### Le problème à résoudre
+
+Le VPS fait déjà tourner un scraper MT5 FTMO (`mt5_scraper.py`) qui remplit la table Supabase `mt5_calendar`. Mais **MT5 FTMO ne fournit pas un calendrier complet** : beaucoup d'events manquent (exemples observés le 21 avril 2026 : UK Claimant Count, UK Unemployment Rate, UK Average Earnings, ZEW, US Retail Sales, discours Fed…).
+
+D'où ce deuxième scraper : il récupère le calendrier officiel **ForexFactory** (via le mirror XML `faireconomy.media`) et remplit une **deuxième table** `ff_calendar` dans la même base Supabase. Le site Next.js merge les deux sources (dédoublonnage automatique par devise + date + heure + titre).
+
+## 🗺️ Vue d'ensemble de l'architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  VPS WINDOWS (tourne H24, indépendant du PC de Luca)                │
+│                                                                     │
+│  ┌─────────────────────┐        ┌──────────────────────────┐        │
+│  │ MT5 + mt5_scraper   │        │ forexfactory_scraper.py  │        │
+│  │ (déjà en place)     │        │ (CE QUE TU VAS DÉPLOYER) │        │
+│  └──────────┬──────────┘        └─────────────┬────────────┘        │
+│             │ toutes les X min               │ toutes les 30 min    │
+└─────────────┼────────────────────────────────┼──────────────────────┘
+              │ upsert                         │ upsert
+              ▼                                ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  SUPABASE (cloud, projet MEMOIRE EA)                             │
+│  ┌─────────────────┐           ┌─────────────────────────────┐   │
+│  │  mt5_calendar   │           │  ff_calendar (À CRÉER)      │   │
+│  │  (existant)     │           │                             │   │
+│  └────────┬────────┘           └──────────────┬──────────────┘   │
+└───────────┼───────────────────────────────────┼──────────────────┘
+            │            SELECT (merge)         │
+            └───────────────┬───────────────────┘
+                            ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  VERCEL — site-rapport-trading.vercel.app                        │
+│  Next.js 14 / TypeScript                                         │
+│  Page /preparation → lit les 2 tables, dédoublonne, affiche      │
+│                     le calendrier économique complet             │
+└──────────────────────────────────────────────────────────────────┘
+                            ▲
+                            │ consulte
+                            │
+                          LUCA
+                  (trader, son cockpit)
+```
+
+### Ton rôle (Claude Code VPS)
+
+Tu vas :
+1. Créer une **table Supabase** (`ff_calendar`) via un SQL.
+2. Cloner le repo, installer Python + dépendances dans un venv.
+3. Configurer un `.env` avec les clés Supabase.
+4. Tester manuellement le scraper (dry-run puis run réel).
+5. Enregistrer une **tâche planifiée Windows** qui relance le scraper toutes les 30 min, même si personne n'est connecté au VPS.
+6. Vérifier que ça tourne et remonter la checklist remplie à Luca.
+
+**Tu ne touches PAS au site Next.js.** Le site a déjà une API fallback qui fetch le XML live en direct — il continuera à fonctionner pendant ta mise en place. Quand `ff_calendar` sera peuplée, Luca basculera la lecture côté site (sur son PC local, pas sur le VPS).
+
+## 🔗 Stack & conventions
+
+- **Langage scraper** : Python 3.8+, une seule dépendance (`requests`).
+- **Orchestration** : Windows Task Scheduler (pas cron, pas systemd).
+- **Base** : Supabase PostgreSQL, auth par clé `service_role` (écriture, bypass RLS).
+- **Source de données** : `https://nfs.faireconomy.media/ff_calendar_thisweek.xml` + `_nextweek.xml` (mirror public officiel ForexFactory, pas d'API key requise, encoding `windows-1252`).
+- **Dédoublonnage** : clé primaire `event_id` = hash SHA1 court de `currency|utc_iso|title` → un upsert est idempotent, le scraper peut tourner 100 fois sur la même semaine sans créer de doublons.
+
+## 💡 Points importants à garder en tête
+
+- Le scraper **ne doit jamais bloquer le VPS** : timeout HTTP 20 s, 3 retries, exit propre en cas d'erreur — la tâche planifiée réessaiera 30 min plus tard.
+- Les **logs** sont dans `scraper.log` à côté du script → vérifier ce fichier avant Supabase si tu doutes.
+- `.env` contient une **clé service_role** = accès écriture complet. Si elle fuit : Luca reset dans Supabase Dashboard. Jamais commit, jamais log verbeux.
+- L'heure des events dans le XML est en **UTC**, pas en ET (vérifié empiriquement) → le script stocke en `timestamptz` UTC, le site convertit en heure locale Paris côté client.
+- En cas de doute sur une manip destructive (effacer table, changer policy RLS, modifier la tâche existante `mt5_scraper`) → **demande à Luca** avant de faire, ne pas agir seul.
 
 ---
 
