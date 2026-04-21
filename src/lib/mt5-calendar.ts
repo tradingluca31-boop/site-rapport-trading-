@@ -1,6 +1,7 @@
 import { createPublicClient } from "@/lib/supabase/public-client";
 import { EcoEvent, EventCategory, Impact } from "@/types";
 import { translateEventName } from "@/lib/event-translator";
+import { fetchForexFactoryEvents } from "@/lib/forexfactory-calendar";
 
 type Mt5CalendarRow = {
   event_id: number | string;
@@ -79,7 +80,37 @@ export function mapRowToEcoEvent(row: Mt5CalendarRow): EcoEvent {
   };
 }
 
-export async function fetchWeekEvents(startDate: string, endDate: string): Promise<EcoEvent[]> {
+function normalizeTitleForDedup(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .slice(0, 24);
+}
+
+function mergeCalendarSources(mt5: EcoEvent[], ff: EcoEvent[]): EcoEvent[] {
+  const seen = new Set<string>();
+  const makeKey = (e: EcoEvent) => {
+    const [h] = e.time.split(":");
+    return `${e.currency}|${e.date}|${h}|${normalizeTitleForDedup(e.title)}`;
+  };
+  const merged: EcoEvent[] = [];
+  for (const e of mt5) {
+    seen.add(makeKey(e));
+    merged.push(e);
+  }
+  for (const e of ff) {
+    if (seen.has(makeKey(e))) continue;
+    seen.add(makeKey(e));
+    merged.push(e);
+  }
+  merged.sort((a, b) => {
+    if (a.date !== b.date) return a.date.localeCompare(b.date);
+    return a.time.localeCompare(b.time);
+  });
+  return merged;
+}
+
+async function fetchMt5Events(startDate: string, endDate: string): Promise<EcoEvent[]> {
   const supabase = createPublicClient();
   const start = new Date(`${startDate}T00:00:00`).toISOString();
   const end = new Date(`${endDate}T23:59:59`).toISOString();
@@ -97,4 +128,12 @@ export async function fetchWeekEvents(startDate: string, endDate: string): Promi
   }
 
   return (data ?? []).map((r) => mapRowToEcoEvent(r as Mt5CalendarRow));
+}
+
+export async function fetchWeekEvents(startDate: string, endDate: string): Promise<EcoEvent[]> {
+  const [mt5, ff] = await Promise.all([
+    fetchMt5Events(startDate, endDate),
+    fetchForexFactoryEvents(startDate, endDate),
+  ]);
+  return mergeCalendarSources(mt5, ff);
 }
