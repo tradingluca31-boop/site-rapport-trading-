@@ -120,6 +120,46 @@ function normalizeStatus(raw: string | null): TradeStatus {
   return "open";
 }
 
+// Liste de noms de proprietes deja mappees vers des champs specifiques.
+// Tout le reste sera dumpe dans notes pour ne rien perdre.
+const MAPPED_PROP_NAMES = new Set(
+  [
+    "Date", "DATE", "Jour", "Day",
+    "Actifs", "Actif", "Paire", "Pair", "Symbol", "Symbole", "Instrument",
+    "Type d'Ordre", "Type d Ordre", "Direction", "Sens", "Side", "Ordre",
+    "RÉSULTAT", "Resultat", "Résultat", "Statut", "Status", "Etat", "État",
+    "Entry", "Entrée", "Entree", "Prix entrée", "Prix entree",
+    "SL", "Stop", "Stop Loss", "StopLoss",
+    "TP", "Target", "Take Profit", "TakeProfit",
+    "Size", "Taille", "Lot", "Lots", "Volume", "Risk",
+    "$ NET", "PnL", "P&L", "PNL", "Gain",
+    "R/R final", "RR final", "R final", "R/R",
+    "% NET", "% net", "Pct NET",
+    "Idée", "Idea", "These", "Thèse", "Thesis", "Type de trade",
+    "Notes", "Note", "Commentaire", "Comment", "Erreurs",
+    "Tags", "Tag", "Categorie", "Catégorie", "Tendance",
+    "Time-Frame", "Timeframe", "TF",
+  ].map((s) => s.toLowerCase())
+);
+
+function dumpExtraProps(props: Record<string, NotionProperty>): string {
+  const lines: string[] = [];
+  for (const [name, prop] of Object.entries(props)) {
+    if (MAPPED_PROP_NAMES.has(name.toLowerCase())) continue;
+    let value: string | null = null;
+    if (prop.type === "date") {
+      const parsed = propDate(prop);
+      if (parsed) value = parsed.time ? `${parsed.date} ${parsed.time}` : parsed.date;
+    } else if (prop.type === "checkbox") {
+      value = prop.checkbox ? "oui" : "non";
+    } else {
+      value = propText(prop);
+    }
+    if (value && value.trim()) lines.push(`${name}: ${value.trim()}`);
+  }
+  return lines.join("\n");
+}
+
 function mapPageToDraft(page: NotionPage): NotionTradeDraft | null {
   const props = page.properties;
 
@@ -150,7 +190,13 @@ function mapPageToDraft(page: NotionPage): NotionTradeDraft | null {
   else if (pctNet) pnl = `${pctNet}%`;
 
   const idea = propText(findProp(props, ["Idée", "Idea", "These", "Thèse", "Thesis", "Type de trade"]));
-  const notes = propText(findProp(props, ["Notes", "Note", "Commentaire", "Comment", "Erreurs"]));
+  const notesBase = propText(findProp(props, ["Notes", "Note", "Commentaire", "Comment", "Erreurs"]));
+  const extraDump = dumpExtraProps(props);
+  const notesParts: string[] = [];
+  if (notesBase) notesParts.push(notesBase);
+  if (extraDump) notesParts.push(`--- Proprietes Notion ---\n${extraDump}`);
+  const notes = notesParts.length ? notesParts.join("\n\n") : null;
+
   const tags = [
     ...propMultiSelect(findProp(props, ["Tags", "Tag", "Categorie", "Catégorie", "Tendance"])),
     ...propMultiSelect(findProp(props, ["Time-Frame", "Timeframe", "TF"])),
@@ -174,20 +220,96 @@ function mapPageToDraft(page: NotionPage): NotionTradeDraft | null {
   };
 }
 
+function normalizeId(raw: string): string {
+  const id = raw.toLowerCase().replace(/-/g, "");
+  return `${id.slice(0, 8)}-${id.slice(8, 12)}-${id.slice(12, 16)}-${id.slice(16, 20)}-${id.slice(20)}`;
+}
+
 export function extractNotionPageId(input: string): string | null {
   const raw = input.trim();
   if (!raw) return null;
-  const match = raw.match(/([0-9a-f]{8})-?([0-9a-f]{4})-?([0-9a-f]{4})-?([0-9a-f]{4})-?([0-9a-f]{12})/i);
-  if (match) {
-    const [, a, b, c, d, e] = match;
+  // Priorite 1 : URL avec ?p=<id> (cas des sous-pages dans une DB Notion)
+  const queryMatch = raw.match(/[?&]p=([0-9a-f]{32}|[0-9a-f-]{36})/i);
+  if (queryMatch) {
+    const cand = queryMatch[1].replace(/-/g, "");
+    if (cand.length === 32) return normalizeId(cand);
+  }
+  // Priorite 2 : UUID avec tirets dans le path
+  const dashed = raw.match(/([0-9a-f]{8})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{12})/i);
+  if (dashed) {
+    const [, a, b, c, d, e] = dashed;
     return `${a}-${b}-${c}-${d}-${e}`.toLowerCase();
   }
-  const bare = raw.match(/([0-9a-f]{32})/i);
-  if (bare) {
-    const id = bare[1].toLowerCase();
-    return `${id.slice(0, 8)}-${id.slice(8, 12)}-${id.slice(12, 16)}-${id.slice(16, 20)}-${id.slice(20)}`;
+  // Priorite 3 : dernier bloc 32 hex dans le path (le plus a droite = page, pas DB)
+  const bares = Array.from(raw.matchAll(/([0-9a-f]{32})/gi));
+  if (bares.length > 0) {
+    const last = bares[bares.length - 1][1];
+    return normalizeId(last);
   }
   return null;
+}
+
+type NotionRichText = { plain_text: string };
+type NotionBlock = {
+  id: string;
+  type: string;
+  has_children?: boolean;
+  [key: string]: unknown;
+};
+
+function extractBlockText(block: NotionBlock): string | null {
+  const type = block.type;
+  if (!type) return null;
+  const payload = block[type] as { rich_text?: NotionRichText[]; checked?: boolean; language?: string } | undefined;
+  if (!payload) return null;
+  const rt = payload.rich_text;
+  if (!rt || !rt.length) return null;
+  const text = rt.map((r) => r.plain_text).join("").trim();
+  if (!text) return null;
+  switch (type) {
+    case "heading_1": return `# ${text}`;
+    case "heading_2": return `## ${text}`;
+    case "heading_3": return `### ${text}`;
+    case "bulleted_list_item": return `- ${text}`;
+    case "numbered_list_item": return `1. ${text}`;
+    case "to_do": return `${payload.checked ? "[x]" : "[ ]"} ${text}`;
+    case "quote": return `> ${text}`;
+    case "code": return `\`\`\`${payload.language ?? ""}\n${text}\n\`\`\``;
+    case "toggle": return `▸ ${text}`;
+    case "callout": return `💡 ${text}`;
+    default: return text;
+  }
+}
+
+async function fetchBlocksRecursive(pageId: string, token: string, depth = 0): Promise<string[]> {
+  if (depth > 3) return [];
+  const lines: string[] = [];
+  let cursor: string | null = null;
+  do {
+    const url = new URL(`https://api.notion.com/v1/blocks/${pageId}/children`);
+    url.searchParams.set("page_size", "100");
+    if (cursor) url.searchParams.set("start_cursor", cursor);
+    const res: Response = await fetch(url.toString(), {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Notion-Version": NOTION_VERSION,
+      },
+      cache: "no-store",
+    });
+    if (!res.ok) break;
+    const json = (await res.json()) as { results: NotionBlock[]; next_cursor: string | null; has_more: boolean };
+    for (const block of json.results) {
+      const text = extractBlockText(block);
+      if (text) lines.push(text);
+      if (block.has_children) {
+        const children = await fetchBlocksRecursive(block.id, token, depth + 1);
+        for (const c of children) lines.push(`  ${c}`);
+      }
+    }
+    cursor = json.has_more ? json.next_cursor : null;
+  } while (cursor);
+  return lines;
 }
 
 export async function fetchNotionPage(pageId: string): Promise<NotionTradeDraft | null> {
@@ -206,7 +328,23 @@ export async function fetchNotionPage(pageId: string): Promise<NotionTradeDraft 
     throw new Error(`Notion API ${res.status} : ${txt.slice(0, 200)}`);
   }
   const page = (await res.json()) as NotionPage;
-  return mapPageToDraft(page);
+  const draft = mapPageToDraft(page);
+  if (!draft) return null;
+
+  // Fetch body blocks and append to notes
+  try {
+    const blockLines = await fetchBlocksRecursive(pageId, token);
+    if (blockLines.length) {
+      const body = blockLines.join("\n");
+      draft.notes = draft.notes
+        ? `${draft.notes}\n\n--- Contenu de la page ---\n${body}`
+        : `--- Contenu de la page ---\n${body}`;
+    }
+  } catch (err) {
+    console.warn("[fetchNotionPage] blocks fetch failed", err);
+  }
+
+  return draft;
 }
 
 export async function fetchNotionTrades(filterDate?: string): Promise<NotionTradeDraft[]> {
