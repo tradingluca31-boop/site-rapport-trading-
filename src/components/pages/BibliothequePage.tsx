@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { recentReports } from "@/lib/mock-data";
+import { useEffect, useMemo, useState } from "react";
+import { Trade, listTrades } from "@/lib/trades";
 import { LibraryEntry, ReportType } from "@/types";
 import {
   Search,
@@ -29,12 +29,108 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }
 
+function parsePnlNumber(pnl: string | null): number | null {
+  if (!pnl) return null;
+  const cleaned = pnl.replace(/[^\d.,\-]/g, "").replace(",", ".");
+  if (!cleaned) return null;
+  const n = parseFloat(cleaned);
+  if (isNaN(n)) return null;
+  return pnl.trim().startsWith("-") ? -Math.abs(n) : n;
+}
+
+function parseRrNumber(pnl: string | null): number | null {
+  if (!pnl) return null;
+  const m = pnl.trim().match(/^([+-]?\d+(?:[.,]\d+)?)\s*R$/i);
+  if (!m) return null;
+  const n = parseFloat(m[1].replace(",", "."));
+  return isNaN(n) ? null : n;
+}
+
+function buildLibraryFromTrades(trades: Trade[]): LibraryEntry[] {
+  const byDate = new Map<string, Trade[]>();
+  for (const t of trades) {
+    const list = byDate.get(t.date) ?? [];
+    list.push(t);
+    byDate.set(t.date, list);
+  }
+
+  const entries: LibraryEntry[] = [];
+  for (const [date, dayTrades] of byDate) {
+    const wins = dayTrades.filter((t) => t.status === "closed-win").length;
+    const losses = dayTrades.filter((t) => t.status === "closed-loss").length;
+    const opens = dayTrades.filter((t) => t.status === "open").length;
+    const pairs = Array.from(new Set(dayTrades.map((t) => t.pair)));
+
+    const rrList = dayTrades.map((t) => parseRrNumber(t.pnl)).filter((n): n is number => n !== null);
+    const usdList = dayTrades.map((t) => parsePnlNumber(t.pnl)).filter((n): n is number => n !== null);
+
+    let pnlPct: number | null = null;
+    if (rrList.length > 0) {
+      pnlPct = parseFloat((rrList.reduce((a, b) => a + b, 0)).toFixed(2));
+    } else if (usdList.length > 0) {
+      pnlPct = Math.round(usdList.reduce((a, b) => a + b, 0));
+    }
+
+    const pairLabel = pairs.length === 1 ? pairs[0] : pairs.length <= 3 ? pairs.join(", ") : `${pairs.slice(0, 2).join(", ")} +${pairs.length - 2}`;
+    const title = `Session du ${new Date(date).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} — ${pairLabel}`;
+    const summary = `${dayTrades.length} trade${dayTrades.length > 1 ? "s" : ""} · ${wins}W / ${losses}L${opens ? ` · ${opens} en cours` : ""}.`;
+
+    const content = dayTrades
+      .sort((a, b) => (a.time ?? "").localeCompare(b.time ?? ""))
+      .map((t) => {
+        const lines = [
+          `[${t.time ?? "--:--"}] ${t.pair} ${t.direction.toUpperCase()}${t.size ? ` · ${t.size}` : ""}`,
+          [t.entry ? `Entry ${t.entry}` : null, t.sl ? `SL ${t.sl}` : null, t.tp ? `TP ${t.tp}` : null]
+            .filter(Boolean)
+            .join(" · "),
+          t.pnl ? `→ ${t.status.toUpperCase()} ${t.pnl}` : `→ ${t.status.toUpperCase()}`,
+          t.idea ? `"${t.idea}"` : null,
+        ].filter(Boolean);
+        return lines.join("\n");
+      })
+      .join("\n\n");
+
+    entries.push({
+      id: date,
+      date,
+      type: "daily" as ReportType,
+      title,
+      summary,
+      content,
+      tags: pairs,
+      pnlPct,
+    });
+  }
+
+  return entries.sort((a, b) => b.date.localeCompare(a.date));
+}
+
 export default function BibliothequePage() {
   const [filter] = useState<Filter>("tout");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<LibraryEntry | null>(null);
 
-  const filtered = recentReports.filter((r) => {
+  const [trades, setTrades] = useState<Trade[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    listTrades()
+      .then((list) => {
+        if (!cancelled) setTrades(list);
+      })
+      .catch((err) => console.error("[biblio] listTrades", err))
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const entries = useMemo(() => buildLibraryFromTrades(trades), [trades]);
+
+  const filtered = entries.filter((r) => {
     if (filter !== "tout" && r.type !== filter) return false;
     if (search) {
       const q = search.toLowerCase();
@@ -52,7 +148,9 @@ export default function BibliothequePage() {
       <div className="page-root px-12 py-10 animate-in">
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
-          <span className="tag text-xs">{recentReports.length} entrees · archivees</span>
+          <span className="tag text-xs">
+            {loading ? "Chargement..." : `${entries.length} session${entries.length > 1 ? "s" : ""} · archivees`}
+          </span>
           <div className="flex gap-3">
             <button
               className="flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-medium hover:bg-gray-50"
@@ -95,11 +193,29 @@ export default function BibliothequePage() {
         </div>
 
         {/* Cards grid */}
-        <div className="grid grid-cols-3 gap-6 mobile-stack">
-          {filtered.map((r) => (
-            <ReportCard key={r.id} report={r} onClick={() => setSelected(r)} />
-          ))}
-        </div>
+        {!loading && filtered.length === 0 && (
+          <div
+            className="rounded-xl py-16 text-center"
+            style={{
+              background: "var(--bg-elevated)",
+              border: "1px dashed var(--border)",
+              color: "var(--text-muted)",
+            }}
+          >
+            <div className="text-sm" style={{ fontFamily: "var(--font-display)", fontStyle: "italic" }}>
+              Aucune session archivee pour l&apos;instant.
+              <br />
+              Ajoute un trade dans Rapport ou importe depuis Notion pour alimenter la bibliotheque.
+            </div>
+          </div>
+        )}
+        {filtered.length > 0 && (
+          <div className="grid grid-cols-3 gap-6 mobile-stack">
+            {filtered.map((r) => (
+              <ReportCard key={r.id} report={r} onClick={() => setSelected(r)} />
+            ))}
+          </div>
+        )}
       </div>
 
       {selected && <DetailModal report={selected} onClose={() => setSelected(null)} />}

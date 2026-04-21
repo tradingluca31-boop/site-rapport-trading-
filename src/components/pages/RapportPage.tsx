@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   TrendingUp,
   TrendingDown,
@@ -12,7 +12,16 @@ import {
   X as XIcon,
   Check,
   Trash2,
+  Download,
 } from "lucide-react";
+import {
+  Trade,
+  TradeDirection,
+  TradeStatus,
+  createTrade,
+  deleteTrade as deleteTradeSb,
+  listTradesByDate,
+} from "@/lib/trades";
 
 const ACCENT = "#7C5CFF";
 const GREEN = "#08D9D6";
@@ -20,8 +29,6 @@ const RED = "#FF2E63";
 const GOLD = "#C59E3A";
 
 type Sentiment = "hawkish" | "dovish" | "neutral";
-type TradeDirection = "long" | "short";
-type TradeStatus = "open" | "closed-win" | "closed-loss";
 
 type FondaEntry = {
   id: string;
@@ -31,8 +38,7 @@ type FondaEntry = {
   sentiment: Sentiment;
 };
 
-type TradeEntry = {
-  id: string;
+type TradeFormState = {
   time: string;
   pair: string;
   direction: TradeDirection;
@@ -51,7 +57,6 @@ type DayReport = {
   editoTitle: string;
   editoSummary: string;
   fonda: FondaEntry[];
-  trades: TradeEntry[];
   ideas: Idea[];
 };
 
@@ -59,8 +64,20 @@ const EMPTY_DAY: DayReport = {
   editoTitle: "",
   editoSummary: "",
   fonda: [],
-  trades: [],
   ideas: [],
+};
+
+const EMPTY_TRADE_FORM: TradeFormState = {
+  time: "",
+  pair: "",
+  direction: "long",
+  entry: "",
+  sl: "",
+  tp: "",
+  size: "",
+  status: "open",
+  idea: "",
+  pnl: "",
 };
 
 function todayKey() {
@@ -88,6 +105,8 @@ export default function RapportPage() {
   const header = formatTodayHeader();
 
   const [data, setData] = useState<DayReport>(EMPTY_DAY);
+  const [trades, setTrades] = useState<Trade[]>([]);
+  const [tradesLoading, setTradesLoading] = useState(true);
   const [editingEdito, setEditingEdito] = useState(false);
   const [draftEdito, setDraftEdito] = useState({ title: "", summary: "" });
 
@@ -100,18 +119,11 @@ export default function RapportPage() {
   });
 
   const [tradeFormOpen, setTradeFormOpen] = useState(false);
-  const [newTrade, setNewTrade] = useState<Omit<TradeEntry, "id">>({
-    time: "",
-    pair: "",
-    direction: "long",
-    entry: "",
-    sl: "",
-    tp: "",
-    size: "",
-    status: "open",
-    idea: "",
-    pnl: "",
-  });
+  const [newTrade, setNewTrade] = useState<TradeFormState>(EMPTY_TRADE_FORM);
+  const [savingTrade, setSavingTrade] = useState(false);
+
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
   const [newIdea, setNewIdea] = useState("");
 
@@ -130,13 +142,25 @@ export default function RapportPage() {
     localStorage.setItem(`rapport-${dayKey}`, JSON.stringify(data));
   }, [data, dayKey]);
 
-  const pnlTotal = data.trades.reduce((acc, t) => {
-    const n = parseFloat(t.pnl.replace(/[^\d.-]/g, ""));
-    return acc + (isNaN(n) ? 0 : t.pnl.startsWith("-") ? -Math.abs(n) : Math.abs(n));
+  const reloadTrades = useCallback(async () => {
+    setTradesLoading(true);
+    const list = await listTradesByDate(dayKey);
+    setTrades(list);
+    setTradesLoading(false);
+  }, [dayKey]);
+
+  useEffect(() => {
+    reloadTrades();
+  }, [reloadTrades]);
+
+  const pnlTotal = trades.reduce((acc, t) => {
+    const s = t.pnl ?? "";
+    const n = parseFloat(s.replace(/[^\d.-]/g, ""));
+    return acc + (isNaN(n) ? 0 : s.trim().startsWith("-") ? -Math.abs(n) : Math.abs(n));
   }, 0);
-  const wins = data.trades.filter((t) => t.status === "closed-win").length;
-  const losses = data.trades.filter((t) => t.status === "closed-loss").length;
-  const opens = data.trades.filter((t) => t.status === "open").length;
+  const wins = trades.filter((t) => t.status === "closed-win").length;
+  const losses = trades.filter((t) => t.status === "closed-loss").length;
+  const opens = trades.filter((t) => t.status === "open").length;
 
   const saveEdito = () => {
     setData((prev) => ({ ...prev, editoTitle: draftEdito.title, editoSummary: draftEdito.summary }));
@@ -154,26 +178,56 @@ export default function RapportPage() {
     setData((prev) => ({ ...prev, fonda: prev.fonda.filter((f) => f.id !== id) }));
   };
 
-  const addTrade = () => {
-    if (!newTrade.pair.trim()) return;
-    setData((prev) => ({ ...prev, trades: [...prev.trades, { ...newTrade, id: newId() }] }));
-    setNewTrade({
-      time: "",
-      pair: "",
-      direction: "long",
-      entry: "",
-      sl: "",
-      tp: "",
-      size: "",
-      status: "open",
-      idea: "",
-      pnl: "",
+  const addTrade = async () => {
+    if (!newTrade.pair.trim() || savingTrade) return;
+    setSavingTrade(true);
+    const created = await createTrade({
+      date: dayKey,
+      time: newTrade.time || null,
+      pair: newTrade.pair.trim().toUpperCase(),
+      direction: newTrade.direction,
+      entry: newTrade.entry || null,
+      sl: newTrade.sl || null,
+      tp: newTrade.tp || null,
+      size: newTrade.size || null,
+      status: newTrade.status,
+      idea: newTrade.idea || null,
+      pnl: newTrade.pnl || null,
     });
+    setSavingTrade(false);
+    if (!created) return;
+    setTrades((prev) => [...prev, created].sort((a, b) => (a.time ?? "").localeCompare(b.time ?? "")));
+    setNewTrade(EMPTY_TRADE_FORM);
     setTradeFormOpen(false);
   };
 
-  const deleteTrade = (id: string) => {
-    setData((prev) => ({ ...prev, trades: prev.trades.filter((t) => t.id !== id) }));
+  const removeTrade = async (id: string) => {
+    const ok = await deleteTradeSb(id);
+    if (!ok) return;
+    setTrades((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const importFromNotion = async () => {
+    if (importing) return;
+    setImporting(true);
+    setImportMsg(null);
+    try {
+      const res = await fetch("/api/trades/import-notion", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) {
+        setImportMsg({ kind: "err", text: json.detail || json.error || "Erreur import Notion" });
+      } else {
+        setImportMsg({
+          kind: "ok",
+          text: `Import OK : ${json.upserted ?? json.imported ?? 0} trades synchronises`,
+        });
+        await reloadTrades();
+      }
+    } catch (err) {
+      setImportMsg({ kind: "err", text: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setImporting(false);
+    }
   };
 
   const addIdea = () => {
@@ -189,28 +243,70 @@ export default function RapportPage() {
   return (
     <div className="page-root" style={{ padding: "40px 32px", background: "var(--bg-page, #FAFAF9)", minHeight: "100vh" }}>
       <div style={{ maxWidth: 1440, margin: "0 auto" }}>
-        <header style={{ marginBottom: 36 }}>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 800,
-              letterSpacing: 2,
-              color: "var(--text-muted, #6B7280)",
-              marginBottom: 6,
-            }}
-          >
-            {header.weekday} — RAPPORT DE SESSION
+        <header style={{ marginBottom: 36, display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 800,
+                letterSpacing: 2,
+                color: "var(--text-muted, #6B7280)",
+                marginBottom: 6,
+              }}
+            >
+              {header.weekday} — RAPPORT DE SESSION
+            </div>
+            <h1
+              style={{
+                fontSize: 32,
+                fontWeight: 300,
+                letterSpacing: "-0.01em",
+                fontFamily: "var(--font-display, Georgia, serif)",
+              }}
+            >
+              {header.full}
+            </h1>
           </div>
-          <h1
-            style={{
-              fontSize: 32,
-              fontWeight: 300,
-              letterSpacing: "-0.01em",
-              fontFamily: "var(--font-display, Georgia, serif)",
-            }}
-          >
-            {header.full}
-          </h1>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+            <button
+              type="button"
+              onClick={importFromNotion}
+              disabled={importing}
+              title="Synchroniser les trades depuis Notion"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "10px 16px",
+                borderRadius: 10,
+                background: importing ? "#E5E7EB" : "white",
+                border: `1px solid ${ACCENT}40`,
+                color: importing ? "#9CA3AF" : ACCENT,
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: 0.5,
+                cursor: importing ? "wait" : "pointer",
+                boxShadow: importing ? "none" : `0 2px 6px ${ACCENT}15`,
+              }}
+            >
+              <Download size={14} />
+              {importing ? "Import en cours..." : "Importer Notion"}
+            </button>
+            {importMsg && (
+              <div
+                style={{
+                  fontSize: 11,
+                  color: importMsg.kind === "ok" ? GREEN : RED,
+                  fontWeight: 600,
+                  maxWidth: 320,
+                  textAlign: "right",
+                  lineHeight: 1.4,
+                }}
+              >
+                {importMsg.text}
+              </div>
+            )}
+          </div>
         </header>
 
         <div className="mobile-stack" style={{ display: "grid", gridTemplateColumns: "3fr 1fr", gap: 28 }}>
@@ -269,15 +365,19 @@ export default function RapportPage() {
                   onChange={setNewTrade}
                   onCancel={() => setTradeFormOpen(false)}
                   onSave={addTrade}
+                  saving={savingTrade}
                 />
               )}
-              {data.trades.length === 0 && !tradeFormOpen && (
+              {tradesLoading && (
+                <EmptyState text="Chargement des trades..." />
+              )}
+              {!tradesLoading && trades.length === 0 && !tradeFormOpen && (
                 <EmptyState text="Aucun trade enregistre aujourd'hui." />
               )}
-              {data.trades.length > 0 && (
+              {!tradesLoading && trades.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {data.trades.map((t) => (
-                    <TradeCard key={t.id} trade={t} onDelete={() => deleteTrade(t.id)} />
+                  {trades.map((t) => (
+                    <TradeCard key={t.id} trade={t} onDelete={() => removeTrade(t.id)} />
                   ))}
                 </div>
               )}
@@ -706,7 +806,7 @@ function FondaForm({
   );
 }
 
-function TradeCard({ trade, onDelete }: { trade: TradeEntry; onDelete: () => void }) {
+function TradeCard({ trade, onDelete }: { trade: Trade; onDelete: () => void }) {
   const isLong = trade.direction === "long";
   const statusColor = trade.status === "closed-win" ? GREEN : trade.status === "closed-loss" ? RED : "#6B7280";
   return (
@@ -760,23 +860,28 @@ function TradeCard({ trade, onDelete }: { trade: TradeEntry; onDelete: () => voi
       <div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
           <span style={{ fontSize: 14, fontWeight: 700 }}>{trade.pair}</span>
-          {trade.time && (
+          {trade.time ? (
             <span style={{ fontSize: 10, fontFamily: "monospace", color: "#9CA3AF" }}>{trade.time}</span>
-          )}
-          {trade.size && (
+          ) : null}
+          {trade.size ? (
             <span style={{ fontSize: 10, color: "#9CA3AF", fontFamily: "monospace" }}>{trade.size}</span>
-          )}
+          ) : null}
+          {trade.source === "notion" ? (
+            <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 3, background: `${ACCENT}15`, color: ACCENT, fontWeight: 700, letterSpacing: 1 }}>
+              NOTION
+            </span>
+          ) : null}
         </div>
         <div style={{ fontSize: 11, color: "#9CA3AF", fontFamily: "monospace", marginBottom: trade.idea ? 4 : 0 }}>
-          {trade.entry && <>Entry {trade.entry}</>}
-          {trade.sl && <> · SL {trade.sl}</>}
-          {trade.tp && <> · TP {trade.tp}</>}
+          {trade.entry ? <>Entry {trade.entry}</> : null}
+          {trade.sl ? <> · SL {trade.sl}</> : null}
+          {trade.tp ? <> · TP {trade.tp}</> : null}
         </div>
-        {trade.idea && (
+        {trade.idea ? (
           <div style={{ fontSize: 12, color: "var(--text-secondary, #374151)", fontStyle: "italic" }}>
             &ldquo;{trade.idea}&rdquo;
           </div>
-        )}
+        ) : null}
       </div>
       <div style={{ textAlign: "right", paddingRight: 20 }}>
         {trade.pnl && (
@@ -809,11 +914,13 @@ function TradeForm({
   onChange,
   onCancel,
   onSave,
+  saving,
 }: {
-  value: Omit<TradeEntry, "id">;
-  onChange: (v: Omit<TradeEntry, "id">) => void;
+  value: TradeFormState;
+  onChange: (v: TradeFormState) => void;
   onCancel: () => void;
   onSave: () => void;
+  saving?: boolean;
 }) {
   return (
     <div
@@ -913,11 +1020,16 @@ function TradeForm({
         style={{ ...inputStyle, width: "100%", resize: "vertical", minHeight: 50, marginBottom: 10 }}
       />
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-        <button type="button" onClick={onCancel} style={btnGhost}>
+        <button type="button" onClick={onCancel} style={btnGhost} disabled={saving}>
           Annuler
         </button>
-        <button type="button" onClick={onSave} style={{ ...btnPrimary, background: GREEN }}>
-          Ajouter
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={saving}
+          style={{ ...btnPrimary, background: GREEN, opacity: saving ? 0.6 : 1 }}
+        >
+          {saving ? "Enregistrement..." : "Ajouter"}
         </button>
       </div>
     </div>

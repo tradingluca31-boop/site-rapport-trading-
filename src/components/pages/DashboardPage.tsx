@@ -1,8 +1,10 @@
 "use client";
 
-import { PageId } from "@/types";
+import { PageId, EcoEvent } from "@/types";
 import { currentWeek, recentReports } from "@/lib/mock-data";
-import { useEffect, useState } from "react";
+import { fetchNextHighCatalyst } from "@/lib/mt5-calendar";
+import { Trade, listTradesByDateRange } from "@/lib/trades";
+import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   FileText,
@@ -51,9 +53,103 @@ function formatHeroDate(): { dateLine: string; summary: string } {
   };
 }
 
+function formatCountdown(targetIso: string): string {
+  const now = new Date().getTime();
+  const target = new Date(targetIso).getTime();
+  const diff = target - now;
+  if (diff <= 0) return "imminent";
+  const totalMin = Math.floor(diff / 60000);
+  const days = Math.floor(totalMin / (60 * 24));
+  const hours = Math.floor((totalMin - days * 60 * 24) / 60);
+  const minutes = totalMin - days * 60 * 24 - hours * 60;
+  if (days > 0) return `${days}j ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes.toString().padStart(2, "0")}min`;
+  return `${minutes}min`;
+}
+
+function formatEventDateLabel(dateStr: string, timeStr: string): string {
+  const d = new Date(`${dateStr}T${timeStr}:00`);
+  const day = d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+  return `${day} · ${timeStr}`;
+}
+
+function isoDateOffset(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function parsePnlToNumber(pnl: string | null): number | null {
+  if (!pnl) return null;
+  const cleaned = pnl.replace(/[^\d.,\-]/g, "").replace(",", ".");
+  if (!cleaned) return null;
+  const n = parseFloat(cleaned);
+  if (isNaN(n)) return null;
+  return pnl.trim().startsWith("-") ? -Math.abs(n) : n;
+}
+
+function parseRr(pnl: string | null): number | null {
+  if (!pnl) return null;
+  const m = pnl.trim().match(/^([+-]?\d+(?:[.,]\d+)?)\s*R$/i);
+  if (!m) return null;
+  const n = parseFloat(m[1].replace(",", "."));
+  return isNaN(n) ? null : n;
+}
+
+type DashboardKpis = {
+  winRate: string;
+  winRateDelta: string;
+  pnlMonth: string;
+  pnlMonthDelta: string;
+  rrAvg: string;
+  rrAvgDelta: string;
+  tradesPerWeek: string;
+  tradesPerWeekDelta: string;
+};
+
+function computeDashboardKpis(trades30d: Trade[]): DashboardKpis {
+  if (trades30d.length === 0) {
+    return {
+      winRate: "—",
+      winRateDelta: "pas de trades",
+      pnlMonth: "—",
+      pnlMonthDelta: "pas de trades",
+      rrAvg: "—",
+      rrAvgDelta: "pas de trades",
+      tradesPerWeek: "—",
+      tradesPerWeekDelta: "pas de trades",
+    };
+  }
+
+  const closed = trades30d.filter((t) => t.status === "closed-win" || t.status === "closed-loss");
+  const wins = trades30d.filter((t) => t.status === "closed-win").length;
+  const winRate = closed.length > 0 ? Math.round((wins / closed.length) * 100) : null;
+
+  const pnlNumbers = trades30d.map((t) => parsePnlToNumber(t.pnl)).filter((n): n is number => n !== null);
+  const pnlSum = pnlNumbers.reduce((a, b) => a + b, 0);
+
+  const rrNumbers = trades30d.map((t) => parseRr(t.pnl)).filter((n): n is number => n !== null);
+  const rrAvg = rrNumbers.length > 0 ? rrNumbers.reduce((a, b) => a + b, 0) / rrNumbers.length : null;
+
+  const tradesPerWeek = (trades30d.length / 30) * 7;
+
+  return {
+    winRate: winRate === null ? "—" : `${winRate}%`,
+    winRateDelta: closed.length === 0 ? "aucun trade clos" : `${wins}W / ${closed.length - wins}L sur 30j`,
+    pnlMonth: pnlNumbers.length === 0 ? "—" : `${pnlSum >= 0 ? "+" : ""}${Math.round(pnlSum)}`,
+    pnlMonthDelta: pnlNumbers.length === 0 ? "PnL non quantifiable" : `${pnlNumbers.length} trades sur 30j`,
+    rrAvg: rrAvg === null ? "—" : `${rrAvg >= 0 ? "+" : ""}${rrAvg.toFixed(2)}R`,
+    rrAvgDelta: rrNumbers.length === 0 ? "aucun RR renseigne" : `${rrNumbers.length} trades RR`,
+    tradesPerWeek: tradesPerWeek.toFixed(1),
+    tradesPerWeekDelta: `${trades30d.length} trades sur 30j`,
+  };
+}
+
 export default function DashboardPage({ onNavigate }: DashboardPageProps) {
-  const nextEvent = currentWeek.events.find((e) => e.impact === "high");
-  const scenarios = currentWeek.scenarios.filter((s) => s.eventId === nextEvent?.id);
+  const [catalyst, setCatalyst] = useState<EcoEvent | null>(null);
+  const [catalystLoading, setCatalystLoading] = useState(true);
+  const [countdown, setCountdown] = useState<string>("—");
+  const scenarios = currentWeek.scenarios.filter((s) => s.eventId === catalyst?.id);
   const [heroDate, setHeroDate] = useState<{ dateLine: string; summary: string }>({
     dateLine: "",
     summary: "",
@@ -69,11 +165,56 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
   const [editingTheses, setEditingTheses] = useState(false);
   const [draft, setDraft] = useState<ThesesState>(defaultTheses);
 
+  const [trades30d, setTrades30d] = useState<Trade[]>([]);
+  const kpis = useMemo(() => computeDashboardKpis(trades30d), [trades30d]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const start = isoDateOffset(-30);
+    const end = isoDateOffset(0);
+    listTradesByDateRange(start, end)
+      .then((list) => {
+        if (!cancelled) setTrades30d(list);
+      })
+      .catch((err) => console.error("[dashboard] listTradesByDateRange", err));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     setHeroDate(formatHeroDate());
     const id = setInterval(() => setHeroDate(formatHeroDate()), 60_000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchNextHighCatalyst()
+      .then((ev) => {
+        if (!cancelled) setCatalyst(ev);
+      })
+      .catch((err) => {
+        console.error("[dashboard] fetchNextHighCatalyst", err);
+      })
+      .finally(() => {
+        if (!cancelled) setCatalystLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!catalyst) {
+      setCountdown("—");
+      return;
+    }
+    const iso = `${catalyst.date}T${catalyst.time}:00`;
+    setCountdown(formatCountdown(iso));
+    const id = setInterval(() => setCountdown(formatCountdown(iso)), 30_000);
+    return () => clearInterval(id);
+  }, [catalyst]);
 
   useEffect(() => {
     try {
@@ -179,9 +320,17 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
               marginBottom: 24,
             }}
           >
-            CPI US dans{" "}
-            <strong style={{ color: "#f8c471", fontWeight: 600 }}>6h 48min</strong>.{" "}
-            {heroDate.summary}.
+            {catalystLoading ? (
+              <>Chargement du prochain catalyseur…</>
+            ) : catalyst ? (
+              <>
+                {catalyst.title} ({catalyst.currency}) dans{" "}
+                <strong style={{ color: "#f8c471", fontWeight: 600 }}>{countdown}</strong>.{" "}
+                {heroDate.summary}.
+              </>
+            ) : (
+              <>Aucune annonce HIGH impact planifiée dans les 14 jours.</>
+            )}
           </p>
           <div style={{ display: "flex", gap: 10 }}>
             <button
@@ -239,10 +388,10 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
           marginBottom: 24,
         }}
       >
-        <KpiCard label="WIN RATE" value="64%" delta="+2.1pt" icon={<Activity size={16} />} up />
-        <KpiCard label="P&L MOIS" value="+8.6%" delta="+1.2pt" icon={<DollarSign size={16} />} up />
-        <KpiCard label="RR MOYEN" value="1.85" delta="-0.05" icon={<Target size={16} />} />
-        <KpiCard label="TRADES / SEM" value="6" delta="+1" icon={<BarChart3 size={16} />} up />
+        <KpiCard label="WIN RATE" value={kpis.winRate} delta={kpis.winRateDelta} icon={<Activity size={16} />} />
+        <KpiCard label="P&L MOIS" value={kpis.pnlMonth} delta={kpis.pnlMonthDelta} icon={<DollarSign size={16} />} />
+        <KpiCard label="RR MOYEN" value={kpis.rrAvg} delta={kpis.rrAvgDelta} icon={<Target size={16} />} />
+        <KpiCard label="TRADES / SEM" value={kpis.tradesPerWeek} delta={kpis.tradesPerWeekDelta} icon={<BarChart3 size={16} />} />
       </div>
 
       {/* ==================== CATALYSEUR + THESES (Option A) ==================== */}
@@ -259,54 +408,75 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
         <div className="card" style={{ padding: "20px 24px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
             <Target size={14} style={{ color: "var(--text-muted)" }} />
-            <span className="section-label">PROCHAIN CATALYSEUR · 6H48</span>
+            <span className="section-label">PROCHAIN CATALYSEUR · {countdown.toUpperCase()}</span>
           </div>
-          <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-            <span className="tag tag-high font-semibold flex items-center gap-1.5">
-              <span
-                className="w-1.5 h-1.5 rounded-full"
-                style={{ background: "var(--high-impact)" }}
-              />
-              HIGH
-            </span>
-            <span className="tag">USD</span>
-            <span className="tag flex items-center gap-1.5">
-              <CalendarDays size={11} />
-              Mar 14 · 14:30
-            </span>
-          </div>
-          <h3
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: 20,
-              fontWeight: 500,
-              marginBottom: 6,
-            }}
-          >
-            CPI US (MoM &amp; YoY, core &amp; headline)
-          </h3>
-          <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 14 }}>
-            Consensus <strong className="font-mono">0.2%</strong> /{" "}
-            <strong className="font-mono">3.1%</strong>
-            <span style={{ color: "var(--text-muted)" }}> · précédent </span>
-            <span className="font-mono">0.3%</span> / <span className="font-mono">3.2%</span>
-          </p>
-          <div style={{ display: "flex", height: 8, gap: 2, borderRadius: 4, overflow: "hidden" }}>
-            {scenarios.map((s) => (
-              <div
-                key={s.id}
+          {catalystLoading ? (
+            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Chargement…</p>
+          ) : catalyst ? (
+            <>
+              <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+                <span className="tag tag-high font-semibold flex items-center gap-1.5">
+                  <span
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ background: "var(--high-impact)" }}
+                  />
+                  HIGH
+                </span>
+                <span className="tag">{catalyst.currency}</span>
+                <span className="tag flex items-center gap-1.5">
+                  <CalendarDays size={11} />
+                  {formatEventDateLabel(catalyst.date, catalyst.time)}
+                </span>
+              </div>
+              <h3
                 style={{
-                  width: `${s.probability}%`,
-                  background:
-                    s.type === "bear"
-                      ? "var(--bear)"
-                      : s.type === "bull"
-                      ? "var(--bull)"
-                      : "var(--accent)",
+                  fontFamily: "var(--font-display)",
+                  fontSize: 20,
+                  fontWeight: 500,
+                  marginBottom: 6,
                 }}
-              />
-            ))}
-          </div>
+              >
+                {catalyst.title}
+              </h3>
+              <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 14 }}>
+                {catalyst.forecast ? (
+                  <>
+                    Consensus <strong className="font-mono">{catalyst.forecast}</strong>
+                  </>
+                ) : (
+                  <span style={{ color: "var(--text-muted)" }}>Consensus non renseigné</span>
+                )}
+                {catalyst.previous && (
+                  <>
+                    <span style={{ color: "var(--text-muted)" }}> · précédent </span>
+                    <span className="font-mono">{catalyst.previous}</span>
+                  </>
+                )}
+              </p>
+              {scenarios.length > 0 && (
+                <div style={{ display: "flex", height: 8, gap: 2, borderRadius: 4, overflow: "hidden" }}>
+                  {scenarios.map((s) => (
+                    <div
+                      key={s.id}
+                      style={{
+                        width: `${s.probability}%`,
+                        background:
+                          s.type === "bear"
+                            ? "var(--bear)"
+                            : s.type === "bull"
+                            ? "var(--bull)"
+                            : "var(--accent)",
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
+              Aucune annonce HIGH impact dans les 14 prochains jours.
+            </p>
+          )}
         </div>
 
         {/* Theses Macro */}

@@ -137,3 +137,22 @@ export async function fetchWeekEvents(startDate: string, endDate: string): Promi
   ]);
   return mergeCalendarSources(mt5, ff);
 }
+
+function addDaysIso(dateStr: string, days: number): string {
+  const d = new Date(`${dateStr}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+export async function fetchNextHighCatalyst(): Promise<EcoEvent | null> {
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const end = addDaysIso(today, 14);
+  const events = await fetchWeekEvents(today, end);
+  const future = events.filter((e) => {
+    if (e.impact !== "high") return false;
+    const ts = new Date(`${e.date}T${e.time}:00`);
+    return ts.getTime() > now.getTime();
+  });
+  return future[0] ?? null;
+}
