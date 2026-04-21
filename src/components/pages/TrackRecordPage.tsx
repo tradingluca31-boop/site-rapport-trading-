@@ -9,6 +9,7 @@ import {
   Calendar as CalIcon,
   Trophy,
   Zap,
+  Download,
 } from "lucide-react";
 import { Trade, listTradesByDateRange } from "@/lib/trades";
 
@@ -113,6 +114,9 @@ export default function TrackRecordPage() {
   const [end, setEnd] = useState<string>(isoDateOffset(0));
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
+  const [notionUrl, setNotionUrl] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -138,10 +142,71 @@ export default function TrackRecordPage() {
     }
   };
 
+  const importFromUrl = async () => {
+    const url = notionUrl.trim();
+    if (!url || importing) return;
+    setImporting(true);
+    setImportMsg(null);
+    try {
+      const res = await fetch("/api/trades/import-notion-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setImportMsg({ kind: "err", text: json.detail || json.error || "Erreur import Notion" });
+      } else {
+        const d: string | undefined = json.date;
+        setImportMsg({
+          kind: "ok",
+          text: d ? `Trade importe (${d}).` : "Trade importe.",
+        });
+        setNotionUrl("");
+        if (d && (d < start || d > end)) {
+          setStart(d);
+          setEnd(d > end ? d : end);
+        } else {
+          await reload();
+        }
+      }
+    } catch (err) {
+      setImportMsg({ kind: "err", text: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <div className="page-root" style={{ padding: "32px 28px", minHeight: "100vh", background: "var(--bg-page, #FAFAF9)" }}>
       <div style={{ maxWidth: 1400, margin: "0 auto" }}>
-        <HeaderBar start={start} end={end} onStart={setStart} onEnd={setEnd} onPreset={applyPreset} />
+        <HeaderBar
+          start={start}
+          end={end}
+          onStart={setStart}
+          onEnd={setEnd}
+          onPreset={applyPreset}
+          notionUrl={notionUrl}
+          onNotionUrlChange={setNotionUrl}
+          onImport={importFromUrl}
+          importing={importing}
+        />
+
+        {importMsg && (
+          <div
+            style={{
+              marginBottom: 16,
+              padding: "10px 14px",
+              borderRadius: 10,
+              background: importMsg.kind === "ok" ? `${GREEN}12` : `${RED}12`,
+              color: importMsg.kind === "ok" ? GREEN : RED,
+              fontSize: 12,
+              fontWeight: 600,
+            }}
+          >
+            {importMsg.text}
+          </div>
+        )}
 
         {loading ? (
           <div style={{ padding: 60, textAlign: "center", color: "#9CA3AF", fontSize: 14 }}>
@@ -149,7 +214,7 @@ export default function TrackRecordPage() {
           </div>
         ) : trades.length === 0 ? (
           <div style={{ padding: 60, textAlign: "center", color: "#9CA3AF", fontSize: 14 }}>
-            Aucun trade sur cette periode. Elargis la plage ou importe depuis Notion sur la page Rapport.
+            Aucun trade sur cette periode. Elargis la plage ou colle un lien Notion ci-dessus.
           </div>
         ) : (
           <TrackRecordBody trades={trades} kpis={kpis} />
@@ -165,43 +230,115 @@ function HeaderBar({
   onStart,
   onEnd,
   onPreset,
+  notionUrl,
+  onNotionUrlChange,
+  onImport,
+  importing,
 }: {
   start: string;
   end: string;
   onStart: (v: string) => void;
   onEnd: (v: string) => void;
   onPreset: (days: number) => void;
+  notionUrl: string;
+  onNotionUrlChange: (v: string) => void;
+  onImport: () => void;
+  importing: boolean;
 }) {
+  const today = isoDateOffset(0);
+  const activePreset = PRESETS.find((p) => {
+    if (end !== today) return false;
+    if (p.days === -1) {
+      const year = new Date().getFullYear();
+      return start === `${year}-01-01`;
+    }
+    return start === isoDateOffset(p.days);
+  });
+
   return (
-    <header style={{ marginBottom: 24, display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-      <div>
-        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2, color: "#6B7280", marginBottom: 6 }}>
-          TRACK RECORD
+    <header style={{ marginBottom: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2, color: "#6B7280", marginBottom: 6 }}>
+            TRACK RECORD
+          </div>
+          <h1 style={{ fontSize: 30, fontWeight: 300, letterSpacing: "-0.01em", fontFamily: "var(--font-display, Georgia, serif)", color: "#111" }}>
+            Historique de performance
+          </h1>
         </div>
-        <h1 style={{ fontSize: 30, fontWeight: 300, letterSpacing: "-0.01em", fontFamily: "var(--font-display, Georgia, serif)", color: "#111" }}>
-          Historique de performance
-        </h1>
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        {PRESETS.map((p) => (
-          <button
-            key={p.label}
-            type="button"
-            onClick={() => onPreset(p.days)}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input
+            type="url"
+            value={notionUrl}
+            onChange={(e) => onNotionUrlChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                onImport();
+              }
+            }}
+            placeholder="Coller le lien Notion du trade..."
+            disabled={importing}
+            aria-label="Lien Notion du trade"
             style={{
-              padding: "6px 12px",
-              fontSize: 11,
-              fontWeight: 700,
+              padding: "8px 12px",
               borderRadius: 8,
-              background: "white",
               border: "1px solid #E5E7EB",
+              background: "white",
               color: "#111",
-              cursor: "pointer",
+              fontSize: 12,
+              width: 320,
+            }}
+          />
+          <button
+            type="button"
+            onClick={onImport}
+            disabled={importing || !notionUrl.trim()}
+            title="Importer ce trade Notion"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "8px 14px",
+              borderRadius: 8,
+              background: importing || !notionUrl.trim() ? "#E5E7EB" : ACCENT,
+              border: "none",
+              color: importing || !notionUrl.trim() ? "#9CA3AF" : "white",
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: 0.3,
+              cursor: importing || !notionUrl.trim() ? "not-allowed" : "pointer",
             }}
           >
-            {p.label}
+            <Download size={12} />
+            {importing ? "Import..." : "Importer Notion"}
           </button>
-        ))}
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        {PRESETS.map((p) => {
+          const isActive = activePreset?.label === p.label;
+          return (
+            <button
+              key={p.label}
+              type="button"
+              onClick={() => onPreset(p.days)}
+              style={{
+                padding: "6px 12px",
+                fontSize: 11,
+                fontWeight: 700,
+                borderRadius: 8,
+                background: isActive ? ACCENT : "white",
+                border: `1px solid ${isActive ? ACCENT : "#E5E7EB"}`,
+                color: isActive ? "white" : "#111",
+                cursor: "pointer",
+                boxShadow: isActive ? `0 1px 4px ${ACCENT}40` : "none",
+              }}
+            >
+              {p.label}
+            </button>
+          );
+        })}
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <CalIcon size={14} style={{ color: "#6B7280" }} />
           <input
