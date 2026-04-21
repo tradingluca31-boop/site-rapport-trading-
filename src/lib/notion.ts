@@ -54,6 +54,7 @@ function propText(p: NotionProperty | undefined): string | null {
   if (p.type === "rich_text" && p.rich_text?.length) return p.rich_text.map((t) => t.plain_text).join("").trim() || null;
   if (p.type === "select") return p.select?.name ?? null;
   if (p.type === "status") return p.status?.name ?? null;
+  if (p.type === "multi_select" && p.multi_select?.length) return p.multi_select.map((s) => s.name).join(", ");
   if (p.type === "url") return p.url ?? null;
   if (p.type === "number" && p.number !== null && p.number !== undefined) return String(p.number);
   return null;
@@ -89,44 +90,71 @@ function findProp(props: Record<string, NotionProperty>, candidates: string[]): 
 function normalizeDirection(raw: string | null): TradeDirection | null {
   if (!raw) return null;
   const v = raw.trim().toLowerCase();
-  if (v === "long" || v === "buy" || v === "achat") return "long";
-  if (v === "short" || v === "sell" || v === "vente") return "short";
+  if (/\b(long|buy|achat)\b/.test(v)) return "long";
+  if (/\b(short|sell|vente)\b/.test(v)) return "short";
   return null;
 }
 
 function normalizeStatus(raw: string | null): TradeStatus {
   if (!raw) return "open";
   const v = raw.trim().toLowerCase();
-  if (v.includes("win") || v === "gain" || v === "tp" || v === "gagné" || v === "gagne") return "closed-win";
-  if (v.includes("loss") || v.includes("perte") || v === "sl" || v === "perdu") return "closed-loss";
   if (v.includes("cancel") || v.includes("annul")) return "cancelled";
   if (v.includes("open") || v.includes("cours") || v.includes("pending")) return "open";
+  if (
+    v.includes("profit") ||
+    v.includes("win") ||
+    v === "gain" ||
+    v === "tp" ||
+    v.includes("gagn")
+  )
+    return "closed-win";
+  if (
+    v.includes("loss") ||
+    v.includes("perte") ||
+    v === "sl" ||
+    v === "perdu" ||
+    v.includes("stop")
+  )
+    return "closed-loss";
+  if (v.includes("be") || v.includes("break")) return "closed-win";
   return "open";
 }
 
 function mapPageToDraft(page: NotionPage): NotionTradeDraft | null {
   const props = page.properties;
 
-  const dateProp = findProp(props, ["Date", "Jour", "Day"]);
+  const dateProp = findProp(props, ["Date", "DATE", "Jour", "Day"]);
   const parsedDate = propDate(dateProp);
   if (!parsedDate) return null;
 
-  const pairRaw = propText(findProp(props, ["Paire", "Pair", "Symbol", "Symbole", "Instrument", "Actif"]));
+  const pairRaw = propText(findProp(props, ["Actifs", "Actif", "Paire", "Pair", "Symbol", "Symbole", "Instrument"]));
   if (!pairRaw) return null;
 
-  const dir = normalizeDirection(propText(findProp(props, ["Direction", "Sens", "Side"])));
+  const dir = normalizeDirection(propText(findProp(props, ["Type d'Ordre", "Type d Ordre", "Direction", "Sens", "Side", "Ordre"])));
   if (!dir) return null;
 
-  const status = normalizeStatus(propText(findProp(props, ["Statut", "Status", "Etat", "État"])));
+  const status = normalizeStatus(propText(findProp(props, ["RÉSULTAT", "Resultat", "Résultat", "Statut", "Status", "Etat", "État"])));
 
   const entry = propText(findProp(props, ["Entry", "Entrée", "Entree", "Prix entrée", "Prix entree"]));
   const sl = propText(findProp(props, ["SL", "Stop", "Stop Loss", "StopLoss"]));
   const tp = propText(findProp(props, ["TP", "Target", "Take Profit", "TakeProfit"]));
-  const size = propText(findProp(props, ["Size", "Taille", "Lot", "Lots", "Volume"]));
-  const pnl = propText(findProp(props, ["PnL", "P&L", "PNL", "Résultat", "Resultat", "Gain", "R"]));
-  const idea = propText(findProp(props, ["Idée", "Idea", "These", "Thèse", "Thesis"]));
-  const notes = propText(findProp(props, ["Notes", "Note", "Commentaire", "Comment"]));
-  const tags = propMultiSelect(findProp(props, ["Tags", "Tag", "Categorie", "Catégorie"]));
+  const size = propText(findProp(props, ["Size", "Taille", "Lot", "Lots", "Volume", "Risk"]));
+
+  // PnL : priorite $ NET (rich_text) > R/R final (number) > % NET (number)
+  const pnlUsd = propText(findProp(props, ["$ NET", "PnL", "P&L", "PNL", "Gain"]));
+  const rrFinal = propText(findProp(props, ["R/R final", "RR final", "R final", "R/R"]));
+  const pctNet = propText(findProp(props, ["% NET", "% net", "Pct NET"]));
+  let pnl: string | null = null;
+  if (pnlUsd) pnl = pnlUsd;
+  else if (rrFinal) pnl = `${rrFinal}R`;
+  else if (pctNet) pnl = `${pctNet}%`;
+
+  const idea = propText(findProp(props, ["Idée", "Idea", "These", "Thèse", "Thesis", "Type de trade"]));
+  const notes = propText(findProp(props, ["Notes", "Note", "Commentaire", "Comment", "Erreurs"]));
+  const tags = [
+    ...propMultiSelect(findProp(props, ["Tags", "Tag", "Categorie", "Catégorie", "Tendance"])),
+    ...propMultiSelect(findProp(props, ["Time-Frame", "Timeframe", "TF"])),
+  ];
 
   return {
     notion_id: page.id,

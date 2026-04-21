@@ -243,70 +243,28 @@ export default function RapportPage() {
   return (
     <div className="page-root" style={{ padding: "40px 32px", background: "var(--bg-page, #FAFAF9)", minHeight: "100vh" }}>
       <div style={{ maxWidth: 1440, margin: "0 auto" }}>
-        <header style={{ marginBottom: 36, display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-          <div>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 800,
-                letterSpacing: 2,
-                color: "var(--text-muted, #6B7280)",
-                marginBottom: 6,
-              }}
-            >
-              {header.weekday} — RAPPORT DE SESSION
-            </div>
-            <h1
-              style={{
-                fontSize: 32,
-                fontWeight: 300,
-                letterSpacing: "-0.01em",
-                fontFamily: "var(--font-display, Georgia, serif)",
-              }}
-            >
-              {header.full}
-            </h1>
+        <header style={{ marginBottom: 36 }}>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 800,
+              letterSpacing: 2,
+              color: "var(--text-muted, #6B7280)",
+              marginBottom: 6,
+            }}
+          >
+            {header.weekday} — RAPPORT DE SESSION
           </div>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
-            <button
-              type="button"
-              onClick={importFromNotion}
-              disabled={importing}
-              title="Synchroniser les trades depuis Notion"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "10px 16px",
-                borderRadius: 10,
-                background: importing ? "#E5E7EB" : "white",
-                border: `1px solid ${ACCENT}40`,
-                color: importing ? "#9CA3AF" : ACCENT,
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: 0.5,
-                cursor: importing ? "wait" : "pointer",
-                boxShadow: importing ? "none" : `0 2px 6px ${ACCENT}15`,
-              }}
-            >
-              <Download size={14} />
-              {importing ? "Import en cours..." : "Importer Notion"}
-            </button>
-            {importMsg && (
-              <div
-                style={{
-                  fontSize: 11,
-                  color: importMsg.kind === "ok" ? GREEN : RED,
-                  fontWeight: 600,
-                  maxWidth: 320,
-                  textAlign: "right",
-                  lineHeight: 1.4,
-                }}
-              >
-                {importMsg.text}
-              </div>
-            )}
-          </div>
+          <h1
+            style={{
+              fontSize: 32,
+              fontWeight: 300,
+              letterSpacing: "-0.01em",
+              fontFamily: "var(--font-display, Georgia, serif)",
+            }}
+          >
+            {header.full}
+          </h1>
         </header>
 
         <div className="mobile-stack" style={{ display: "grid", gridTemplateColumns: "3fr 1fr", gap: 28 }}>
@@ -358,7 +316,49 @@ export default function RapportPage() {
               accent={GREEN}
               onAdd={() => setTradeFormOpen((v) => !v)}
               addOpen={tradeFormOpen}
+              headerExtra={
+                <button
+                  type="button"
+                  onClick={importFromNotion}
+                  disabled={importing}
+                  title="Synchroniser les trades depuis Notion"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "6px 12px",
+                    borderRadius: 8,
+                    background: importing ? "#E5E7EB" : "white",
+                    border: `1px solid ${ACCENT}40`,
+                    color: importing ? "#9CA3AF" : ACCENT,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: 0.5,
+                    cursor: importing ? "wait" : "pointer",
+                    height: 28,
+                  }}
+                >
+                  <Download size={12} />
+                  {importing ? "Import..." : "Importer Notion"}
+                </button>
+              }
             >
+              {importMsg && (
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: importMsg.kind === "ok" ? GREEN : RED,
+                    fontWeight: 600,
+                    marginBottom: 10,
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    background: importMsg.kind === "ok" ? `${GREEN}10` : `${RED}10`,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {importMsg.text}
+                </div>
+              )}
               {tradeFormOpen && (
                 <TradeForm
                   value={newTrade}
@@ -603,6 +603,7 @@ function Section({
   accent,
   onAdd,
   addOpen,
+  headerExtra,
   children,
 }: {
   icon: React.ReactNode;
@@ -610,6 +611,7 @@ function Section({
   accent: string;
   onAdd?: () => void;
   addOpen?: boolean;
+  headerExtra?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -631,13 +633,18 @@ function Section({
       >
         <div style={{ color: accent }}>{icon}</div>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2 }}>{title}</span>
+        {headerExtra && (
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+            {headerExtra}
+          </div>
+        )}
         {onAdd && (
           <button
             type="button"
             onClick={onAdd}
             title={addOpen ? "Fermer" : "Ajouter"}
             style={{
-              marginLeft: "auto",
+              marginLeft: headerExtra ? 0 : "auto",
               width: 28,
               height: 28,
               borderRadius: 8,
