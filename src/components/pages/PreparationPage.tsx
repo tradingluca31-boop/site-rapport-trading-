@@ -635,13 +635,73 @@ export default function PreparationPage() {
         </div>
       </div>
 
-      {/* Title */}
-      <h1 className="text-4xl font-light mb-2" style={{ fontFamily: "var(--font-display)" }}>
-        Préparation de la semaine
-      </h1>
-      <p className="text-sm mb-6" style={{ color: "var(--text-secondary)" }}>
-        Semaine {week.weekNumber} — {formatDateRange(week.startDate, week.endDate)} · thème — <em>{week.theme}</em>
-      </p>
+      {/* Title + meta inline */}
+      <div className="flex items-baseline gap-4 flex-wrap mb-5">
+        <h1 className="text-3xl font-normal" style={{ fontFamily: "var(--font-display)", letterSpacing: -0.3, margin: 0 }}>
+          Préparation
+        </h1>
+        <span className="text-sm" style={{ color: "var(--text-muted)", fontFamily: "ui-monospace, SFMono-Regular, monospace" }}>
+          {formatDateRange(week.startDate, week.endDate)}
+        </span>
+      </div>
+
+      {/* Stats strip */}
+      <div
+        className="grid mb-8"
+        style={{
+          gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr",
+          border: "1px solid var(--border)",
+          borderRadius: 12,
+          overflow: "hidden",
+          background: "#FFFFFF",
+        }}
+      >
+        <div
+          style={{
+            padding: "14px 20px",
+            background: "linear-gradient(90deg, rgba(124,92,255,0.08), transparent)",
+            borderRight: "1px solid var(--border)",
+          }}
+        >
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: "var(--accent)", marginBottom: 4 }}>
+            THÈME
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 500, color: "#0A0B0E" }}>{week.theme}</div>
+        </div>
+        {[
+          { label: "Events", value: filteredEvents.length },
+          { label: "Red news", value: filteredEvents.filter((e) => e.impact === "high").length },
+          {
+            label: "Thèses",
+            value:
+              (((thesesOverride.shortTerm ?? week.thesisShortTerm) || "").trim() ? 1 : 0) +
+              (((thesesOverride.longTerm ?? week.thesisLongTerm) || "").trim() ? 1 : 0),
+          },
+          { label: "Scénarios", value: week.scenarios.length },
+        ].map((s, i, arr) => (
+          <div
+            key={s.label}
+            style={{
+              padding: "14px 16px",
+              borderRight: i < arr.length - 1 ? "1px solid var(--border)" : "none",
+            }}
+          >
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, color: "var(--text-muted)", marginBottom: 4 }}>
+              {s.label}
+            </div>
+            <div
+              style={{
+                fontSize: 20,
+                fontWeight: 600,
+                fontFamily: "ui-monospace, SFMono-Regular, monospace",
+                color: "#0A0B0E",
+              }}
+            >
+              {s.value}
+            </div>
+          </div>
+        ))}
+      </div>
 
       {/* Onglets section */}
       <div
