@@ -21,6 +21,7 @@ import {
   createTrade,
   deleteTrade as deleteTradeSb,
   listTradesByDate,
+  updateTrade,
 } from "@/lib/trades";
 
 const ACCENT = "#7C5CFF";
@@ -80,17 +81,6 @@ const EMPTY_TRADE_FORM: TradeFormState = {
   pnl: "",
 };
 
-type NotionDraft = {
-  notion_id: string;
-  date: string;
-  time: string | null;
-  pair: string;
-  direction: TradeDirection;
-  status: TradeStatus;
-  pnl: string | null;
-  idea: string | null;
-};
-
 function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -135,11 +125,8 @@ export default function RapportPage() {
 
   const [importing, setImporting] = useState(false);
   const [importMsg, setImportMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
-  const [notionModalOpen, setNotionModalOpen] = useState(false);
-  const [notionDrafts, setNotionDrafts] = useState<NotionDraft[]>([]);
-  const [notionLoading, setNotionLoading] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [dateFilter, setDateFilter] = useState<string>("");
+  const [notionUrl, setNotionUrl] = useState("");
+  const [detailTrade, setDetailTrade] = useState<Trade | null>(null);
 
   const [newIdea, setNewIdea] = useState("");
 
@@ -223,81 +210,44 @@ export default function RapportPage() {
     setTrades((prev) => prev.filter((t) => t.id !== id));
   };
 
-  const openNotionModal = async () => {
-    setNotionModalOpen(true);
-    setImportMsg(null);
-    setNotionLoading(true);
-    setDateFilter(dayKey);
-    try {
-      const res = await fetch("/api/trades/list-notion", { cache: "no-store" });
-      const json = await res.json();
-      if (!res.ok) {
-        setImportMsg({ kind: "err", text: json.detail || json.error || "Erreur chargement Notion" });
-        setNotionDrafts([]);
-      } else {
-        const drafts = (json.drafts ?? []) as NotionDraft[];
-        drafts.sort((a, b) => {
-          if (a.date !== b.date) return a.date < b.date ? 1 : -1;
-          return (b.time ?? "").localeCompare(a.time ?? "");
-        });
-        setNotionDrafts(drafts);
-        setSelectedIds(new Set(drafts.filter((d) => d.date === dayKey).map((d) => d.notion_id)));
-      }
-    } catch (err) {
-      setImportMsg({ kind: "err", text: err instanceof Error ? err.message : String(err) });
-      setNotionDrafts([]);
-    } finally {
-      setNotionLoading(false);
-    }
-  };
-
-  const closeNotionModal = () => {
-    setNotionModalOpen(false);
-    setNotionDrafts([]);
-    setSelectedIds(new Set());
-  };
-
-  const toggleSelected = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const selectAllFiltered = (drafts: NotionDraft[]) => {
-    setSelectedIds(new Set(drafts.map((d) => d.notion_id)));
-  };
-
-  const clearSelection = () => setSelectedIds(new Set());
-
-  const confirmNotionImport = async () => {
-    if (importing || selectedIds.size === 0) return;
+  const importFromUrl = async () => {
+    const url = notionUrl.trim();
+    if (!url || importing) return;
     setImporting(true);
     setImportMsg(null);
     try {
-      const res = await fetch("/api/trades/import-notion", {
+      const res = await fetch("/api/trades/import-notion-url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notion_ids: Array.from(selectedIds) }),
+        body: JSON.stringify({ url }),
       });
       const json = await res.json();
       if (!res.ok) {
         setImportMsg({ kind: "err", text: json.detail || json.error || "Erreur import Notion" });
       } else {
+        const d: string | undefined = json.date;
         setImportMsg({
           kind: "ok",
-          text: `Import OK : ${json.upserted ?? json.imported ?? 0} trades synchronises`,
+          text: d === dayKey
+            ? "Trade importe depuis Notion."
+            : `Trade importe (date ${d ?? "?"}) — hors journee courante.`,
         });
+        setNotionUrl("");
         await reloadTrades();
-        closeNotionModal();
       }
     } catch (err) {
       setImportMsg({ kind: "err", text: err instanceof Error ? err.message : String(err) });
     } finally {
       setImporting(false);
     }
+  };
+
+  const saveDetailTrade = async (id: string, patch: Partial<Trade>) => {
+    const updated = await updateTrade(id, patch);
+    if (!updated) return false;
+    setTrades((prev) => prev.map((t) => (t.id === id ? updated : t)));
+    setDetailTrade(updated);
+    return true;
   };
 
   const addIdea = () => {
@@ -387,30 +337,53 @@ export default function RapportPage() {
               onAdd={() => setTradeFormOpen((v) => !v)}
               addOpen={tradeFormOpen}
               headerExtra={
-                <button
-                  type="button"
-                  onClick={openNotionModal}
-                  disabled={importing || notionLoading}
-                  title="Choisir les trades a importer depuis Notion"
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "6px 12px",
-                    borderRadius: 8,
-                    background: importing || notionLoading ? "#E5E7EB" : "white",
-                    border: `1px solid ${ACCENT}40`,
-                    color: importing || notionLoading ? "#9CA3AF" : ACCENT,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    letterSpacing: 0.5,
-                    cursor: importing || notionLoading ? "wait" : "pointer",
-                    height: 28,
-                  }}
-                >
-                  <Download size={12} />
-                  {notionLoading ? "Chargement..." : importing ? "Import..." : "Importer Notion"}
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <input
+                    type="url"
+                    value={notionUrl}
+                    onChange={(e) => setNotionUrl(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        importFromUrl();
+                      }
+                    }}
+                    placeholder="Coller le lien Notion du trade..."
+                    disabled={importing}
+                    aria-label="Lien Notion du trade"
+                    style={{
+                      ...inputStyle,
+                      height: 28,
+                      padding: "4px 10px",
+                      fontSize: 11,
+                      width: 260,
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={importFromUrl}
+                    disabled={importing || !notionUrl.trim()}
+                    title="Importer ce trade Notion"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "6px 12px",
+                      borderRadius: 8,
+                      background: importing || !notionUrl.trim() ? "#E5E7EB" : ACCENT,
+                      border: "none",
+                      color: importing || !notionUrl.trim() ? "#9CA3AF" : "white",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: 0.5,
+                      cursor: importing || !notionUrl.trim() ? "not-allowed" : "pointer",
+                      height: 28,
+                    }}
+                  >
+                    <Download size={12} />
+                    {importing ? "Import..." : "Ajouter"}
+                  </button>
+                </div>
               }
             >
               {importMsg && (
@@ -447,7 +420,12 @@ export default function RapportPage() {
               {!tradesLoading && trades.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {trades.map((t) => (
-                    <TradeCard key={t.id} trade={t} onDelete={() => removeTrade(t.id)} />
+                    <TradeCard
+                      key={t.id}
+                      trade={t}
+                      onDelete={() => removeTrade(t.id)}
+                      onOpen={() => setDetailTrade(t)}
+                    />
                   ))}
                 </div>
               )}
@@ -466,59 +444,81 @@ export default function RapportPage() {
           </aside>
         </div>
       </div>
-      {notionModalOpen && (
-        <NotionImportModal
-          drafts={notionDrafts}
-          loading={notionLoading}
-          selectedIds={selectedIds}
-          dateFilter={dateFilter}
-          onDateFilterChange={setDateFilter}
-          onToggle={toggleSelected}
-          onSelectAll={selectAllFiltered}
-          onClear={clearSelection}
-          onCancel={closeNotionModal}
-          onConfirm={confirmNotionImport}
-          importing={importing}
-          todayKey={dayKey}
+      {detailTrade && (
+        <TradeDetailModal
+          trade={detailTrade}
+          onClose={() => setDetailTrade(null)}
+          onSave={saveDetailTrade}
+          onDelete={async (id) => {
+            const ok = await deleteTradeSb(id);
+            if (!ok) return;
+            setTrades((prev) => prev.filter((t) => t.id !== id));
+            setDetailTrade(null);
+          }}
         />
       )}
     </div>
   );
 }
 
-function NotionImportModal({
-  drafts,
-  loading,
-  selectedIds,
-  dateFilter,
-  onDateFilterChange,
-  onToggle,
-  onSelectAll,
-  onClear,
-  onCancel,
-  onConfirm,
-  importing,
-  todayKey,
+function TradeDetailModal({
+  trade,
+  onClose,
+  onSave,
+  onDelete,
 }: {
-  drafts: NotionDraft[];
-  loading: boolean;
-  selectedIds: Set<string>;
-  dateFilter: string;
-  onDateFilterChange: (v: string) => void;
-  onToggle: (id: string) => void;
-  onSelectAll: (filtered: NotionDraft[]) => void;
-  onClear: () => void;
-  onCancel: () => void;
-  onConfirm: () => void;
-  importing: boolean;
-  todayKey: string;
+  trade: Trade;
+  onClose: () => void;
+  onSave: (id: string, patch: Partial<Trade>) => Promise<boolean>;
+  onDelete: (id: string) => Promise<void>;
 }) {
-  const filtered = dateFilter ? drafts.filter((d) => d.date === dateFilter) : drafts;
-  const uniqueDates = Array.from(new Set(drafts.map((d) => d.date))).sort((a, b) => (a < b ? 1 : -1));
+  const [form, setForm] = useState({
+    time: trade.time ?? "",
+    pair: trade.pair,
+    direction: trade.direction,
+    entry: trade.entry ?? "",
+    sl: trade.sl ?? "",
+    tp: trade.tp ?? "",
+    size: trade.size ?? "",
+    status: trade.status,
+    pnl: trade.pnl ?? "",
+    idea: trade.idea ?? "",
+    notes: trade.notes ?? "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const save = async () => {
+    if (saving) return;
+    setSaving(true);
+    setErr(null);
+    const patch: Partial<Trade> = {
+      time: form.time || null,
+      pair: form.pair.trim().toUpperCase(),
+      direction: form.direction,
+      entry: form.entry || null,
+      sl: form.sl || null,
+      tp: form.tp || null,
+      size: form.size || null,
+      status: form.status,
+      pnl: form.pnl || null,
+      idea: form.idea || null,
+      notes: form.notes || null,
+    };
+    const ok = await onSave(trade.id, patch);
+    setSaving(false);
+    if (!ok) setErr("Echec de la mise a jour (voir console).");
+    else onClose();
+  };
+
+  const remove = async () => {
+    if (!window.confirm("Supprimer definitivement ce trade ?")) return;
+    await onDelete(trade.id);
+  };
 
   return (
     <div
-      onClick={onCancel}
+      onClick={onClose}
       style={{
         position: "fixed",
         inset: 0,
@@ -536,8 +536,8 @@ function NotionImportModal({
           background: "white",
           borderRadius: 16,
           width: "100%",
-          maxWidth: 720,
-          maxHeight: "85vh",
+          maxWidth: 640,
+          maxHeight: "90vh",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
@@ -546,15 +546,18 @@ function NotionImportModal({
         <div style={{ padding: "20px 24px", borderBottom: "1px solid #E5E7EB", display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2, color: "#6B7280", marginBottom: 4 }}>
-              IMPORTER DEPUIS NOTION
+              DETAIL TRADE · {trade.date}
             </div>
             <div style={{ fontSize: 18, fontWeight: 600 }}>
-              Selectionne les trades a importer
+              {form.pair || trade.pair}{" "}
+              <span style={{ fontSize: 12, color: "#9CA3AF", fontWeight: 500 }}>
+                · {form.direction.toUpperCase()}
+              </span>
             </div>
           </div>
           <button
             type="button"
-            onClick={onCancel}
+            onClick={onClose}
             title="Fermer"
             style={{
               width: 32,
@@ -573,131 +576,114 @@ function NotionImportModal({
           </button>
         </div>
 
-        <div
-          style={{
-            padding: "12px 24px",
-            borderBottom: "1px solid #E5E7EB",
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            flexWrap: "wrap",
-          }}
-        >
-          <label htmlFor="notion-date-filter" style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", letterSpacing: 1 }}>
-            DATE :
-          </label>
-          <select
-            id="notion-date-filter"
-            value={dateFilter}
-            onChange={(e) => onDateFilterChange(e.target.value)}
-            style={{ ...inputStyle, padding: "6px 10px", fontSize: 12 }}
-          >
-            <option value="">Toutes les dates ({drafts.length})</option>
-            {uniqueDates.map((d) => {
-              const count = drafts.filter((x) => x.date === d).length;
-              const label = d === todayKey ? `${d} (aujourd'hui)` : d;
-              return (
-                <option key={d} value={d}>
-                  {label} ({count})
-                </option>
-              );
-            })}
-          </select>
-          <button
-            type="button"
-            onClick={() => onSelectAll(filtered)}
-            style={{ ...btnGhost, fontSize: 11, padding: "5px 10px" }}
-          >
-            Tout cocher ({filtered.length})
-          </button>
-          <button
-            type="button"
-            onClick={onClear}
-            style={{ ...btnGhost, fontSize: 11, padding: "5px 10px" }}
-          >
-            Tout decocher
-          </button>
-          <div style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: ACCENT }}>
-            {selectedIds.size} selectionne(s)
+        <div style={{ padding: "18px 24px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "100px 1fr 110px 150px", gap: 10 }}>
+            <Field label="HEURE">
+              <input type="text" aria-label="Heure du trade" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} placeholder="10:42" style={inputStyle} />
+            </Field>
+            <Field label="PAIRE">
+              <input type="text" aria-label="Paire" value={form.pair} onChange={(e) => setForm({ ...form, pair: e.target.value.toUpperCase() })} placeholder="XAUUSD" style={inputStyle} />
+            </Field>
+            <Field label="DIRECTION">
+              <select aria-label="Direction" value={form.direction} onChange={(e) => setForm({ ...form, direction: e.target.value as TradeDirection })} style={inputStyle}>
+                <option value="long">LONG</option>
+                <option value="short">SHORT</option>
+              </select>
+            </Field>
+            <Field label="STATUT">
+              <select aria-label="Statut" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as TradeStatus })} style={inputStyle}>
+                <option value="open">En cours</option>
+                <option value="closed-win">Ferme WIN</option>
+                <option value="closed-loss">Ferme LOSS</option>
+                <option value="cancelled">Annule</option>
+              </select>
+            </Field>
           </div>
-        </div>
 
-        <div style={{ overflowY: "auto", padding: "8px 16px", flex: 1 }}>
-          {loading && <div style={{ padding: 20, color: "#9CA3AF", fontSize: 13 }}>Chargement des trades Notion...</div>}
-          {!loading && filtered.length === 0 && (
-            <div style={{ padding: 20, color: "#9CA3AF", fontSize: 13 }}>
-              Aucun trade Notion {dateFilter ? `pour ${dateFilter}` : ""}.
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr", gap: 10 }}>
+            <Field label="ENTRY">
+              <input type="text" aria-label="Prix d'entree" placeholder="Entry" value={form.entry} onChange={(e) => setForm({ ...form, entry: e.target.value })} style={inputStyle} />
+            </Field>
+            <Field label="SL">
+              <input type="text" aria-label="Stop loss" placeholder="SL" value={form.sl} onChange={(e) => setForm({ ...form, sl: e.target.value })} style={inputStyle} />
+            </Field>
+            <Field label="TP">
+              <input type="text" aria-label="Take profit" placeholder="TP" value={form.tp} onChange={(e) => setForm({ ...form, tp: e.target.value })} style={inputStyle} />
+            </Field>
+            <Field label="SIZE">
+              <input type="text" aria-label="Taille" placeholder="0.5 lot" value={form.size} onChange={(e) => setForm({ ...form, size: e.target.value })} style={inputStyle} />
+            </Field>
+            <Field label="P&L">
+              <input type="text" aria-label="P&L" value={form.pnl} onChange={(e) => setForm({ ...form, pnl: e.target.value })} placeholder="+$340" style={inputStyle} />
+            </Field>
+          </div>
+
+          <Field label="IDEE">
+            <textarea
+              aria-label="Idee"
+              value={form.idea}
+              onChange={(e) => setForm({ ...form, idea: e.target.value })}
+              rows={2}
+              style={{ ...inputStyle, width: "100%", resize: "vertical", minHeight: 50 }}
+              placeholder="These / raison d'entree..."
+            />
+          </Field>
+
+          <Field label="NOTES">
+            <textarea
+              aria-label="Notes"
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              rows={3}
+              style={{ ...inputStyle, width: "100%", resize: "vertical", minHeight: 70 }}
+              placeholder="Post-mortem, lecons..."
+            />
+          </Field>
+
+          {trade.source === "notion" && (
+            <div style={{ fontSize: 11, color: "#6B7280", fontStyle: "italic" }}>
+              Importe depuis Notion · notion_id {trade.notion_id?.slice(0, 8)}...
             </div>
           )}
-          {!loading && filtered.map((d) => {
-            const checked = selectedIds.has(d.notion_id);
-            const isLong = d.direction === "long";
-            const statusColor = d.status === "closed-win" ? GREEN : d.status === "closed-loss" ? RED : "#6B7280";
-            return (
-              <label
-                key={d.notion_id}
-                htmlFor={`notion-cb-${d.notion_id}`}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "auto 80px 90px auto 1fr auto",
-                  gap: 10,
-                  alignItems: "center",
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  marginBottom: 6,
-                  background: checked ? `${ACCENT}08` : "transparent",
-                  border: `1px solid ${checked ? `${ACCENT}40` : "#F3F4F6"}`,
-                  cursor: "pointer",
-                }}
-              >
-                <input
-                  id={`notion-cb-${d.notion_id}`}
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() => onToggle(d.notion_id)}
-                  style={{ width: 16, height: 16, accentColor: ACCENT, cursor: "pointer" }}
-                />
-                <span style={{ fontSize: 11, fontFamily: "monospace", color: "#6B7280" }}>{d.date}</span>
-                <span style={{ fontSize: 13, fontWeight: 700 }}>{d.pair}</span>
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 800,
-                    padding: "2px 6px",
-                    borderRadius: 4,
-                    background: isLong ? `${GREEN}15` : `${RED}15`,
-                    color: isLong ? GREEN : RED,
-                    letterSpacing: 1,
-                  }}
-                >
-                  {isLong ? "LONG" : "SHORT"}
-                </span>
-                <span style={{ fontSize: 12, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {d.idea ?? ""}
-                </span>
-                <span style={{ fontSize: 12, fontFamily: "monospace", color: statusColor, fontWeight: 700, textAlign: "right" }}>
-                  {d.pnl ?? "—"}
-                </span>
-              </label>
-            );
-          })}
+          {err && (
+            <div style={{ fontSize: 12, color: RED, fontWeight: 600 }}>{err}</div>
+          )}
         </div>
 
-        <div style={{ padding: "16px 24px", borderTop: "1px solid #E5E7EB", display: "flex", justifyContent: "flex-end", gap: 10 }}>
-          <button type="button" onClick={onCancel} style={btnGhost} disabled={importing}>
-            Annuler
-          </button>
+        <div style={{ padding: "16px 24px", borderTop: "1px solid #E5E7EB", display: "flex", justifyContent: "space-between", gap: 10 }}>
           <button
             type="button"
-            onClick={onConfirm}
-            disabled={importing || selectedIds.size === 0}
-            style={{ ...btnPrimary, background: ACCENT, opacity: importing || selectedIds.size === 0 ? 0.5 : 1 }}
+            onClick={remove}
+            disabled={saving}
+            style={{ ...btnGhost, color: RED, borderColor: `${RED}40` }}
           >
-            {importing ? "Import en cours..." : `Importer ${selectedIds.size} trade(s)`}
+            Supprimer
           </button>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button type="button" onClick={onClose} style={btnGhost} disabled={saving}>
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving}
+              style={{ ...btnPrimary, background: GREEN, opacity: saving ? 0.6 : 1 }}
+            >
+              {saving ? "Enregistrement..." : "Enregistrer"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.5, color: "#6B7280" }}>{label}</span>
+      {children}
+    </label>
   );
 }
 
@@ -1114,11 +1100,18 @@ function FondaForm({
   );
 }
 
-function TradeCard({ trade, onDelete }: { trade: Trade; onDelete: () => void }) {
+function TradeCard({ trade, onDelete, onOpen }: { trade: Trade; onDelete: () => void; onOpen: () => void }) {
   const isLong = trade.direction === "long";
   const statusColor = trade.status === "closed-win" ? GREEN : trade.status === "closed-loss" ? RED : "#6B7280";
   return (
     <div
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
       style={{
         position: "relative",
         padding: 16,
@@ -1129,11 +1122,15 @@ function TradeCard({ trade, onDelete }: { trade: Trade; onDelete: () => void }) 
         gridTemplateColumns: "auto 1fr auto",
         gap: 14,
         alignItems: "center",
+        cursor: "pointer",
       }}
     >
       <button
         type="button"
-        onClick={onDelete}
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
+        }}
         title="Supprimer"
         style={{
           position: "absolute",

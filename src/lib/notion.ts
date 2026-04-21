@@ -174,6 +174,41 @@ function mapPageToDraft(page: NotionPage): NotionTradeDraft | null {
   };
 }
 
+export function extractNotionPageId(input: string): string | null {
+  const raw = input.trim();
+  if (!raw) return null;
+  const match = raw.match(/([0-9a-f]{8})-?([0-9a-f]{4})-?([0-9a-f]{4})-?([0-9a-f]{4})-?([0-9a-f]{12})/i);
+  if (match) {
+    const [, a, b, c, d, e] = match;
+    return `${a}-${b}-${c}-${d}-${e}`.toLowerCase();
+  }
+  const bare = raw.match(/([0-9a-f]{32})/i);
+  if (bare) {
+    const id = bare[1].toLowerCase();
+    return `${id.slice(0, 8)}-${id.slice(8, 12)}-${id.slice(12, 16)}-${id.slice(16, 20)}-${id.slice(20)}`;
+  }
+  return null;
+}
+
+export async function fetchNotionPage(pageId: string): Promise<NotionTradeDraft | null> {
+  const token = process.env.NOTION_TOKEN;
+  if (!token) throw new Error("NOTION_TOKEN manquant (env Vercel)");
+  const res = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Notion-Version": NOTION_VERSION,
+    },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Notion API ${res.status} : ${txt.slice(0, 200)}`);
+  }
+  const page = (await res.json()) as NotionPage;
+  return mapPageToDraft(page);
+}
+
 export async function fetchNotionTrades(filterDate?: string): Promise<NotionTradeDraft[]> {
   const token = process.env.NOTION_TOKEN;
   const dbId = process.env.NOTION_TRADES_DB_ID;
