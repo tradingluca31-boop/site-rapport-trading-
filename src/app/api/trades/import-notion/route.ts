@@ -14,7 +14,24 @@ export async function POST(req: NextRequest) {
     const dateParam = url.searchParams.get("date");
     const filterDate = dateParam && isValidDate(dateParam) ? dateParam : undefined;
 
-    const drafts = await fetchNotionTrades(filterDate);
+    let selectedIds: string[] | null = null;
+    try {
+      const body = await req.json();
+      if (body && Array.isArray(body.notion_ids)) {
+        selectedIds = body.notion_ids.filter((x: unknown): x is string => typeof x === "string");
+      }
+    } catch {
+      // pas de body JSON => on garde filterDate (ou aucun filtre)
+    }
+
+    let drafts = await fetchNotionTrades(filterDate);
+    if (selectedIds && selectedIds.length > 0) {
+      const set = new Set(selectedIds);
+      drafts = drafts.filter((d) => set.has(d.notion_id));
+    } else if (selectedIds && selectedIds.length === 0) {
+      return NextResponse.json({ imported: 0, upserted: 0, skipped: 0, message: "Aucune selection." });
+    }
+
     if (drafts.length === 0) {
       return NextResponse.json({
         imported: 0,
@@ -22,7 +39,7 @@ export async function POST(req: NextRequest) {
         skipped: 0,
         message: filterDate
           ? `Aucun trade Notion pour le ${filterDate}.`
-          : "Aucun trade recuperable dans la DB Notion (verifie que les proprietes Date, Paire, Direction sont bien remplies).",
+          : "Aucun trade recuperable dans la DB Notion.",
       });
     }
 

@@ -80,6 +80,17 @@ const EMPTY_TRADE_FORM: TradeFormState = {
   pnl: "",
 };
 
+type NotionDraft = {
+  notion_id: string;
+  date: string;
+  time: string | null;
+  pair: string;
+  direction: TradeDirection;
+  status: TradeStatus;
+  pnl: string | null;
+  idea: string | null;
+};
+
 function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -124,6 +135,11 @@ export default function RapportPage() {
 
   const [importing, setImporting] = useState(false);
   const [importMsg, setImportMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [notionModalOpen, setNotionModalOpen] = useState(false);
+  const [notionDrafts, setNotionDrafts] = useState<NotionDraft[]>([]);
+  const [notionLoading, setNotionLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [dateFilter, setDateFilter] = useState<string>("");
 
   const [newIdea, setNewIdea] = useState("");
 
@@ -207,12 +223,65 @@ export default function RapportPage() {
     setTrades((prev) => prev.filter((t) => t.id !== id));
   };
 
-  const importFromNotion = async () => {
-    if (importing) return;
+  const openNotionModal = async () => {
+    setNotionModalOpen(true);
+    setImportMsg(null);
+    setNotionLoading(true);
+    setDateFilter(dayKey);
+    try {
+      const res = await fetch("/api/trades/list-notion", { cache: "no-store" });
+      const json = await res.json();
+      if (!res.ok) {
+        setImportMsg({ kind: "err", text: json.detail || json.error || "Erreur chargement Notion" });
+        setNotionDrafts([]);
+      } else {
+        const drafts = (json.drafts ?? []) as NotionDraft[];
+        drafts.sort((a, b) => {
+          if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+          return (b.time ?? "").localeCompare(a.time ?? "");
+        });
+        setNotionDrafts(drafts);
+        setSelectedIds(new Set(drafts.filter((d) => d.date === dayKey).map((d) => d.notion_id)));
+      }
+    } catch (err) {
+      setImportMsg({ kind: "err", text: err instanceof Error ? err.message : String(err) });
+      setNotionDrafts([]);
+    } finally {
+      setNotionLoading(false);
+    }
+  };
+
+  const closeNotionModal = () => {
+    setNotionModalOpen(false);
+    setNotionDrafts([]);
+    setSelectedIds(new Set());
+  };
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllFiltered = (drafts: NotionDraft[]) => {
+    setSelectedIds(new Set(drafts.map((d) => d.notion_id)));
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const confirmNotionImport = async () => {
+    if (importing || selectedIds.size === 0) return;
     setImporting(true);
     setImportMsg(null);
     try {
-      const res = await fetch(`/api/trades/import-notion?date=${dayKey}`, { method: "POST" });
+      const res = await fetch("/api/trades/import-notion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notion_ids: Array.from(selectedIds) }),
+      });
       const json = await res.json();
       if (!res.ok) {
         setImportMsg({ kind: "err", text: json.detail || json.error || "Erreur import Notion" });
@@ -222,6 +291,7 @@ export default function RapportPage() {
           text: `Import OK : ${json.upserted ?? json.imported ?? 0} trades synchronises`,
         });
         await reloadTrades();
+        closeNotionModal();
       }
     } catch (err) {
       setImportMsg({ kind: "err", text: err instanceof Error ? err.message : String(err) });
@@ -319,27 +389,27 @@ export default function RapportPage() {
               headerExtra={
                 <button
                   type="button"
-                  onClick={importFromNotion}
-                  disabled={importing}
-                  title="Synchroniser les trades depuis Notion"
+                  onClick={openNotionModal}
+                  disabled={importing || notionLoading}
+                  title="Choisir les trades a importer depuis Notion"
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 6,
                     padding: "6px 12px",
                     borderRadius: 8,
-                    background: importing ? "#E5E7EB" : "white",
+                    background: importing || notionLoading ? "#E5E7EB" : "white",
                     border: `1px solid ${ACCENT}40`,
-                    color: importing ? "#9CA3AF" : ACCENT,
+                    color: importing || notionLoading ? "#9CA3AF" : ACCENT,
                     fontSize: 11,
                     fontWeight: 700,
                     letterSpacing: 0.5,
-                    cursor: importing ? "wait" : "pointer",
+                    cursor: importing || notionLoading ? "wait" : "pointer",
                     height: 28,
                   }}
                 >
                   <Download size={12} />
-                  {importing ? "Import..." : "Importer Notion"}
+                  {notionLoading ? "Chargement..." : importing ? "Import..." : "Importer Notion"}
                 </button>
               }
             >
@@ -394,6 +464,237 @@ export default function RapportPage() {
               onDelete={deleteIdea}
             />
           </aside>
+        </div>
+      </div>
+      {notionModalOpen && (
+        <NotionImportModal
+          drafts={notionDrafts}
+          loading={notionLoading}
+          selectedIds={selectedIds}
+          dateFilter={dateFilter}
+          onDateFilterChange={setDateFilter}
+          onToggle={toggleSelected}
+          onSelectAll={selectAllFiltered}
+          onClear={clearSelection}
+          onCancel={closeNotionModal}
+          onConfirm={confirmNotionImport}
+          importing={importing}
+          todayKey={dayKey}
+        />
+      )}
+    </div>
+  );
+}
+
+function NotionImportModal({
+  drafts,
+  loading,
+  selectedIds,
+  dateFilter,
+  onDateFilterChange,
+  onToggle,
+  onSelectAll,
+  onClear,
+  onCancel,
+  onConfirm,
+  importing,
+  todayKey,
+}: {
+  drafts: NotionDraft[];
+  loading: boolean;
+  selectedIds: Set<string>;
+  dateFilter: string;
+  onDateFilterChange: (v: string) => void;
+  onToggle: (id: string) => void;
+  onSelectAll: (filtered: NotionDraft[]) => void;
+  onClear: () => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+  importing: boolean;
+  todayKey: string;
+}) {
+  const filtered = dateFilter ? drafts.filter((d) => d.date === dateFilter) : drafts;
+  const uniqueDates = Array.from(new Set(drafts.map((d) => d.date))).sort((a, b) => (a < b ? 1 : -1));
+
+  return (
+    <div
+      onClick={onCancel}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.5)",
+        zIndex: 1000,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 20,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "white",
+          borderRadius: 16,
+          width: "100%",
+          maxWidth: 720,
+          maxHeight: "85vh",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
+        <div style={{ padding: "20px 24px", borderBottom: "1px solid #E5E7EB", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2, color: "#6B7280", marginBottom: 4 }}>
+              IMPORTER DEPUIS NOTION
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 600 }}>
+              Selectionne les trades a importer
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onCancel}
+            title="Fermer"
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              background: "#F3F4F6",
+              border: "none",
+              color: "#6B7280",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <XIcon size={16} />
+          </button>
+        </div>
+
+        <div
+          style={{
+            padding: "12px 24px",
+            borderBottom: "1px solid #E5E7EB",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            flexWrap: "wrap",
+          }}
+        >
+          <label htmlFor="notion-date-filter" style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", letterSpacing: 1 }}>
+            DATE :
+          </label>
+          <select
+            id="notion-date-filter"
+            value={dateFilter}
+            onChange={(e) => onDateFilterChange(e.target.value)}
+            style={{ ...inputStyle, padding: "6px 10px", fontSize: 12 }}
+          >
+            <option value="">Toutes les dates ({drafts.length})</option>
+            {uniqueDates.map((d) => {
+              const count = drafts.filter((x) => x.date === d).length;
+              const label = d === todayKey ? `${d} (aujourd'hui)` : d;
+              return (
+                <option key={d} value={d}>
+                  {label} ({count})
+                </option>
+              );
+            })}
+          </select>
+          <button
+            type="button"
+            onClick={() => onSelectAll(filtered)}
+            style={{ ...btnGhost, fontSize: 11, padding: "5px 10px" }}
+          >
+            Tout cocher ({filtered.length})
+          </button>
+          <button
+            type="button"
+            onClick={onClear}
+            style={{ ...btnGhost, fontSize: 11, padding: "5px 10px" }}
+          >
+            Tout decocher
+          </button>
+          <div style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: ACCENT }}>
+            {selectedIds.size} selectionne(s)
+          </div>
+        </div>
+
+        <div style={{ overflowY: "auto", padding: "8px 16px", flex: 1 }}>
+          {loading && <div style={{ padding: 20, color: "#9CA3AF", fontSize: 13 }}>Chargement des trades Notion...</div>}
+          {!loading && filtered.length === 0 && (
+            <div style={{ padding: 20, color: "#9CA3AF", fontSize: 13 }}>
+              Aucun trade Notion {dateFilter ? `pour ${dateFilter}` : ""}.
+            </div>
+          )}
+          {!loading && filtered.map((d) => {
+            const checked = selectedIds.has(d.notion_id);
+            const isLong = d.direction === "long";
+            const statusColor = d.status === "closed-win" ? GREEN : d.status === "closed-loss" ? RED : "#6B7280";
+            return (
+              <label
+                key={d.notion_id}
+                htmlFor={`notion-cb-${d.notion_id}`}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "auto 80px 90px auto 1fr auto",
+                  gap: 10,
+                  alignItems: "center",
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  marginBottom: 6,
+                  background: checked ? `${ACCENT}08` : "transparent",
+                  border: `1px solid ${checked ? `${ACCENT}40` : "#F3F4F6"}`,
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  id={`notion-cb-${d.notion_id}`}
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => onToggle(d.notion_id)}
+                  style={{ width: 16, height: 16, accentColor: ACCENT, cursor: "pointer" }}
+                />
+                <span style={{ fontSize: 11, fontFamily: "monospace", color: "#6B7280" }}>{d.date}</span>
+                <span style={{ fontSize: 13, fontWeight: 700 }}>{d.pair}</span>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 800,
+                    padding: "2px 6px",
+                    borderRadius: 4,
+                    background: isLong ? `${GREEN}15` : `${RED}15`,
+                    color: isLong ? GREEN : RED,
+                    letterSpacing: 1,
+                  }}
+                >
+                  {isLong ? "LONG" : "SHORT"}
+                </span>
+                <span style={{ fontSize: 12, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {d.idea ?? ""}
+                </span>
+                <span style={{ fontSize: 12, fontFamily: "monospace", color: statusColor, fontWeight: 700, textAlign: "right" }}>
+                  {d.pnl ?? "—"}
+                </span>
+              </label>
+            );
+          })}
+        </div>
+
+        <div style={{ padding: "16px 24px", borderTop: "1px solid #E5E7EB", display: "flex", justifyContent: "flex-end", gap: 10 }}>
+          <button type="button" onClick={onCancel} style={btnGhost} disabled={importing}>
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={importing || selectedIds.size === 0}
+            style={{ ...btnPrimary, background: ACCENT, opacity: importing || selectedIds.size === 0 ? 0.5 : 1 }}
+          >
+            {importing ? "Import en cours..." : `Importer ${selectedIds.size} trade(s)`}
+          </button>
         </div>
       </div>
     </div>
