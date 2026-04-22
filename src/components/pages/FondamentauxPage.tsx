@@ -478,9 +478,20 @@ Le site attend un rapport "Daily Macro Brief" pour la date ${date}, avec 12 acti
 
 ===== TA MISSION =====
 ETAPE 1 - Fetch et lis les 3 wraps.
-ETAPE 2 - IMPORTANT : dans chaque wrap, identifie tous les HYPERLIENS internes (vers d'autres articles investinglive.com) et LIS-LES aussi. Les wraps sont des resumes condenses, mais chaque sous-article contient des details, heures precises, chiffres exacts qui ne sont PAS repris dans le wrap. Tu dois lire TOUS les sous-articles pour avoir une image complete.
+
+ETAPE 2 - OBLIGATION ABSOLUE, NON-NEGOCIABLE : dans chaque wrap, tu DOIS identifier TOUS les HYPERLIENS internes (vers d'autres articles investinglive.com) et les FETCH UN PAR UN. Les wraps ne sont que des resumes condenses ; chaque sous-article contient les heures precises, chiffres complets, citations verbatim et contexte qui NE SONT PAS dans le wrap. C'est la regle la plus importante du prompt.
+
+REGLES STRICTES ETAPE 2 :
+- Tu ne dois JAMAIS te contenter des 3 wraps. Si tu renvoies un JSON sans avoir lu les sous-articles, le rapport est INVALIDE.
+- Il y a typiquement 25 a 40 sous-liens par jour (10-15 par wrap). Tu les fetch TOUS.
+- Fetch en PARALLELE par batches (5 a 8 URLs simultanees) pour aller vite. Si tu ne peux pas les fetch toi-meme, delegue a un sub-agent (Agent tool, general-purpose ou Explore) avec pour consigne de retourner un digest structure par actif avec horodatages, chiffres et citations verbatim.
+- Ignorer un sous-lien est autorise UNIQUEMENT s'il est purement technique et sans valeur (ex : "FX option expiries", "main events list", recap de seance). Tout le reste doit etre lu.
+- Pour chaque sous-article, extrais : heure exacte de publication, chiffres precis (data, yields, prix), citations verbatim (surtout BC et officiels), contexte marche.
+
 ETAPE 3 - Regroupe chronologiquement tous les evenements (du plus ancien au plus recent). IMPORTANT : tu listes TOUTES les annonces et news de la journee, y compris les contradictions. Si une annonce a 08:00 est contredite/modifiee/annulee a 14:00, tu MENTIONNES LES DEUX avec horodatage et flag de revirement (ex : "08:00 Fed hint hausse → 14:00 Powell nuance, marche corrige"). Le biais/score final de l'actif reflete le resultat NET du jour (la version qui a prevalu en fin de journee), mais les contradictions sont visibles dans les champs texte.
+
 ETAPE 4 - Pour chacun des 12 actifs ci-dessous, extrais ce qui est pertinent et remplis un objet JSON.
+
 ETAPE 5 - Renvoie UNIQUEMENT le JSON, rien avant, rien apres, pas de markdown, pas de \`\`\`.
 
 ===== 12 ACTIFS OBLIGATOIRES (ordre et spelling exacts) =====
@@ -532,12 +543,14 @@ Les 12 DOIVENT apparaitre dans le JSON, meme en RAS. Ne renomme jamais (pas "EUR
 
 ===== CHECKLIST AVANT D'ENVOYER LE JSON =====
 Relis ton JSON et verifie :
+[ ] J'ai fetche les 3 wraps ET j'ai lu TOUS les sous-liens internes (25-40 articles typiquement)
 [ ] Exactement 12 objets dans "assets"
 [ ] Tickers exactement : USD, EUR, GBP, JPY, CHF, AUD, NZD, CAD, CNY, XAUUSD, XAGUSD, USOIL (dans cet ordre)
 [ ] Chaque "bias" est dans {"hawkish","dovish","neutral","ras"}
 [ ] Chaque "score" est entier entre -5 et +5
 [ ] Les actifs en "ras" ont tous leurs 4 champs texte a null ET sources:[] ET last_update:"—"
 [ ] "report_date" = "${date}"
+[ ] Chaque champ texte contient des chiffres precis / citations verbatim venant des sous-articles (pas seulement des resumes des wraps)
 [ ] Aucun markdown, aucun texte hors du JSON, aucun bloc \`\`\`
 
 Maintenant attends que je te colle les 3 URLs du ${date}.`;
