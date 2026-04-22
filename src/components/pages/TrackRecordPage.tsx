@@ -9,6 +9,8 @@ import {
   Calendar as CalIcon,
   Trophy,
   Zap,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Trade, listTradesByDateRange } from "@/lib/trades";
 
@@ -23,21 +25,38 @@ function isoDateOffset(n: number) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function parsePnlUsd(s: string | null): number | null {
-  if (!s) return null;
-  const cleaned = s.replace(/[^\d.\-+%R]/gi, "");
-  if (/R\b/i.test(s) || cleaned.endsWith("R")) return null;
-  if (cleaned.endsWith("%")) return null;
-  const n = parseFloat(s.replace(/[^\d.\-]/g, ""));
-  if (isNaN(n)) return null;
-  return s.trim().startsWith("-") ? -Math.abs(n) : Math.abs(n);
+function pnlEur(t: Trade): number {
+  return typeof t.pnl_eur === "number" ? t.pnl_eur : 0;
 }
 
-function parseRr(s: string | null): number | null {
-  if (!s) return null;
-  if (!/R\b/i.test(s)) return null;
-  const n = parseFloat(s.replace(/[^\d.\-]/g, ""));
-  return isNaN(n) ? null : n;
+function tradeRR(t: Trade): number | null {
+  if (t.pnl_eur === null || !t.account_size_eur || !t.risk_pct) return null;
+  const risk = t.account_size_eur * (t.risk_pct / 100);
+  if (risk === 0) return null;
+  return t.pnl_eur / risk;
+}
+
+function fmtEur(n: number): string {
+  const sign = n >= 0 ? "+" : "-";
+  return `${sign}€${Math.abs(n).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function fmtRr(r: number): string {
+  const sign = r >= 0 ? "+" : "-";
+  return `${sign}${Math.abs(r).toFixed(2)}R`;
+}
+
+function countLogicalTrades(trades: Trade[]): number {
+  const seenGroups = new Set<string>();
+  let count = 0;
+  for (const t of trades) {
+    if (t.group_id) {
+      if (seenGroups.has(t.group_id)) continue;
+      seenGroups.add(t.group_id);
+    }
+    count += 1;
+  }
+  return count;
 }
 
 type Kpis = {
@@ -46,7 +65,7 @@ type Kpis = {
   losses: number;
   opens: number;
   winRate: number | null;
-  pnlUsd: number;
+  pnlEurTotal: number;
   rrAvg: number | null;
   rrSum: number;
   bestTrade: number | null;
@@ -61,7 +80,7 @@ function computeKpis(trades: Trade[]): Kpis {
   const opens = trades.filter((t) => t.status === "open").length;
   const winRate = closed.length > 0 ? (wins / closed.length) * 100 : null;
 
-  let pnlUsd = 0;
+  let pnlEurTotal = 0;
   let rrSum = 0;
   let rrCount = 0;
   let best: number | null = null;
@@ -69,14 +88,13 @@ function computeKpis(trades: Trade[]): Kpis {
   const byPair: Record<string, number> = {};
 
   for (const t of trades) {
-    const u = parsePnlUsd(t.pnl);
-    if (u !== null) {
-      pnlUsd += u;
-      if (best === null || u > best) best = u;
-      if (worst === null || u < worst) worst = u;
-      byPair[t.pair] = (byPair[t.pair] ?? 0) + u;
-    }
-    const r = parseRr(t.pnl);
+    const u = pnlEur(t);
+    pnlEurTotal += u;
+    if (best === null || u > best) best = u;
+    if (worst === null || u < worst) worst = u;
+    byPair[t.pair] = (byPair[t.pair] ?? 0) + u;
+
+    const r = tradeRR(t);
     if (r !== null) {
       rrSum += r;
       rrCount += 1;
@@ -87,12 +105,12 @@ function computeKpis(trades: Trade[]): Kpis {
   const bestPair = Object.entries(byPair).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 
   return {
-    total: trades.length,
+    total: countLogicalTrades(trades),
     wins,
     losses,
     opens,
     winRate,
-    pnlUsd,
+    pnlEurTotal,
     rrAvg,
     rrSum,
     bestTrade: best,
@@ -108,16 +126,28 @@ const PRESETS: { label: string; days: number }[] = [
   { label: "YTD", days: -1 },
 ];
 
+const ALL_ACCOUNTS = "__all__";
+
+function formatMonthFr(year: number, month0: number): string {
+  const months = ["janvier", "fevrier", "mars", "avril", "mai", "juin", "juillet", "aout", "septembre", "octobre", "novembre", "decembre"];
+  return `${months[month0].charAt(0).toUpperCase()}${months[month0].slice(1)} ${year}`;
+}
+
 export default function TrackRecordPage() {
+  const today = new Date();
+  const todayIso = isoDateOffset(0);
   const [start, setStart] = useState<string>(isoDateOffset(29));
-  const [end, setEnd] = useState<string>(isoDateOffset(0));
-  const [trades, setTrades] = useState<Trade[]>([]);
+  const [end, setEnd] = useState<string>(todayIso);
+  const [allTrades, setAllTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
+  const [accountFilter, setAccountFilter] = useState<string>(ALL_ACCOUNTS);
+  const [calYear, setCalYear] = useState<number>(today.getFullYear());
+  const [calMonth, setCalMonth] = useState<number>(today.getMonth()); // 0-11
 
   const reload = useCallback(async () => {
     setLoading(true);
     const list = await listTradesByDateRange(start, end);
-    setTrades(list);
+    setAllTrades(list);
     setLoading(false);
   }, [start, end]);
 
@@ -125,16 +155,27 @@ export default function TrackRecordPage() {
     reload();
   }, [reload]);
 
+  const accounts = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of allTrades) if (t.account) set.add(t.account);
+    return Array.from(set).sort();
+  }, [allTrades]);
+
+  const trades = useMemo(() => {
+    if (accountFilter === ALL_ACCOUNTS) return allTrades;
+    return allTrades.filter((t) => t.account === accountFilter);
+  }, [allTrades, accountFilter]);
+
   const kpis = useMemo(() => computeKpis(trades), [trades]);
 
   const applyPreset = (days: number) => {
     if (days === -1) {
       const now = new Date();
       setStart(`${now.getFullYear()}-01-01`);
-      setEnd(isoDateOffset(0));
+      setEnd(todayIso);
     } else {
       setStart(isoDateOffset(days));
-      setEnd(isoDateOffset(0));
+      setEnd(todayIso);
     }
   };
 
@@ -147,18 +188,53 @@ export default function TrackRecordPage() {
           onStart={setStart}
           onEnd={setEnd}
           onPreset={applyPreset}
+          accounts={accounts}
+          accountFilter={accountFilter}
+          onAccountFilterChange={setAccountFilter}
         />
 
         {loading ? (
           <div style={{ padding: 60, textAlign: "center", color: "#9CA3AF", fontSize: 14 }}>
             Chargement des trades...
           </div>
-        ) : trades.length === 0 ? (
-          <div style={{ padding: 60, textAlign: "center", color: "#9CA3AF", fontSize: 14 }}>
-            Aucun trade sur cette periode. Elargis la plage pour en voir plus.
-          </div>
         ) : (
-          <TrackRecordBody trades={trades} kpis={kpis} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <CalendarView
+              trades={trades}
+              year={calYear}
+              month={calMonth}
+              onPrev={() => {
+                if (calMonth === 0) {
+                  setCalMonth(11);
+                  setCalYear((y) => y - 1);
+                } else {
+                  setCalMonth((m) => m - 1);
+                }
+              }}
+              onNext={() => {
+                if (calMonth === 11) {
+                  setCalMonth(0);
+                  setCalYear((y) => y + 1);
+                } else {
+                  setCalMonth((m) => m + 1);
+                }
+              }}
+              onToday={() => {
+                const now = new Date();
+                setCalMonth(now.getMonth());
+                setCalYear(now.getFullYear());
+              }}
+              accountFilter={accountFilter}
+            />
+
+            {trades.length === 0 ? (
+              <div style={{ padding: 40, textAlign: "center", color: "#9CA3AF", fontSize: 14 }}>
+                Aucun trade sur cette periode.
+              </div>
+            ) : (
+              <TrackRecordBody trades={trades} kpis={kpis} accountFilter={accountFilter} />
+            )}
+          </div>
         )}
       </div>
     </div>
@@ -171,12 +247,18 @@ function HeaderBar({
   onStart,
   onEnd,
   onPreset,
+  accounts,
+  accountFilter,
+  onAccountFilterChange,
 }: {
   start: string;
   end: string;
   onStart: (v: string) => void;
   onEnd: (v: string) => void;
   onPreset: (days: number) => void;
+  accounts: string[];
+  accountFilter: string;
+  onAccountFilterChange: (v: string) => void;
 }) {
   const today = isoDateOffset(0);
   const activePreset = PRESETS.find((p) => {
@@ -190,13 +272,29 @@ function HeaderBar({
 
   return (
     <header style={{ marginBottom: 24, display: "flex", flexDirection: "column", gap: 16 }}>
-      <div>
-        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2, color: "#6B7280", marginBottom: 6 }}>
-          TRACK RECORD
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2, color: "#6B7280", marginBottom: 6 }}>
+            TRACK RECORD
+          </div>
+          <h1 style={{ fontSize: 30, fontWeight: 300, letterSpacing: "-0.01em", fontFamily: "var(--font-display, Georgia, serif)", color: "#111" }}>
+            Historique de performance
+          </h1>
         </div>
-        <h1 style={{ fontSize: 30, fontWeight: 300, letterSpacing: "-0.01em", fontFamily: "var(--font-display, Georgia, serif)", color: "#111" }}>
-          Historique de performance
-        </h1>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "#6B7280" }}>COMPTE</label>
+          <select
+            value={accountFilter}
+            onChange={(e) => onAccountFilterChange(e.target.value)}
+            aria-label="Filtre compte"
+            style={{ padding: "7px 12px", borderRadius: 8, border: `1px solid ${ACCENT}40`, background: "white", color: "#111", fontSize: 12, fontWeight: 600, minWidth: 140 }}
+          >
+            <option value={ALL_ACCOUNTS}>Tous les comptes</option>
+            {accounts.map((a) => (
+              <option key={a} value={a}>{a}</option>
+            ))}
+          </select>
+        </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         {PRESETS.map((p) => {
@@ -245,6 +343,251 @@ function HeaderBar({
   );
 }
 
+function CalendarView({
+  trades,
+  year,
+  month,
+  onPrev,
+  onNext,
+  onToday,
+  accountFilter,
+}: {
+  trades: Trade[];
+  year: number;
+  month: number; // 0-11
+  onPrev: () => void;
+  onNext: () => void;
+  onToday: () => void;
+  accountFilter: string;
+}) {
+  // Group month's trades by date
+  const monthPrefix = `${year}-${String(month + 1).padStart(2, "0")}`;
+  const monthTrades = trades.filter((t) => t.date.startsWith(monthPrefix));
+  const tradesByDate: Record<string, Trade[]> = {};
+  for (const t of monthTrades) {
+    if (!tradesByDate[t.date]) tradesByDate[t.date] = [];
+    tradesByDate[t.date].push(t);
+  }
+
+  // Monthly stats
+  const monthlyPnl = monthTrades.reduce((acc, t) => acc + pnlEur(t), 0);
+  const tradingDays = Object.keys(tradesByDate).length;
+  let monthlyRr: number | null = null;
+  if (accountFilter !== ALL_ACCOUNTS && monthTrades.length > 0) {
+    const firstAcc = monthTrades[0];
+    if (firstAcc.account_size_eur && firstAcc.risk_pct) {
+      const risk = firstAcc.account_size_eur * (firstAcc.risk_pct / 100);
+      if (risk > 0) monthlyRr = monthlyPnl / risk;
+    }
+  }
+
+  // Build grid (6 rows × 7 cols, Mon-Sun)
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const daysInMonth = lastDay.getDate();
+  // getDay: 0=Sun..6=Sat → convert to Mon=0..Sun=6
+  const firstWeekday = (firstDay.getDay() + 6) % 7;
+  const prevMonthLastDay = new Date(year, month, 0).getDate();
+
+  const cells: { date: string; day: number; inMonth: boolean }[] = [];
+  for (let i = 0; i < firstWeekday; i++) {
+    const day = prevMonthLastDay - firstWeekday + 1 + i;
+    const d = new Date(year, month - 1, day);
+    cells.push({
+      date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+      day,
+      inMonth: false,
+    });
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push({
+      date: `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
+      day: d,
+      inMonth: true,
+    });
+  }
+  const totalCells = Math.ceil(cells.length / 7) * 7;
+  let nextDay = 1;
+  while (cells.length < totalCells) {
+    const d = new Date(year, month + 1, nextDay);
+    cells.push({
+      date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+      day: nextDay,
+      inMonth: false,
+    });
+    nextDay += 1;
+  }
+
+  const todayIso = isoDateOffset(0);
+
+  return (
+    <div style={{ background: "white", borderRadius: 14, border: "1px solid #E5E7EB", overflow: "hidden" }}>
+      <div style={{ padding: "14px 18px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <button
+          type="button"
+          onClick={onToday}
+          style={{ padding: "6px 14px", fontSize: 12, fontWeight: 700, borderRadius: 8, background: "white", border: "1px solid #E5E7EB", color: "#111", cursor: "pointer" }}
+        >
+          Aujourd&apos;hui
+        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <button
+            type="button"
+            onClick={onPrev}
+            aria-label="Mois precedent"
+            style={{ width: 30, height: 30, borderRadius: 8, background: "white", border: "1px solid #E5E7EB", color: "#111", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <div style={{ padding: "0 12px", fontSize: 14, fontWeight: 700, color: "#111", minWidth: 150, textAlign: "center" }}>
+            {formatMonthFr(year, month)}
+          </div>
+          <button
+            type="button"
+            onClick={onNext}
+            aria-label="Mois suivant"
+            style={{ width: 30, height: 30, borderRadius: 8, background: "white", border: "1px solid #E5E7EB", color: "#111", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+        <div style={{ flex: 1 }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#6B7280" }}>
+          <span>Stats mensuelles :</span>
+          <span
+            style={{
+              padding: "4px 10px",
+              borderRadius: 6,
+              background: monthlyPnl >= 0 ? `${GREEN}18` : `${RED}18`,
+              color: monthlyPnl >= 0 ? GREEN : RED,
+              fontWeight: 700,
+              fontFamily: "monospace",
+            }}
+          >
+            {fmtEur(monthlyPnl)}
+          </span>
+          {monthlyRr !== null && (
+            <span
+              style={{
+                padding: "4px 10px",
+                borderRadius: 6,
+                background: monthlyRr >= 0 ? `${GREEN}18` : `${RED}18`,
+                color: monthlyRr >= 0 ? GREEN : RED,
+                fontWeight: 700,
+                fontFamily: "monospace",
+              }}
+            >
+              {fmtRr(monthlyRr)}
+            </span>
+          )}
+          <span style={{ padding: "4px 10px", borderRadius: 6, background: "#F3F4F6", color: "#6B7280", fontWeight: 600 }}>
+            Jours de trading : {tradingDays}
+          </span>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderTop: "1px solid #F3F4F6" }}>
+        {["LUN.", "MAR.", "MER.", "JEU.", "VEN.", "SAM.", "DIM."].map((d) => (
+          <div
+            key={d}
+            style={{ padding: "10px 12px", fontSize: 11, fontWeight: 800, letterSpacing: 1.5, color: "#9CA3AF", borderRight: "1px solid #F3F4F6", borderBottom: "1px solid #F3F4F6" }}
+          >
+            {d}
+          </div>
+        ))}
+        {cells.map((cell, idx) => {
+          const dayTrades = tradesByDate[cell.date] ?? [];
+          const dayPnl = dayTrades.reduce((acc, t) => acc + pnlEur(t), 0);
+          let dayRr: number | null = null;
+          if (accountFilter !== ALL_ACCOUNTS && dayTrades.length > 0) {
+            const t = dayTrades[0];
+            if (t.account_size_eur && t.risk_pct) {
+              const risk = t.account_size_eur * (t.risk_pct / 100);
+              if (risk > 0) dayRr = dayPnl / risk;
+            }
+          }
+          const nbLogical = countLogicalTrades(dayTrades);
+          const isToday = cell.date === todayIso;
+          const hasTrades = dayTrades.length > 0;
+          const positive = dayPnl > 0;
+          const negative = dayPnl < 0;
+
+          return (
+            <div
+              key={idx}
+              style={{
+                minHeight: 100,
+                padding: 8,
+                borderRight: (idx + 1) % 7 === 0 ? "none" : "1px solid #F3F4F6",
+                borderBottom: "1px solid #F3F4F6",
+                opacity: cell.inMonth ? 1 : 0.35,
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: isToday ? "white" : cell.inMonth ? "#374151" : "#9CA3AF",
+                  width: isToday ? 24 : "auto",
+                  height: isToday ? 24 : "auto",
+                  borderRadius: isToday ? "50%" : 0,
+                  background: isToday ? "#2563EB" : "transparent",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: isToday ? "center" : "flex-start",
+                }}
+              >
+                {cell.day}
+              </div>
+              {hasTrades && cell.inMonth && (
+                <div
+                  style={{
+                    background: positive ? `${GREEN}18` : negative ? `${RED}18` : "#F3F4F6",
+                    borderRadius: 6,
+                    padding: "6px 8px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 2,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: positive ? GREEN : negative ? RED : "#6B7280",
+                      fontFamily: "monospace",
+                    }}
+                  >
+                    {fmtEur(dayPnl)}
+                  </div>
+                  {dayRr !== null && (
+                    <div
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: positive ? GREEN : negative ? RED : "#6B7280",
+                        fontFamily: "monospace",
+                      }}
+                    >
+                      {fmtRr(dayRr)}
+                    </div>
+                  )}
+                  <div style={{ fontSize: 10, color: "#6B7280" }}>
+                    Trades : {nbLogical}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function KpiCard({
   icon,
   label,
@@ -259,14 +602,7 @@ function KpiCard({
   accent?: string;
 }) {
   return (
-    <div
-      style={{
-        background: "white",
-        borderRadius: 14,
-        border: "1px solid #E5E7EB",
-        padding: 18,
-      }}
-    >
+    <div style={{ background: "white", borderRadius: 14, border: "1px solid #E5E7EB", padding: 18 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
         <div
           style={{
@@ -284,15 +620,10 @@ function KpiCard({
         </div>
         <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.5, color: "#6B7280" }}>{label}</span>
       </div>
-      <div style={{ fontSize: 26, fontWeight: 700, fontFamily: "monospace", color: "#111" }}>{value}</div>
+      <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "monospace", color: "#111" }}>{value}</div>
       {sub && <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 4 }}>{sub}</div>}
     </div>
   );
-}
-
-function fmtUsd(n: number): string {
-  const sign = n >= 0 ? "+" : "-";
-  return `${sign}$${Math.round(Math.abs(n)).toLocaleString("fr-FR")}`;
 }
 
 function statusLabel(s: Trade["status"]): string {
@@ -308,58 +639,79 @@ function statusColor(s: Trade["status"]): string {
   return "#6B7280";
 }
 
-function TrackRecordBody({ trades, kpis }: { trades: Trade[]; kpis: Kpis }) {
+function TrackRecordBody({ trades, kpis, accountFilter }: { trades: Trade[]; kpis: Kpis; accountFilter: string }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
         <KpiCard icon={<Percent size={14} />} label="WIN RATE" value={kpis.winRate !== null ? `${kpis.winRate.toFixed(0)}%` : "—"} sub={`${kpis.wins}W / ${kpis.losses}L`} accent={GREEN} />
-        <KpiCard icon={<DollarSign size={14} />} label="P&L NET" value={fmtUsd(kpis.pnlUsd)} sub={`sur ${kpis.total} trades`} accent={kpis.pnlUsd >= 0 ? GREEN : RED} />
-        <KpiCard icon={<Target size={14} />} label="RR MOYEN" value={kpis.rrAvg !== null ? `${kpis.rrAvg.toFixed(2)}R` : "—"} sub={`sum ${kpis.rrSum.toFixed(1)}R`} accent={ACCENT} />
+        <KpiCard icon={<DollarSign size={14} />} label="P&L NET" value={fmtEur(kpis.pnlEurTotal)} sub={`sur ${kpis.total} trades`} accent={kpis.pnlEurTotal >= 0 ? GREEN : RED} />
+        <KpiCard icon={<Target size={14} />} label="RR MOYEN" value={kpis.rrAvg !== null ? fmtRr(kpis.rrAvg) : "—"} sub={`sum ${kpis.rrSum >= 0 ? "+" : ""}${kpis.rrSum.toFixed(2)}R`} accent={ACCENT} />
         <KpiCard icon={<BarChart3 size={14} />} label="NB TRADES" value={String(kpis.total)} sub={`${kpis.opens} en cours`} accent={GOLD} />
-        <KpiCard icon={<Trophy size={14} />} label="BEST TRADE" value={kpis.bestTrade !== null ? fmtUsd(kpis.bestTrade) : "—"} sub={kpis.bestPair ?? ""} accent={GREEN} />
-        <KpiCard icon={<Zap size={14} />} label="WORST TRADE" value={kpis.worstTrade !== null ? fmtUsd(kpis.worstTrade) : "—"} accent={RED} />
+        <KpiCard icon={<Trophy size={14} />} label="BEST TRADE" value={kpis.bestTrade !== null ? fmtEur(kpis.bestTrade) : "—"} sub={kpis.bestPair ?? ""} accent={GREEN} />
+        <KpiCard icon={<Zap size={14} />} label="WORST TRADE" value={kpis.worstTrade !== null ? fmtEur(kpis.worstTrade) : "—"} accent={RED} />
       </div>
 
       <div style={{ background: "white", borderRadius: 14, border: "1px solid #E5E7EB", overflow: "hidden" }}>
-        <div style={{ padding: "14px 18px", borderBottom: "1px solid #F3F4F6", fontSize: 11, fontWeight: 800, letterSpacing: 2, color: "#6B7280" }}>
-          TOUS LES TRADES ({trades.length})
+        <div style={{ padding: "14px 18px", borderBottom: "1px solid #F3F4F6", fontSize: 11, fontWeight: 800, letterSpacing: 2, color: "#6B7280", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>TOUS LES TRADES ({trades.length})</span>
+          {accountFilter !== ALL_ACCOUNTS && (
+            <span style={{ fontSize: 11, fontWeight: 700, color: ACCENT, letterSpacing: 1 }}>COMPTE : {accountFilter}</span>
+          )}
         </div>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-          <thead>
-            <tr style={{ background: "#FAFAF9" }}>
-              {["Date", "Heure", "Paire", "Dir.", "Entry", "SL", "TP", "Size", "Status", "P&L", "Idee"].map((h) => (
-                <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontSize: 10, fontWeight: 800, letterSpacing: 1, color: "#6B7280", borderBottom: "1px solid #E5E7EB" }}>
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {trades.map((t) => (
-              <tr key={t.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
-                <td style={{ padding: "10px 12px", fontFamily: "monospace", fontSize: 11, color: "#6B7280" }}>{t.date}</td>
-                <td style={{ padding: "10px 12px", fontFamily: "monospace", fontSize: 11, color: "#6B7280" }}>{t.time ?? "—"}</td>
-                <td style={{ padding: "10px 12px", fontWeight: 700 }}>{t.pair}</td>
-                <td style={{ padding: "10px 12px" }}>
-                  <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 6px", borderRadius: 4, background: t.direction === "long" ? `${GREEN}15` : `${RED}15`, color: t.direction === "long" ? GREEN : RED }}>
-                    {t.direction.toUpperCase()}
-                  </span>
-                </td>
-                <td style={{ padding: "10px 12px", fontFamily: "monospace", fontSize: 11 }}>{t.entry ?? "—"}</td>
-                <td style={{ padding: "10px 12px", fontFamily: "monospace", fontSize: 11 }}>{t.sl ?? "—"}</td>
-                <td style={{ padding: "10px 12px", fontFamily: "monospace", fontSize: 11 }}>{t.tp ?? "—"}</td>
-                <td style={{ padding: "10px 12px", fontFamily: "monospace", fontSize: 11 }}>{t.size ?? "—"}</td>
-                <td style={{ padding: "10px 12px" }}>
-                  <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 6px", borderRadius: 4, background: `${statusColor(t.status)}15`, color: statusColor(t.status) }}>
-                    {statusLabel(t.status)}
-                  </span>
-                </td>
-                <td style={{ padding: "10px 12px", fontFamily: "monospace", fontWeight: 700, color: statusColor(t.status) }}>{t.pnl ?? "—"}</td>
-                <td style={{ padding: "10px 12px", fontSize: 12, color: "#6B7280", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.idea ?? ""}</td>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: "#FAFAF9" }}>
+                {["Date", "Heure", "Compte", "Paire", "Dir.", "Entry", "SL", "TP", "Size", "Status", "P&L (€)", "R", "Idee"].map((h) => (
+                  <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontSize: 10, fontWeight: 800, letterSpacing: 1, color: "#6B7280", borderBottom: "1px solid #E5E7EB", whiteSpace: "nowrap" }}>
+                    {h}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {trades.map((t) => {
+                const rr = tradeRR(t);
+                const pnl = pnlEur(t);
+                return (
+                  <tr key={t.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
+                    <td style={{ padding: "10px 12px", fontFamily: "monospace", fontSize: 11, color: "#6B7280", whiteSpace: "nowrap" }}>{t.date}</td>
+                    <td style={{ padding: "10px 12px", fontFamily: "monospace", fontSize: 11, color: "#6B7280" }}>{t.time ?? "—"}</td>
+                    <td style={{ padding: "10px 12px", fontSize: 11 }}>
+                      {t.account ? (
+                        <span style={{ padding: "2px 7px", borderRadius: 4, background: `${ACCENT}15`, color: ACCENT, fontSize: 10, fontWeight: 700, letterSpacing: 0.5 }}>
+                          {t.account}
+                        </span>
+                      ) : "—"}
+                    </td>
+                    <td style={{ padding: "10px 12px", fontWeight: 700 }}>{t.pair}</td>
+                    <td style={{ padding: "10px 12px" }}>
+                      <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 6px", borderRadius: 4, background: t.direction === "long" ? `${GREEN}15` : `${RED}15`, color: t.direction === "long" ? GREEN : RED }}>
+                        {t.direction.toUpperCase()}
+                      </span>
+                    </td>
+                    <td style={{ padding: "10px 12px", fontFamily: "monospace", fontSize: 11 }}>{t.entry ?? "—"}</td>
+                    <td style={{ padding: "10px 12px", fontFamily: "monospace", fontSize: 11 }}>{t.sl ?? "—"}</td>
+                    <td style={{ padding: "10px 12px", fontFamily: "monospace", fontSize: 11 }}>{t.tp ?? "—"}</td>
+                    <td style={{ padding: "10px 12px", fontFamily: "monospace", fontSize: 11 }}>{t.size ?? "—"}</td>
+                    <td style={{ padding: "10px 12px" }}>
+                      <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 6px", borderRadius: 4, background: `${statusColor(t.status)}15`, color: statusColor(t.status) }}>
+                        {statusLabel(t.status)}
+                      </span>
+                    </td>
+                    <td style={{ padding: "10px 12px", fontFamily: "monospace", fontWeight: 700, color: statusColor(t.status) }}>
+                      {t.pnl_eur !== null ? fmtEur(pnl) : "—"}
+                    </td>
+                    <td style={{ padding: "10px 12px", fontFamily: "monospace", fontWeight: 700, color: rr !== null ? (rr >= 0 ? GREEN : RED) : "#9CA3AF" }}>
+                      {rr !== null ? fmtRr(rr) : "—"}
+                    </td>
+                    <td style={{ padding: "10px 12px", fontSize: 12, color: "#6B7280", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.idea ?? ""}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

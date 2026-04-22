@@ -18,11 +18,16 @@ export type Trade = {
   size: string | null;
   status: TradeStatus;
   pnl: string | null;
+  pnl_eur: number | null;
   idea: string | null;
   notes: string | null;
   tags: string[];
   source: TradeSource;
   notion_id: string | null;
+  account: string | null;
+  account_size_eur: number | null;
+  risk_pct: number | null;
+  group_id: string | null;
 };
 
 export type TradeInput = Omit<Trade, "id" | "created_at" | "updated_at">;
