@@ -209,7 +209,7 @@ export default function TrackRecordPage() {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <CalendarView
-              trades={trades}
+              trades={rangeTrades}
               year={calYear}
               month={calMonth}
               onDayClick={(d) => setSelectedDay(d)}
@@ -250,7 +250,7 @@ export default function TrackRecordPage() {
       {selectedDay && (
         <DayDetailModal
           day={selectedDay}
-          trades={trades.filter((t) => t.date === selectedDay)}
+          trades={rangeTrades.filter((t) => t.date === selectedDay)}
           onClose={() => setSelectedDay(null)}
         />
       )}
