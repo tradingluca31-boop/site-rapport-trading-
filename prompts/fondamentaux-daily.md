@@ -23,7 +23,7 @@ Le site attend un rapport "Daily Macro Brief" pour la date {DATE}, avec 12 actif
 ===== TA MISSION =====
 ETAPE 1 - Fetch et lis les 3 wraps.
 ETAPE 2 - IMPORTANT : dans chaque wrap, identifie tous les HYPERLIENS internes (vers d'autres articles investinglive.com) et LIS-LES aussi. Les wraps sont des resumes condenses, mais chaque sous-article contient des details, heures precises, chiffres exacts qui ne sont PAS repris dans le wrap. Tu dois lire TOUS les sous-articles pour avoir une image complete.
-ETAPE 3 - Regroupe chronologiquement tous les evenements (du plus ancien au plus recent). Si une annonce a 08:00 est contredite/modifiee/annulee a 14:00, tu gardes UNIQUEMENT la version finale. Si le US wrap (plus tardif) dit l'inverse du European wrap, c'est le US qui fait foi.
+ETAPE 3 - Regroupe chronologiquement tous les evenements (du plus ancien au plus recent). IMPORTANT : tu listes TOUTES les annonces et news de la journee, y compris les contradictions. Si une annonce a 08:00 est contredite/modifiee/annulee a 14:00, tu MENTIONNES LES DEUX avec horodatage et flag de revirement (ex : "08:00 Fed hint hausse → 14:00 Powell nuance, marche corrige"). Le biais/score final de l'actif reflete le resultat NET du jour (la version qui a prevalu en fin de journee), mais les contradictions sont visibles dans les champs texte.
 ETAPE 4 - Pour chacun des 12 actifs ci-dessous, extrais ce qui est pertinent et remplis un objet JSON.
 ETAPE 5 - Renvoie UNIQUEMENT le JSON, rien avant, rien apres, pas de markdown, pas de ```.
 
@@ -68,10 +68,11 @@ Les 12 DOIVENT apparaitre dans le JSON, meme en RAS. Ne renomme jamais (pas "EUR
 - "last_update" : string au format "HH:MM" (24h, UTC). Si RAS, mets "—".
 
 ===== REGLES DE QUALITE =====
-1. Chaque phrase texte doit etre specifique (chiffres, noms, citations) — pas de generalites type "contexte incertain".
-2. "bias" doit refleter le FLUX DU JOUR, pas le trend long-terme. Exemple : USD en long-terme haussier, mais si la data du jour est faible → bias="dovish" score=-2.
-3. Si un actif a 2+ news (ex : Fed dovish ET retail sales forte), prends la plus recente ou la plus impactante dans le wrap US (autorite).
-4. La categorie "sentiment" est pour les flows/positioning (pas le sentiment retail du public — plutot les calls institutionnels, changements de cible de banques).
+1. Chaque phrase texte doit etre specifique (chiffres, noms, citations, horodatages) — pas de generalites type "contexte incertain".
+2. Liste TOUTES les news du jour, meme si elles se contredisent. Si un actif a 3 news dans la journee, le champ concerne (ex : monetary) contient les 3 phrases separees par " → " ou " ; " avec horodatages. Ex : "08:00 Fed hint hausse → 14:00 Powell nuance, marche corrige".
+3. "bias" et "score" refletent le NET du jour (resultat final apres toutes les news), pas une moyenne. Exemple : si matin hawkish puis soir dovish, bias="dovish" car c'est ce qui a prevalu.
+4. La categorie "sentiment" est pour les flows/positioning (calls institutionnels, changements de cible de banques), pas le sentiment retail.
+5. Les contradictions entre les 3 wraps : si Asia Pacific et US racontent l'inverse, tu mentionnes les deux dans le champ concerne avec la mention "→ revise par US wrap", mais bias/score suivent le US (autorite).
 
 ===== CHECKLIST AVANT D'ENVOYER LE JSON =====
 Relis ton JSON et verifie :
