@@ -11,6 +11,7 @@ import {
   Zap,
   ChevronLeft,
   ChevronRight,
+  X as XIcon,
 } from "lucide-react";
 import { Trade, listTradesByDateRange } from "@/lib/trades";
 
@@ -143,13 +144,15 @@ export default function TrackRecordPage() {
   const [accountFilter, setAccountFilter] = useState<string>(ALL_ACCOUNTS);
   const [calYear, setCalYear] = useState<number>(today.getFullYear());
   const [calMonth, setCalMonth] = useState<number>(today.getMonth()); // 0-11
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
+  // Fetch une fois large (tous les trades de 2024-2030) — filtrage client-side
   const reload = useCallback(async () => {
     setLoading(true);
-    const list = await listTradesByDateRange(start, end);
+    const list = await listTradesByDateRange("2024-01-01", "2030-12-31");
     setAllTrades(list);
     setLoading(false);
-  }, [start, end]);
+  }, []);
 
   useEffect(() => {
     reload();
@@ -161,12 +164,18 @@ export default function TrackRecordPage() {
     return Array.from(set).sort();
   }, [allTrades]);
 
+  // trades = filtre par compte (utilise pour le calendrier, nav mois libre)
   const trades = useMemo(() => {
     if (accountFilter === ALL_ACCOUNTS) return allTrades;
     return allTrades.filter((t) => t.account === accountFilter);
   }, [allTrades, accountFilter]);
 
-  const kpis = useMemo(() => computeKpis(trades), [trades]);
+  // rangeTrades = filtre par plage de dates (pour KPIs + table)
+  const rangeTrades = useMemo(() => {
+    return trades.filter((t) => t.date >= start && t.date <= end);
+  }, [trades, start, end]);
+
+  const kpis = useMemo(() => computeKpis(rangeTrades), [rangeTrades]);
 
   const applyPreset = (days: number) => {
     if (days === -1) {
@@ -203,6 +212,7 @@ export default function TrackRecordPage() {
               trades={trades}
               year={calYear}
               month={calMonth}
+              onDayClick={(d) => setSelectedDay(d)}
               onPrev={() => {
                 if (calMonth === 0) {
                   setCalMonth(11);
@@ -227,16 +237,23 @@ export default function TrackRecordPage() {
               accountFilter={accountFilter}
             />
 
-            {trades.length === 0 ? (
+            {rangeTrades.length === 0 ? (
               <div style={{ padding: 40, textAlign: "center", color: "#9CA3AF", fontSize: 14 }}>
-                Aucun trade sur cette periode.
+                Aucun trade sur la plage de dates selectionnee (change la plage ou les presets).
               </div>
             ) : (
-              <TrackRecordBody trades={trades} kpis={kpis} accountFilter={accountFilter} />
+              <TrackRecordBody trades={rangeTrades} kpis={kpis} accountFilter={accountFilter} />
             )}
           </div>
         )}
       </div>
+      {selectedDay && (
+        <DayDetailModal
+          day={selectedDay}
+          trades={trades.filter((t) => t.date === selectedDay)}
+          onClose={() => setSelectedDay(null)}
+        />
+      )}
     </div>
   );
 }
@@ -350,6 +367,7 @@ function CalendarView({
   onPrev,
   onNext,
   onToday,
+  onDayClick,
   accountFilter,
 }: {
   trades: Trade[];
@@ -358,6 +376,7 @@ function CalendarView({
   onPrev: () => void;
   onNext: () => void;
   onToday: () => void;
+  onDayClick: (date: string) => void;
   accountFilter: string;
 }) {
   // Group month's trades by date
@@ -512,9 +531,18 @@ function CalendarView({
           const positive = dayPnl > 0;
           const negative = dayPnl < 0;
 
+          const clickable = hasTrades && cell.inMonth;
           return (
             <div
               key={idx}
+              onClick={clickable ? () => onDayClick(cell.date) : undefined}
+              onKeyDown={clickable ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onDayClick(cell.date);
+                }
+              } : undefined}
+              tabIndex={clickable ? 0 : -1}
               style={{
                 minHeight: 100,
                 padding: 8,
@@ -524,7 +552,11 @@ function CalendarView({
                 display: "flex",
                 flexDirection: "column",
                 gap: 6,
+                cursor: clickable ? "pointer" : "default",
+                transition: "background 0.15s",
               }}
+              onMouseEnter={clickable ? (e) => (e.currentTarget.style.background = "#FAFAF9") : undefined}
+              onMouseLeave={clickable ? (e) => (e.currentTarget.style.background = "transparent") : undefined}
             >
               <div
                 style={{
@@ -637,6 +669,110 @@ function statusColor(s: Trade["status"]): string {
   if (s === "closed-win") return GREEN;
   if (s === "closed-loss") return RED;
   return "#6B7280";
+}
+
+function DayDetailModal({ day, trades, onClose }: { day: string; trades: Trade[]; onClose: () => void }) {
+  const dayPnl = trades.reduce((acc, t) => acc + pnlEur(t), 0);
+  const logical = countLogicalTrades(trades);
+  const dayLabel = (() => {
+    const [y, m, d] = day.split("-").map(Number);
+    const dt = new Date(y, m - 1, d);
+    return dt.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  })();
+
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ background: "white", borderRadius: 16, width: "100%", maxWidth: 860, maxHeight: "90vh", display: "flex", flexDirection: "column", overflow: "hidden" }}
+      >
+        <div style={{ padding: "20px 24px", borderBottom: "1px solid #E5E7EB", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2, color: "#6B7280", marginBottom: 4 }}>JOURNEE DE TRADING</div>
+            <div style={{ fontSize: 18, fontWeight: 600, color: "#111", textTransform: "capitalize" }}>{dayLabel}</div>
+            <div style={{ fontSize: 12, color: "#6B7280", marginTop: 4, display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ padding: "3px 10px", borderRadius: 6, background: dayPnl >= 0 ? `${GREEN}18` : `${RED}18`, color: dayPnl >= 0 ? GREEN : RED, fontWeight: 700, fontFamily: "monospace" }}>
+                {fmtEur(dayPnl)}
+              </span>
+              <span>{logical} trade{logical > 1 ? "s" : ""} · {trades.length} ligne{trades.length > 1 ? "s" : ""}</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            title="Fermer"
+            style={{ width: 32, height: 32, borderRadius: 8, background: "#F3F4F6", border: "none", color: "#6B7280", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            <XIcon size={16} />
+          </button>
+        </div>
+        <div style={{ padding: "18px 24px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
+          {trades.map((t) => {
+            const rr = tradeRR(t);
+            const pnl = pnlEur(t);
+            const sColor = statusColor(t.status);
+            return (
+              <div
+                key={t.id}
+                style={{ border: "1px solid #E5E7EB", borderRadius: 12, padding: 14, display: "flex", flexDirection: "column", gap: 8, background: "#FAFAF9" }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>{t.pair}</span>
+                  <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 7px", borderRadius: 4, background: t.direction === "long" ? `${GREEN}15` : `${RED}15`, color: t.direction === "long" ? GREEN : RED, letterSpacing: 0.5 }}>
+                    {t.direction.toUpperCase()}
+                  </span>
+                  <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 7px", borderRadius: 4, background: `${sColor}15`, color: sColor, letterSpacing: 0.5 }}>
+                    {statusLabel(t.status)}
+                  </span>
+                  {t.account && (
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 4, background: `${ACCENT}15`, color: ACCENT, letterSpacing: 0.5 }}>
+                      {t.account}
+                    </span>
+                  )}
+                  {t.time && <span style={{ fontSize: 11, fontFamily: "monospace", color: "#6B7280" }}>{t.time}</span>}
+                  <div style={{ flex: 1 }} />
+                  <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "monospace", color: sColor }}>{t.pnl_eur !== null ? fmtEur(pnl) : "—"}</span>
+                  {rr !== null && (
+                    <span style={{ fontSize: 12, fontWeight: 700, fontFamily: "monospace", color: sColor, padding: "2px 8px", borderRadius: 4, background: `${sColor}12` }}>
+                      {fmtRr(rr)}
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10, fontSize: 11, color: "#6B7280", fontFamily: "monospace" }}>
+                  <Info label="ENTRY" value={t.entry} />
+                  <Info label="SL" value={t.sl} />
+                  <Info label="TP" value={t.tp} />
+                  <Info label="SIZE" value={t.size} />
+                </div>
+                {t.idea && (
+                  <div style={{ fontSize: 12, color: "#374151", fontStyle: "italic", borderLeft: `3px solid ${ACCENT}`, paddingLeft: 10 }}>
+                    {t.idea}
+                  </div>
+                )}
+                {t.notes && (
+                  <div style={{ fontSize: 11, color: "#6B7280", whiteSpace: "pre-wrap" }}>
+                    {t.notes}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1, color: "#9CA3AF" }}>{label}</span>
+      <span style={{ color: "#111", fontSize: 12 }}>{value ?? "—"}</span>
+    </div>
+  );
 }
 
 function TrackRecordBody({ trades, kpis, accountFilter }: { trades: Trade[]; kpis: Kpis; accountFilter: string }) {
