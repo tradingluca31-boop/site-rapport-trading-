@@ -20,6 +20,20 @@ const GREEN = "#08D9D6";
 const RED = "#FF2E63";
 const GOLD = "#C59E3A";
 
+// Couleurs differenciees par compte
+const ACCOUNT_COLORS: Record<string, string> = {
+  "50K MT4": "#7C5CFF",      // violet
+  "50K DXTRADE": "#3B82F6",  // bleu
+  "10K MT5 1%": "#10B981",   // emeraude
+  "10K MT5 2%": "#F59E0B",   // orange
+  "10K Audacity": "#EC4899", // rose
+};
+
+function accountColor(account: string | null): string {
+  if (!account) return "#6B7280";
+  return ACCOUNT_COLORS[account] ?? "#7C5CFF";
+}
+
 function isoDateOffset(n: number) {
   const d = new Date();
   d.setDate(d.getDate() - n);
@@ -334,7 +348,16 @@ function HeaderBar({
             value={accountFilter}
             onChange={(e) => onAccountFilterChange(e.target.value)}
             aria-label="Filtre compte"
-            style={{ padding: "7px 12px", borderRadius: 8, border: `1px solid ${ACCENT}40`, background: "white", color: "#111", fontSize: 12, fontWeight: 600, minWidth: 140 }}
+            style={{
+              padding: "7px 12px",
+              borderRadius: 8,
+              border: `2px solid ${accountFilter === ALL_ACCOUNTS ? "#E5E7EB" : accountColor(accountFilter)}`,
+              background: "white",
+              color: accountFilter === ALL_ACCOUNTS ? "#111" : accountColor(accountFilter),
+              fontSize: 12,
+              fontWeight: 700,
+              minWidth: 160,
+            }}
           >
             <option value={ALL_ACCOUNTS}>Tous les comptes</option>
             {accounts.map((a) => (
@@ -758,7 +781,7 @@ function DayDetailModal({ day, trades, onClose }: { day: string; trades: Trade[]
                     {statusLabel(t.status)}
                   </span>
                   {t.account && (
-                    <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 4, background: `${ACCENT}15`, color: ACCENT, letterSpacing: 0.5 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 4, background: `${accountColor(t.account)}18`, color: accountColor(t.account), letterSpacing: 0.5 }}>
                       {t.account}
                     </span>
                   )}
@@ -829,7 +852,7 @@ function TrackRecordBody({ trades, kpis, accountFilter }: { trades: Trade[]; kpi
         <div style={{ padding: "14px 18px", borderBottom: "1px solid #F3F4F6", fontSize: 11, fontWeight: 800, letterSpacing: 2, color: "#6B7280", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span>TOUS LES TRADES ({trades.length})</span>
           {accountFilter !== ALL_ACCOUNTS && (
-            <span style={{ fontSize: 11, fontWeight: 700, color: ACCENT, letterSpacing: 1 }}>COMPTE : {accountFilter}</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: accountColor(accountFilter), letterSpacing: 1 }}>COMPTE : {accountFilter}</span>
           )}
         </div>
         <div style={{ overflowX: "auto" }}>
@@ -853,7 +876,7 @@ function TrackRecordBody({ trades, kpis, accountFilter }: { trades: Trade[]; kpi
                     <td style={{ padding: "10px 12px", fontFamily: "monospace", fontSize: 11, color: "#6B7280" }}>{t.time ?? "—"}</td>
                     <td style={{ padding: "10px 12px", fontSize: 11 }}>
                       {t.account ? (
-                        <span style={{ padding: "2px 7px", borderRadius: 4, background: `${ACCENT}15`, color: ACCENT, fontSize: 10, fontWeight: 700, letterSpacing: 0.5 }}>
+                        <span style={{ padding: "2px 7px", borderRadius: 4, background: `${accountColor(t.account)}18`, color: accountColor(t.account), fontSize: 10, fontWeight: 700, letterSpacing: 0.5 }}>
                           {t.account}
                         </span>
                       ) : "—"}
