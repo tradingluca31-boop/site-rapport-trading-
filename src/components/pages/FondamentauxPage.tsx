@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Flame, Snowflake, Minus, Newspaper, Pencil, Save, X as XIcon, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
+import { Flame, Snowflake, Minus, Newspaper, Pencil, Save, X as XIcon, ChevronLeft, ChevronRight, CalendarDays, Copy, Download, Check as CheckIcon, Sparkles } from "lucide-react";
 import {
   Bias,
   FundamentalAsset,
   FundamentalReportInput,
+  DEFAULT_ASSETS,
   buildDefaultReport,
   getReportByDate,
   upsertReport,
@@ -68,6 +69,8 @@ export default function FondamentauxPage() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [promptModal, setPromptModal] = useState(false);
+  const [importModal, setImportModal] = useState(false);
 
   const load = useCallback(async (date: string) => {
     setLoading(true);
@@ -153,6 +156,22 @@ export default function FondamentauxPage() {
             <button type="button" onClick={() => changeDay(1)} aria-label="Jour suivant" style={navBtn}><ChevronRight size={16} /></button>
             <button type="button" onClick={() => setCurrentDate(isoDate(new Date()))} style={{ ...navBtn, width: "auto", padding: "0 12px", fontSize: 11, fontWeight: 700 }}>
               <CalendarDays size={14} style={{ marginRight: 5 }} />Aujourd&apos;hui
+            </button>
+            <button
+              type="button"
+              onClick={() => setPromptModal(true)}
+              title="Copier un prompt pret pour Claude mobile"
+              style={{ ...navBtn, width: "auto", padding: "0 12px", fontSize: 11, fontWeight: 700, borderColor: `${ACCENT}60`, color: ACCENT }}
+            >
+              <Sparkles size={13} style={{ marginRight: 5 }} />Prompt Claude
+            </button>
+            <button
+              type="button"
+              onClick={() => setImportModal(true)}
+              title="Importer un JSON genere par Claude"
+              style={{ ...navBtn, width: "auto", padding: "0 12px", fontSize: 11, fontWeight: 700, background: ACCENT, color: "white", borderColor: ACCENT }}
+            >
+              <Download size={13} style={{ marginRight: 5 }} />Importer JSON
             </button>
             {editing ? (
               <>
@@ -243,9 +262,340 @@ export default function FondamentauxPage() {
           ))}
         </div>
       </div>
+      {promptModal && <PromptModal date={currentDate} onClose={() => setPromptModal(false)} />}
+      {importModal && (
+        <ImportModal
+          targetDate={currentDate}
+          onClose={() => setImportModal(false)}
+          onImported={async (imported) => {
+            setReport(imported);
+            const saved = await upsertReport(imported);
+            if (saved) {
+              setImportModal(false);
+              setSaveMsg("Rapport importe et enregistre");
+              setTimeout(() => setSaveMsg(null), 3000);
+              setCurrentDate(imported.report_date);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
+
+function PromptModal({ date, onClose }: { date: string; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const prompt = buildClaudePrompt(date);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return (
+    <div onClick={onClose} style={modalOverlay}>
+      <div onClick={(e) => e.stopPropagation()} style={{ ...modalBox, maxWidth: 720 }}>
+        <div style={modalHeader}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2, color: "#6B7280", marginBottom: 4 }}>PROMPT POUR CLAUDE MOBILE</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: "#111" }}>Rapport du {frDateLong(date)}</div>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Fermer" style={modalCloseBtn}><XIcon size={16} /></button>
+        </div>
+        <div style={{ padding: "18px 24px", fontSize: 12, color: "#6B7280", lineHeight: 1.6, borderBottom: "1px solid #F3F4F6" }}>
+          <strong style={{ color: "#111" }}>Workflow :</strong>
+          <ol style={{ margin: "8px 0 0 20px", padding: 0 }}>
+            <li>Clique <strong>Copier le prompt</strong> ci-dessous</li>
+            <li>Ouvre l&apos;app Claude mobile, colle le prompt</li>
+            <li>Attends que Claude lise les 3 wraps + tous les sous-liens</li>
+            <li>Claude renvoie un JSON → copie-le</li>
+            <li>Reviens ici → bouton <strong>Importer JSON</strong> → colle → Valider</li>
+          </ol>
+        </div>
+        <div style={{ padding: "16px 24px", flex: 1, overflow: "auto" }}>
+          <pre style={{ fontSize: 11, fontFamily: "monospace", background: "#0F172A", color: "#E2E8F0", padding: 16, borderRadius: 10, whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.5, maxHeight: "45vh", overflow: "auto" }}>
+{prompt}
+          </pre>
+        </div>
+        <div style={modalFooter}>
+          <button type="button" onClick={onClose} style={btnGhost}>Fermer</button>
+          <button
+            type="button"
+            onClick={copy}
+            style={{ ...btnPrimary, background: copied ? GREEN : ACCENT }}
+          >
+            {copied ? <><CheckIcon size={13} /> Copie !</> : <><Copy size={13} /> Copier le prompt</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ImportModal({ targetDate, onClose, onImported }: { targetDate: string; onClose: () => void; onImported: (report: FundamentalReportInput) => void }) {
+  const [jsonText, setJsonText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [parsed, setParsed] = useState<FundamentalReportInput | null>(null);
+
+  const tryParse = (text: string) => {
+    setJsonText(text);
+    setError(null);
+    setParsed(null);
+    if (!text.trim()) return;
+    try {
+      // Cherche le premier "{" et le dernier "}" pour etre tolerant
+      const start = text.indexOf("{");
+      const end = text.lastIndexOf("}");
+      if (start < 0 || end < 0) throw new Error("JSON invalide (pas d'objet detecte)");
+      const raw = text.slice(start, end + 1);
+      const obj = JSON.parse(raw);
+      const validated = validateReport(obj);
+      setParsed(validated);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "JSON invalide");
+    }
+  };
+
+  return (
+    <div onClick={onClose} style={modalOverlay}>
+      <div onClick={(e) => e.stopPropagation()} style={{ ...modalBox, maxWidth: 720 }}>
+        <div style={modalHeader}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2, color: "#6B7280", marginBottom: 4 }}>IMPORTER JSON</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: "#111" }}>Rapport genere par Claude mobile</div>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Fermer" style={modalCloseBtn}><XIcon size={16} /></button>
+        </div>
+        <div style={{ padding: "16px 24px", flex: 1, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
+          <textarea
+            value={jsonText}
+            onChange={(e) => tryParse(e.target.value)}
+            placeholder="Colle ici le JSON genere par Claude..."
+            aria-label="JSON a importer"
+            rows={12}
+            style={{ width: "100%", fontFamily: "monospace", fontSize: 11, padding: 12, border: `1px solid ${error ? RED : parsed ? GREEN : "#E5E7EB"}`, borderRadius: 10, outline: "none", lineHeight: 1.5, resize: "vertical", minHeight: 180 }}
+          />
+          {error && (
+            <div style={{ padding: "10px 14px", borderRadius: 8, background: `${RED}10`, color: RED, fontSize: 12, fontWeight: 600 }}>
+              ❌ {error}
+            </div>
+          )}
+          {parsed && (
+            <div style={{ padding: "14px 16px", borderRadius: 10, background: `${GREEN}10`, border: `1px solid ${GREEN}40`, fontSize: 12, color: "#111" }}>
+              <div style={{ fontWeight: 700, marginBottom: 6, color: GREEN }}>✅ JSON valide</div>
+              <div style={{ marginBottom: 4 }}><strong>Date :</strong> {parsed.report_date}</div>
+              <div style={{ marginBottom: 4 }}><strong>Titre :</strong> {parsed.headline || <em style={{ color: "#9CA3AF" }}>vide</em>}</div>
+              <div style={{ marginBottom: 8 }}><strong>Actifs :</strong> {parsed.assets.length} ({parsed.assets.filter((a) => a.bias !== "ras").length} avec biais, {parsed.assets.filter((a) => a.bias === "ras").length} en RAS)</div>
+              {parsed.report_date !== targetDate && (
+                <div style={{ padding: "6px 10px", borderRadius: 6, background: "#FEF3C7", color: "#92400E", fontSize: 11, fontWeight: 600 }}>
+                  ⚠️ La date du JSON ({parsed.report_date}) est differente de la page courante ({targetDate}). A l&apos;import, la page naviguera vers {parsed.report_date}.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <div style={modalFooter}>
+          <button type="button" onClick={onClose} style={btnGhost}>Annuler</button>
+          <button
+            type="button"
+            onClick={() => parsed && onImported(parsed)}
+            disabled={!parsed}
+            style={{ ...btnPrimary, background: parsed ? GREEN : "#E5E7EB", color: parsed ? "white" : "#9CA3AF", cursor: parsed ? "pointer" : "not-allowed" }}
+          >
+            <Download size={13} /> Importer et enregistrer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function validateReport(obj: unknown): FundamentalReportInput {
+  if (!obj || typeof obj !== "object") throw new Error("Racine JSON invalide");
+  const o = obj as Record<string, unknown>;
+  const report_date = typeof o.report_date === "string" ? o.report_date : null;
+  if (!report_date || !/^\d{4}-\d{2}-\d{2}$/.test(report_date)) {
+    throw new Error("Champ 'report_date' manquant ou mauvais format (YYYY-MM-DD attendu)");
+  }
+  const headline = typeof o.headline === "string" ? o.headline : "";
+  const intro = typeof o.intro === "string" ? o.intro : "";
+  const rawAssets = Array.isArray(o.assets) ? o.assets : [];
+
+  // Reconstruit en forcant l'ordre + complete RAS pour manquants
+  const byTicker = new Map<string, Partial<FundamentalAsset>>();
+  for (const a of rawAssets) {
+    if (a && typeof a === "object" && "ticker" in a && typeof (a as Record<string, unknown>).ticker === "string") {
+      byTicker.set((a as Record<string, unknown>).ticker as string, a as Partial<FundamentalAsset>);
+    }
+  }
+
+  const assets: FundamentalAsset[] = DEFAULT_ASSETS.map((def) => {
+    const src = byTicker.get(def.ticker);
+    if (!src) return { ...def };
+    const biasRaw = typeof src.bias === "string" ? src.bias : "ras";
+    const bias: Bias = biasRaw === "hawkish" || biasRaw === "dovish" || biasRaw === "neutral" || biasRaw === "ras" ? biasRaw : "ras";
+    const scoreN = typeof src.score === "number" ? Math.max(-5, Math.min(5, Math.round(src.score))) : 0;
+    return {
+      ticker: def.ticker,
+      flag: def.flag,
+      name: def.name,
+      bias,
+      score: scoreN,
+      monetary: typeof src.monetary === "string" && src.monetary.trim() ? src.monetary.trim() : null,
+      macro: typeof src.macro === "string" && src.macro.trim() ? src.macro.trim() : null,
+      geo: typeof src.geo === "string" && src.geo.trim() ? src.geo.trim() : null,
+      sentiment: typeof src.sentiment === "string" && src.sentiment.trim() ? src.sentiment.trim() : null,
+      sources: Array.isArray(src.sources) ? (src.sources as unknown[]).filter((s): s is string => typeof s === "string") : [],
+      last_update: typeof src.last_update === "string" && src.last_update.trim() ? src.last_update.trim() : "—",
+    };
+  });
+
+  return { report_date, headline, intro, assets };
+}
+
+function buildClaudePrompt(date: string): string {
+  const [y, m, d] = date.split("-").map(Number);
+  const yyyymmdd = `${y}${String(m).padStart(2, "0")}${String(d).padStart(2, "0")}`;
+  return `Tu es un analyste macro hedge-fund. Je vais te donner 3 articles wraps InvestingLive du ${date} dans l'ordre chronologique (Asia Pacific = le plus ancien, European = milieu, US = le plus recent et faisant AUTORITE en cas de contradiction).
+
+3 WRAPS A LIRE (le dernier US = verite finale) :
+1. Asia Pacific : https://investinglive.com/news/investinglive-asia-pacific-fx-news-wrap-XXXXXXX-${yyyymmdd}/
+2. European : https://investinglive.com/news/investinglive-european-markets-wrap-XXXXXXX-${yyyymmdd}/
+3. US (AUTORITE) : https://investinglive.com/news/investinglive-us-XXXXXXX-wrap-XXXXXXX-${yyyymmdd}/
+
+(Note : remplace XXXXXXX par les vrais slugs du jour quand tu recuperes l'URL exacte)
+
+REGLES ABSOLUES :
+- Lis TOUS les hyperliens DANS chaque wrap (sous-articles)
+- Respecte l'ORDRE CHRONOLOGIQUE : si une annonce a 8h est annulee/modifiee a 10h, tu ne gardes que la VERSION FINALE
+- En cas de contradiction entre les 3 wraps, le US wrap fait AUTORITE (car plus recent)
+- Produis UNIQUEMENT le JSON ci-dessous, sans commentaire avant ou apres, sans markdown, sans bloc de code
+
+SCHEMA JSON EXACT A RENVOYER :
+
+{
+  "report_date": "${date}",
+  "headline": "<titre accrocheur 1 ligne sur l'evenement dominant du jour>",
+  "intro": "<resume 2 a 4 lignes de la journee, contexte macro global>",
+  "assets": [
+    {
+      "ticker": "USD",
+      "bias": "hawkish" | "dovish" | "neutral" | "ras",
+      "score": <entier entre -5 et +5, 0 si neutral/ras>,
+      "monetary": "<news banque centrale ou null>",
+      "macro": "<data macro ou null>",
+      "geo": "<geopolitique ou null>",
+      "sentiment": "<flows institutionnels / sentiment ou null>",
+      "sources": ["<source1>", "<source2>"],
+      "last_update": "<HH:MM UTC>"
+    },
+    { "ticker": "EUR", ... },
+    { "ticker": "GBP", ... },
+    { "ticker": "JPY", ... },
+    { "ticker": "CHF", ... },
+    { "ticker": "AUD", ... },
+    { "ticker": "NZD", ... },
+    { "ticker": "CAD", ... },
+    { "ticker": "CNY", ... },
+    { "ticker": "XAUUSD", ... },
+    { "ticker": "XAGUSD", ... },
+    { "ticker": "USOIL", ... }
+  ]
+}
+
+CONSIGNES PAR CHAMP :
+- bias="hawkish" si le flux de news est haussier pour cette devise/asset (ex: BC hawkish, data macro forte, safe-haven en tension)
+- bias="dovish" si flux baissier (BC dovish, data faible, risque de baisse)
+- bias="neutral" si news mixtes sans biais clair
+- bias="ras" UNIQUEMENT si RIEN d'important ce jour sur cet actif → monetary/macro/geo/sentiment tous a null, sources: [], last_update: "—"
+- score : intensite (-5 tres dovish, 0 neutre, +5 tres hawkish)
+- Champs texte : phrase courte en francais, 1 seule phrase si possible
+- sources : liste des sources citees (ex: ["ECB Lagarde", "JPMorgan", "UK ONS"])
+- last_update : heure UTC du dernier update sur l'actif (format HH:MM)
+
+IMPORTANT : les 12 actifs DOIVENT etre presents meme en RAS. Ne renvoie que du JSON strict valide, rien d'autre.`;
+}
+
+const modalOverlay: React.CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(0,0,0,0.55)",
+  zIndex: 1000,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 20,
+};
+
+const modalBox: React.CSSProperties = {
+  background: "white",
+  borderRadius: 16,
+  width: "100%",
+  maxHeight: "90vh",
+  display: "flex",
+  flexDirection: "column",
+  overflow: "hidden",
+};
+
+const modalHeader: React.CSSProperties = {
+  padding: "20px 24px",
+  borderBottom: "1px solid #E5E7EB",
+  display: "flex",
+  alignItems: "center",
+  gap: 12,
+};
+
+const modalCloseBtn: React.CSSProperties = {
+  width: 32,
+  height: 32,
+  borderRadius: 8,
+  background: "#F3F4F6",
+  border: "none",
+  color: "#6B7280",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  marginLeft: "auto",
+};
+
+const modalFooter: React.CSSProperties = {
+  padding: "16px 24px",
+  borderTop: "1px solid #E5E7EB",
+  display: "flex",
+  justifyContent: "flex-end",
+  gap: 10,
+};
+
+const btnGhost: React.CSSProperties = {
+  padding: "8px 16px",
+  borderRadius: 8,
+  background: "white",
+  border: "1px solid #E5E7EB",
+  color: "#6B7280",
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: "pointer",
+};
+
+const btnPrimary: React.CSSProperties = {
+  padding: "8px 18px",
+  borderRadius: 8,
+  background: ACCENT,
+  border: "none",
+  color: "white",
+  fontSize: 12,
+  fontWeight: 700,
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+};
 
 const navBtn: React.CSSProperties = {
   width: 32,
