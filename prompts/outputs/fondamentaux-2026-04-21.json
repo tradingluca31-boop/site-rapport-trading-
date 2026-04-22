@@ -1,0 +1,139 @@
+{
+  "report_date": "2026-04-21",
+  "headline": "Iran annule les talks, Trump prolonge cessez-le-feu 5e fois ; USD mène, or chute $112",
+  "intro": "Journée dominée par l'escalade diplomatique US-Iran : Téhéran refuse la réunion de mercredi à Islamabad (Tasnim : décision finale), Vance d'abord dépêché puis rappelé à Washington, Trump prolonge unilatéralement le cessez-le-feu (5e extension) mais maintient le blocus naval du détroit d'Hormuz. En soirée, AP rapporte que les US auraient indiqué en privé vouloir lever le blocus, l'Iran FM qualifiant le blocus d'« acte de guerre ». Data US très fortes (retail sales mars +1,7%, control group +0,7%) et audition Warsh résolument hawkish font grimper le dollar ; Europe souffre (ZEW allemand -17,2, plus bas depuis déc. 2022). NZD hawkish après CPI Q1 à 3,1% y/y (May hike pricé à 45%), BoJ confirmé en hold le 27-28 avril (7% avril / 57% juin), or s'effondre -$112 à 4 707$.",
+  "assets": [
+    {
+      "ticker": "USD",
+      "bias": "hawkish",
+      "score": 3,
+      "monetary": "14:00 Warsh (Fed chair nominee) audition Senate Banking : « we are still dealing with the legacy of the policy errors in 2021 and 2022 », « we need a new inflation framework », « economy close to full employment », veut réduire le bilan Fed ; réponse ferme sur indépendance (« Trump never asked me to commit to any rate decision, nor would I »). Or perd $75 à 4 744$ pendant l'audition",
+      "macro": "12:30 Retail sales mars +1,7% m/m vs +1,4% att. (prior +0,6%) ; ex-autos +1,9% vs +1,4% att. ; control group +0,7% vs +0,2% att. (plus haut depuis juin) ; 12:18 ADP Weekly Pulse 54,75K vs 39,25K prior (plus haut depuis le lancement du survey en septembre 2025, 4e semaine consécutive de créations solides)",
+      "geo": "01:20 Vance part pour Islamabad → journée : Iran (Tasnim) annonce décision finale de ne pas attendre (reproche framework 10 points violé par US) → Trump prolonge cessez-le-feu 5e fois (expiration 19:50 ET) → 19:03 AP : US auraient indiqué en privé vouloir lever le blocus sous peu",
+      "sentiment": "USD leader G10 ; 10Y +4,8bps à 4,2975% ; 13:10 Trump CNBC : « we're in a very strong negotiating position », Dow target 50 000 ; Westpac (03:10) contrarian : voit DXY glisser vers mid-90s fin 2026 (rotation EUR/GBP/JPY/CAD) → revisé par flux US hawkish",
+      "sources": ["Fed Warsh", "US Census", "ADP", "Trump", "AP", "Tasnim", "Westpac"],
+      "last_update": "20:30"
+    },
+    {
+      "ticker": "EUR",
+      "bias": "dovish",
+      "score": -2,
+      "monetary": "08:16 ECB de Guindos : « the ECB has to keep a cool head, be cautious on rates » ; headline inflation 2,6% (sous tension US-Iran), core 2,3% en mars (convergence vers 2%) ; projection GDP 2026 à 0,9% ; marché price 16% hike avril, 63% juin",
+      "macro": "09:00 Allemagne ZEW avril -17,2 vs -5,0 att. (prior -0,5), plus bas depuis déc. 2022 ; current conditions -73,7 vs -70,0 att. (prior -62,9) ; cité : « surging energy prices is the key issue », tensions Hormuz alourdissent la trajectoire d'inflation et de croissance",
+      "geo": null,
+      "sentiment": "EUR lanterne rouge G10 sur la séance",
+      "sources": ["ECB de Guindos", "ZEW"],
+      "last_update": "09:00"
+    },
+    {
+      "ticker": "GBP",
+      "bias": "hawkish",
+      "score": 2,
+      "monetary": "Données UK défavorables aux baisses de taux → BoE maintien probable ; cost-push inflation reste la préoccupation",
+      "macro": "06:00 UK ILO unemployment février 4,9% vs 5,2% att. (plus bas depuis août) ; employment change +25k vs +35k att. ; wages 3m/y +3,8% vs +3,6% att. ; ex-bonus +3,6% vs +3,5% att. ; claimant count mars +26,8k ; ONS signale « data quality issues » (auteur : « a bit of an anomaly »)",
+      "geo": null,
+      "sentiment": null,
+      "sources": ["ONS"],
+      "last_update": "06:00"
+    },
+    {
+      "ticker": "JPY",
+      "bias": "neutral",
+      "score": 1,
+      "monetary": "09:10 Nikkei : BoJ tiendra son taux à 0,75% le 27-28 avril (« cannot hike into uncertainty and volatile markets ») ; révisions attendues : croissance baissée, inflation relevée ; marché price hike avril 7%, juin 57% ; 00:00 survey BoJ : demande de crédit « broadly flat » firms/ménages/collectivités",
+      "macro": null,
+      "geo": null,
+      "sentiment": "02:05 MoF Katayama : « seeing high volatility in financial markets, closely watching with high sense of vigilance, will take measures if needed » (signal intervention verbal)",
+      "sources": ["BoJ", "Nikkei", "MoF Katayama"],
+      "last_update": "09:10"
+    },
+    {
+      "ticker": "CHF",
+      "bias": "ras",
+      "score": 0,
+      "monetary": null,
+      "macro": null,
+      "geo": null,
+      "sentiment": null,
+      "sources": [],
+      "last_update": "—"
+    },
+    {
+      "ticker": "AUD",
+      "bias": "ras",
+      "score": 0,
+      "monetary": null,
+      "macro": null,
+      "geo": null,
+      "sentiment": null,
+      "sources": [],
+      "last_update": "—"
+    },
+    {
+      "ticker": "NZD",
+      "bias": "hawkish",
+      "score": 3,
+      "monetary": "02:22 Probabilité hausse RBNZ en mai remonte à ~45% (contre 25-30% avant le CPI) ; marché price près de 3 hikes sur l'année",
+      "macro": "NZ Q1 CPI +0,9% q/q vs +0,8% att. ; +3,1% y/y vs +2,9% att. (au-dessus de la bande cible 1-3%)",
+      "geo": null,
+      "sentiment": "Business confidence Q1 en chute sèche malgré inflation ferme → tension pour RBNZ entre inflation et soutien croissance ; AUD/NZD en baisse sur différentiel de taux",
+      "sources": ["Stats NZ", "RBNZ"],
+      "last_update": "02:22"
+    },
+    {
+      "ticker": "CAD",
+      "bias": "ras",
+      "score": 0,
+      "monetary": null,
+      "macro": null,
+      "geo": null,
+      "sentiment": null,
+      "sources": [],
+      "last_update": "—"
+    },
+    {
+      "ticker": "CNY",
+      "bias": "dovish",
+      "score": -1,
+      "monetary": "01:15 PBOC fix USD/CNY à 6,8594 vs estimé 6,8112 (biais plus faible que prévu pour le yuan, signal de tolérance à la dépréciation) ; injection 5 Mds CNY via reverse repos 7j, taux inchangé 1,4%",
+      "macro": "02:00 Fitch : « China remains resilient to global energy shocks but weak consumer demand is limiting growth » ; projection déficit fiscal ~7,3% du PIB (2026), « domestic consumption continues to lag »",
+      "geo": "00:36 Chine pousse l'upgrade du FTA avec la Suisse (services, e-commerce, IP, digital) ; échanges bilatéraux ~60 Mds $/an ; négociations formelles lancées fin 2024",
+      "sentiment": null,
+      "sources": ["PBOC", "Fitch", "MOFCOM"],
+      "last_update": "02:00"
+    },
+    {
+      "ticker": "XAUUSD",
+      "bias": "dovish",
+      "score": -3,
+      "monetary": null,
+      "macro": "Or -$112 à 4 707$ en fin de séance sous pression data US fortes (retail sales +1,7%, ADP fort) et hausse du 10Y ; intraday -$75 à 4 744$ pendant audition Warsh hawkish",
+      "geo": "07:20 pression tensions renouvelées US-Iran (blocus Hormuz maintenu, ceasefire deadline proche) → apaisement relatif quand Trump prolonge cessez-le-feu 5e fois → 19:03 AP : US envisagent de lever le blocus ; niveaux techniques : trendline haussière ~4 100, résistance 5 000, support 4 550",
+      "sentiment": null,
+      "sources": ["US Census", "Fed Warsh", "Trump", "AP"],
+      "last_update": "20:00"
+    },
+    {
+      "ticker": "XAGUSD",
+      "bias": "neutral",
+      "score": 0,
+      "monetary": null,
+      "macro": null,
+      "geo": "10:17 Argent consolide au-dessus du support clé 78,00 (résistance 96,30, support secondaire 72,50) à l'approche de la deadline du cessez-le-feu ; price action « driven almost entirely by US-Iran headlines »",
+      "sentiment": null,
+      "sources": ["InvestingLive analyse"],
+      "last_update": "10:17"
+    },
+    {
+      "ticker": "USOIL",
+      "bias": "hawkish",
+      "score": 2,
+      "monetary": null,
+      "macro": "EIA inventaires brut +1,925K vs -1,200K att. (bearish) ; WTI juin clôture +$2,81 à 90,29$ ; early session Brent 94,82$ (-0,7%), WTI 86,50$ (-1,0%) → rally oil sur rapport Pakistan/Iran (14:50) ; Brent >100$ intraday sur Vance heading to Islamabad",
+      "geo": "Trump invoque le Defense Production Act pour booster offre US (pétrole, LNG, charbon, grid) ; détroit d'Hormuz de facto fermé depuis le week-end ; 18:20 Iran FM Araghchi : « blockading Iranian ports is an act of war and a violation of the ceasefire » ; cessez-le-feu prolongé 5e fois malgré talks annulés",
+      "sentiment": null,
+      "sources": ["EIA", "Trump", "White House", "Iran FM Araghchi"],
+      "last_update": "20:30"
+    }
+  ]
+}
