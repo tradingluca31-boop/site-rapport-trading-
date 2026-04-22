@@ -11,6 +11,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   LineChart,
+  Globe2,
 } from "lucide-react";
 
 type Section = "trading" | "analyse" | "reference";
@@ -34,6 +35,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "preparation", label: "Preparation semaine", icon: <CalendarRange size={18} />, shortcut: "P", section: "analyse" },
   { id: "rapport", label: "Rapport journalier", icon: <FileText size={18} />, shortcut: "J", section: "analyse" },
   { id: "track-record", label: "Track record", icon: <LineChart size={18} />, shortcut: "T", section: "analyse" },
+  { id: "fondamentaux", label: "Fondamentaux", icon: <Globe2 size={18} />, shortcut: "F", section: "analyse" },
   { id: "bibliotheque", label: "Bibliotheque", icon: <Library size={18} />, shortcut: "B", section: "reference" },
   { id: "parametres", label: "Parametres", icon: <Settings size={18} />, section: "reference" },
 ];

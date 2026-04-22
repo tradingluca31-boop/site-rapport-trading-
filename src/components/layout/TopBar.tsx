@@ -22,6 +22,7 @@ const PAGE_LABELS: Record<PageId, string> = {
   preparation: "Preparation",
   rapport: "Rapport",
   "track-record": "Track record",
+  fondamentaux: "Fondamentaux",
   bibliotheque: "Bibliotheque",
   parametres: "Parametres",
 };

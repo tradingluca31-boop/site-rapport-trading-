@@ -3,6 +3,7 @@ export type PageId =
   | "preparation"
   | "rapport"
   | "track-record"
+  | "fondamentaux"
   | "bibliotheque"
   | "parametres";
 

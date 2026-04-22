@@ -9,6 +9,7 @@ import DashboardPage from "@/components/pages/DashboardPage";
 import PreparationPage from "@/components/pages/PreparationPage";
 import RapportPage from "@/components/pages/RapportPage";
 import TrackRecordPage from "@/components/pages/TrackRecordPage";
+import FondamentauxPage from "@/components/pages/FondamentauxPage";
 import BibliothequePage from "@/components/pages/BibliothequePage";
 
 const PAGE_ROUTES: Record<PageId, string> = {
@@ -16,6 +17,7 @@ const PAGE_ROUTES: Record<PageId, string> = {
   preparation: "/preparation",
   rapport: "/rapport",
   "track-record": "/track-record",
+  fondamentaux: "/fondamentaux",
   bibliotheque: "/bibliotheque",
   parametres: "/parametres",
 };
@@ -80,6 +82,7 @@ export default function AppShell({ initialPage }: { initialPage: PageId }) {
         {activePage === "preparation" && <PreparationPage />}
         {activePage === "rapport" && <RapportPage />}
         {activePage === "track-record" && <TrackRecordPage />}
+        {activePage === "fondamentaux" && <FondamentauxPage />}
         {activePage === "bibliotheque" && <BibliothequePage />}
         {activePage === "parametres" && (
           <div className="page-root px-10 py-12 text-center">
