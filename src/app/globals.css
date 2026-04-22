@@ -667,4 +667,79 @@ input[type="range"]::-webkit-slider-thumb {
     font-size: 1.5rem !important;
     line-height: 1.2 !important;
   }
+
+  /* =========================================
+     FondamentauxPage — fixes mobile
+     ========================================= */
+  .fondamentaux-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 14px !important;
+  }
+  .fondamentaux-title {
+    font-size: 1.5rem !important;
+    line-height: 1.2 !important;
+  }
+  .fondamentaux-controls {
+    justify-content: flex-start !important;
+    gap: 6px !important;
+  }
+  .fondamentaux-controls > * {
+    font-size: 10px !important;
+  }
+  .fondamentaux-controls input[type="date"] {
+    min-width: 130px;
+    font-size: 12px !important;
+  }
+  .fondamentaux-brief-card {
+    padding: 20px 18px !important;
+    border-radius: 10px !important;
+  }
+  .fondamentaux-brief-card h2 {
+    font-size: 20px !important;
+    line-height: 1.25 !important;
+  }
+  .fondamentaux-brief-card h3 {
+    font-size: 16px !important;
+  }
+  .fondamentaux-brief-card section {
+    margin-bottom: 22px !important;
+    padding-bottom: 18px !important;
+  }
+  .fondamentaux-brief-card section > div:first-child {
+    flex-wrap: wrap !important;
+  }
+
+  /* =========================================
+     Modales (Prompt Claude / Import JSON)
+     ========================================= */
+  .fondamentaux-brief-card pre,
+  div[role="dialog"] pre {
+    font-size: 10px !important;
+  }
+
+  /* =========================================
+     TrackRecord — calendrier : scroll horizontal
+     pour garder la lisibilite des cellules sur mobile
+     ========================================= */
+  .calendar-wrapper {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .calendar-grid {
+    min-width: 560px;
+  }
+  .calendar-grid > div {
+    min-height: 80px !important;
+    font-size: 11px !important;
+  }
+
+  /* =========================================
+     Reduit les paddings / tailles des modales
+     generiques (used by TradeDetailModal + others)
+     ========================================= */
+  .page-root + div[onclick],
+  .page-root ~ div > div[style*="background: white"][style*="borderRadius: 16"] {
+    max-width: calc(100vw - 24px) !important;
+  }
 }

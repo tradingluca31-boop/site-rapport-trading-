@@ -62,8 +62,14 @@ function biasPill(b: Bias): React.CSSProperties {
   };
 }
 
+function yesterdayIso(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return isoDate(d);
+}
+
 export default function FondamentauxPage() {
-  const [currentDate, setCurrentDate] = useState<string>(isoDate(new Date()));
+  const [currentDate, setCurrentDate] = useState<string>(yesterdayIso());
   const [report, setReport] = useState<FundamentalReportInput | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -133,16 +139,16 @@ export default function FondamentauxPage() {
   return (
     <div className="page-root" style={{ padding: "32px 28px", minHeight: "100vh", background: "var(--bg-page, #FAFAF9)" }}>
       <div style={{ maxWidth: 860, margin: "0 auto" }}>
-        <header style={{ marginBottom: 20, display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <header className="fondamentaux-header" style={{ marginBottom: 20, display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <div>
             <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2, color: "#6B7280", marginBottom: 6 }}>
               RAPPORT FONDAMENTAL
             </div>
-            <h1 style={{ fontSize: 30, fontWeight: 300, letterSpacing: "-0.01em", fontFamily: "var(--font-display, Georgia, serif)", color: "#111", textTransform: "capitalize" }}>
+            <h1 className="fondamentaux-title" style={{ fontSize: 30, fontWeight: 300, letterSpacing: "-0.01em", fontFamily: "var(--font-display, Georgia, serif)", color: "#111", textTransform: "capitalize" }}>
               {frDateLong(currentDate)}
             </h1>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div className="fondamentaux-controls" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <button type="button" onClick={() => changeDay(-1)} aria-label="Jour precedent" style={navBtn}><ChevronLeft size={16} /></button>
             <div style={{ position: "relative" }}>
               <input
@@ -154,8 +160,8 @@ export default function FondamentauxPage() {
               />
             </div>
             <button type="button" onClick={() => changeDay(1)} aria-label="Jour suivant" style={navBtn}><ChevronRight size={16} /></button>
-            <button type="button" onClick={() => setCurrentDate(isoDate(new Date()))} style={{ ...navBtn, width: "auto", padding: "0 12px", fontSize: 11, fontWeight: 700 }}>
-              <CalendarDays size={14} style={{ marginRight: 5 }} />Aujourd&apos;hui
+            <button type="button" onClick={() => setCurrentDate(yesterdayIso())} style={{ ...navBtn, width: "auto", padding: "0 12px", fontSize: 11, fontWeight: 700 }}>
+              <CalendarDays size={14} style={{ marginRight: 5 }} />Hier
             </button>
             <button
               type="button"
@@ -210,7 +216,7 @@ export default function FondamentauxPage() {
           </div>
         )}
 
-        <div style={{ background: "white", borderRadius: 14, border: "1px solid #E5E7EB", padding: "36px 40px" }}>
+        <div className="fondamentaux-brief-card" style={{ background: "white", borderRadius: 14, border: "1px solid #E5E7EB", padding: "36px 40px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18, color: ACCENT }}>
             <Newspaper size={16} />
             <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 3 }}>DAILY MACRO BRIEF</span>
@@ -677,12 +683,12 @@ function AssetSection({
       </div>
 
       {editing ? (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="mobile-stack" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <EditField label="🏦 Monetaire" value={asset.monetary} onChange={(v) => onChange({ monetary: v })} />
           <EditField label="📊 Macro data" value={asset.macro} onChange={(v) => onChange({ macro: v })} />
           <EditField label="🌍 Geopolitique" value={asset.geo} onChange={(v) => onChange({ geo: v })} />
           <EditField label="💬 Sentiment" value={asset.sentiment} onChange={(v) => onChange({ sentiment: v })} />
-          <div style={{ gridColumn: "span 2", display: "grid", gridTemplateColumns: "1fr 140px", gap: 10 }}>
+          <div className="mobile-stack" style={{ gridColumn: "span 2", display: "grid", gridTemplateColumns: "1fr 140px", gap: 10 }}>
             <EditField label="Sources (separees par · )" value={asset.sources.join(" · ")} onChange={(v) => onChange({ sources: v.split("·").map((s) => s.trim()).filter(Boolean) })} />
             <EditField label="Maj" value={asset.last_update === "—" ? "" : asset.last_update} onChange={(v) => onChange({ last_update: v || "—" })} />
           </div>

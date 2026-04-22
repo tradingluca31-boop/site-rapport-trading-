@@ -543,7 +543,7 @@ function CalendarView({
   const todayIso = isoDateOffset(0);
 
   return (
-    <div style={{ background: "white", borderRadius: 14, border: "1px solid #E5E7EB", overflow: "hidden" }}>
+    <div className="calendar-wrapper" style={{ background: "white", borderRadius: 14, border: "1px solid #E5E7EB", overflow: "hidden" }}>
       <div style={{ padding: "14px 18px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <button
           type="button"
@@ -608,7 +608,7 @@ function CalendarView({
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderTop: "1px solid #F3F4F6" }}>
+      <div className="calendar-grid" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderTop: "1px solid #F3F4F6" }}>
         {["LUN.", "MAR.", "MER.", "JEU.", "VEN.", "SAM.", "DIM."].map((d) => (
           <div
             key={d}
