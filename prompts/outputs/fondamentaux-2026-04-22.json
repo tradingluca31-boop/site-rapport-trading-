@@ -1,0 +1,139 @@
+{
+  "report_date": "2026-04-22",
+  "headline": "Trump prolonge cessez-le-feu sans timeline, blocus maintenu ; stocks US rallient, oil monte, EUR s'effondre",
+  "intro": "Mercredi marqué par un apaisement relatif US-Iran (Trump prolonge le cessez-le-feu sans timeline, Bloomberg rapporte des signaux US pour lever le blocus, talks possibles vendredi) mais les tensions restent fortes au détroit d'Hormuz (Iran saisit et attaque Epaminondas, MSC Francesca, Euphoria ; US saisit les tankers Dorena, Deep Sea, Sevin, Derya). Stocks US en forte hausse (S&P +1,1%, Nasdaq +1,6%), WTI +$2,88 à 92,53$, or +$28 à 4 740$, NZD en tête / CHF lanterne rouge. JPMorgan devient selectively bearish USD et relève le target S&P 500 à 7 600. Europe dévastée : consumer confidence eurozone -20,6 (pire que -14,4 att.), Allemagne divise sa prévision de PIB 2026 par deux (1,0% → 0,5%). UK CPI toujours sticky à 3,3% y/y, services 4,5%.",
+  "assets": [
+    {
+      "ticker": "USD",
+      "bias": "neutral",
+      "score": -1,
+      "monetary": null,
+      "macro": "14:30 EIA inventaires crude +1 925K vs -1 200K att. (bearish court terme) ; essence -4 570K vs -1 494K att. et distillats -3 427K vs -2 458K att. (produits raffinés très tendus) ; stocks commerciaux 461,6 Mb",
+      "geo": "Extension indéfinie du cessez-le-feu par Trump sans timeline (« 3-5 days more of a ballpark ») ; US durcit sur l'Irak : 500 M$ de shipment bloqués, financement antiterrorisme/training militaire suspendus sur activité des milices pro-iraniennes",
+      "sentiment": "S&P 500 +1,1%, Nasdaq +1,6%, 10Y plat à 4,30% ; JPMorgan relève target S&P 500 à 7 600 (vs 7 200), EPS 2026 révisé à 330$ ; JPMorgan (Meera Chandan/Arindam Sandilya) : « selectively re-entering short USD positions with a more disciplined and targeted approach » vs AUD/NZD/NOK/EUR/HUF/BRL/MXN/CNY ; NZD leads, CHF lags",
+      "sources": ["EIA", "JPMorgan", "Trump", "Reuters"],
+      "last_update": "20:30"
+    },
+    {
+      "ticker": "EUR",
+      "bias": "dovish",
+      "score": -3,
+      "monetary": "ECB Simkus : pas de hausse en avril, taux dépôt 2,00% jugé approprié ; ECB Kazaks : « we are not in a rush, we still have the large luxury of collecting data and forming our view, but if necessary we will of course move » (pricing : 22% hike semaine prochaine, 68% juin) ; ECB Lane : l'euro ne peut pas remplacer le USD comme safe-haven global, plaide pour dette commune (bearish structurel)",
+      "macro": "14:00 Eurozone flash consumer confidence avril -20,6 vs -16,3 prior (consensus ~-14,4), détérioration de 4,3 pts ; Commission : « dramatic decline in consumers' expectations » ; ESI 96,6 ; « fears of stagflation as private-sector output slowed » ; 09:00 Allemagne divise sa prévision de PIB 2026 de 1,0% à 0,5% (2027 : 1,3% → 0,9%), inflation 2,7% (2026) ; Bundesbank : « the negative effects of the war in the Middle East are likely to be felt largely only later on » ; EUR/USD -6 pips à 1,1735",
+      "geo": null,
+      "sentiment": "European indices -0,1% à -0,4% ; Morgan Stanley : pause tactique en equities Europe, « choppy » trading, sentiment « stretched » ; outperformers Energy/Banks/Utilities/Telecoms vs underperformers Luxury/Autos/Consumer Staples",
+      "sources": ["Eurostat", "Bundesmwirtschaftsministerium", "Bundesbank", "ECB Simkus", "ECB Kazaks", "ECB Lane", "Morgan Stanley"],
+      "last_update": "14:00"
+    },
+    {
+      "ticker": "GBP",
+      "bias": "hawkish",
+      "score": 2,
+      "monetary": "Inflation sticky + services à 4,5% compliquent la trajectoire BoE → maintien probable",
+      "macro": "06:00 UK CPI mars +3,3% y/y (vs +3,3% att., prior +3,0%) ; m/m +0,7% ; core +3,1% (att. +3,2% ; prior +3,2%) ; services +4,5% y/y (prior +4,3%) ; transport +4,7% y/y (plus haut depuis déc. 2022) ; motor fuels +4,9% ; core ralentit légèrement mais énergie Iran compliquera les prochaines publications",
+      "geo": null,
+      "sentiment": null,
+      "sources": ["ONS"],
+      "last_update": "06:00"
+    },
+    {
+      "ticker": "JPY",
+      "bias": "neutral",
+      "score": 0,
+      "monetary": null,
+      "macro": "23:50 J-1 Japon mars : exports +11,7% y/y vs +11,0% att. (7e mois consécutif de croissance, Chine +17,7%, US +3,4%) ; imports +10,9% y/y vs +7,1% att. ; balance commerciale ¥667 Md vs ¥1,1 T att. (surplus se compresse) ; cité : « rising energy prices are beginning to feed through into input costs, particularly for manufacturers reliant on imported oil »",
+      "geo": null,
+      "sentiment": "USD/JPY 159,20 (-0,1%) ; Nikkei touche un plus haut historique ; dégradation des termes de l'échange via énergie affaiblit le yen structurellement",
+      "sources": ["Japan MoF"],
+      "last_update": "23:50"
+    },
+    {
+      "ticker": "CHF",
+      "bias": "dovish",
+      "score": -1,
+      "monetary": null,
+      "macro": null,
+      "geo": null,
+      "sentiment": "CHF lanterne rouge G10 sur la séance ; unwind safe-haven post-annonce d'extension du cessez-le-feu Iran par Trump",
+      "sources": ["InvestingLive"],
+      "last_update": "20:30"
+    },
+    {
+      "ticker": "AUD",
+      "bias": "neutral",
+      "score": 0,
+      "monetary": null,
+      "macro": "00:30 Australia Leading Index (Westpac) à -0,13% en mars vs +0,05% février (pic octobre +0,31%, -0,44 pp cumulés sur 6 mois) ; Westpac : « a combination of domestic and global pressures » (taux + choc énergétique mondial)",
+      "geo": null,
+      "sentiment": "JPMorgan ajoute l'AUD dans ses longs post-ceasefire (commodity-linked favori) ; push-pull entre flows positifs et détérioration growth",
+      "sources": ["Westpac", "JPMorgan"],
+      "last_update": "00:30"
+    },
+    {
+      "ticker": "NZD",
+      "bias": "hawkish",
+      "score": 2,
+      "monetary": null,
+      "macro": null,
+      "geo": null,
+      "sentiment": "NZD leader G10 sur la séance (prolongement du CPI beat de la veille) ; JPMorgan (Chandan/Sandilya) : NZD figure dans les longs high-yield/commodity-linked favoris post-ceasefire",
+      "sources": ["JPMorgan", "InvestingLive"],
+      "last_update": "20:30"
+    },
+    {
+      "ticker": "CAD",
+      "bias": "ras",
+      "score": 0,
+      "monetary": null,
+      "macro": null,
+      "geo": null,
+      "sentiment": null,
+      "sources": [],
+      "last_update": "—"
+    },
+    {
+      "ticker": "CNY",
+      "bias": "dovish",
+      "score": -1,
+      "monetary": "01:15 PBOC fix USD/CNY à 6,8635 vs estimé 6,8233 (écart +0,0402, fix nettement plus faible qu'attendu pour le yuan, 2e jour consécutif de signal de tolérance à la dépréciation) ; open market : 6 Mds CNY reverse repos 7j à 1,4% (inchangé)",
+      "macro": "JPMorgan : property chinois « tentative recovery » (prix logements neufs ralentissent mars, occasion hausse dans 13 villes, Hong Kong en reprise) → positif equities chinoises",
+      "geo": null,
+      "sentiment": "JPMorgan short USD vs CNY dans son panier commodity-linked",
+      "sources": ["PBOC", "JPMorgan"],
+      "last_update": "01:15"
+    },
+    {
+      "ticker": "XAUUSD",
+      "bias": "hawkish",
+      "score": 2,
+      "monetary": null,
+      "macro": null,
+      "geo": "Or +$28 à 4 740$ en fin de séance US ; intraday +1,2% à 4 769$ sur rapport Bloomberg (Iran « some sign » que les US seraient prêts à lever le blocus naval) ; drivers persistants : Iran saisit 2 tankers en Hormuz, US saisit 4 tankers iraniens en Asie, tensions structurelles malgré apaisement verbal",
+      "sentiment": null,
+      "sources": ["Bloomberg", "InvestingLive"],
+      "last_update": "20:00"
+    },
+    {
+      "ticker": "XAGUSD",
+      "bias": "hawkish",
+      "score": 2,
+      "monetary": null,
+      "macro": null,
+      "geo": "Argent +1,6% à 78,00$ en session européenne ; intraday +2,5% à 78,63$ sur rapport Bloomberg (US break blockade signals) ; consolidation au-dessus du support clé 78,00 ; price action dictée par headlines US-Iran",
+      "sentiment": null,
+      "sources": ["Bloomberg", "InvestingLive"],
+      "last_update": "15:00"
+    },
+    {
+      "ticker": "USOIL",
+      "bias": "hawkish",
+      "score": 3,
+      "monetary": null,
+      "macro": "14:30 EIA inventaires crude +1 925K vs -1 200K att. (prior -913K) → bearish court terme mais produits raffinés tendus : essence -4 570K vs -1 494K att., distillats -3 427K vs -2 458K att. ; WTI clôture US +$2,88 à 92,53$ (intraday +$3,33 à 93,31$ sur Ghalibaf, puis -2% à 87,87$ sur rapport Bloomberg lift blockade) ; Brent +0,7% à 99,15$",
+      "geo": "Détroit d'Hormuz quasi à l'arrêt : Iran saisit/attaque 3 navires (Epaminondas grec touché par canonnière IRGC, MSC Francesca Panama saisi à 6 NM, Euphoria attaqué) ; US saisit 4 tankers iraniens (Dorena ~2 M barils, Deep Sea, Sevin, Derya) près Inde/Malaisie/Sri Lanka ; 29 navires ont fait demi-tour depuis le début du blocus ; Trump étend le Jones Act waiver (+70% shipments domestic, >9 M barils transportés depuis mars) ; Trump : « talks with Iran possible on Friday » ; Iran President Pezeshkian : « breach of commitments, blockade and threats are main obstacles to genuine negotiations »",
+      "sentiment": "Traders de matières premières engrangent des profits records (Vitol ~2 Mds $ au Q1, Trafigura deux des meilleurs trimestres de son histoire, Gunvor Q1 > année précédente) ; marges physiques 20-30$/baril (vs quelques cents en temps normal)",
+      "sources": ["EIA", "Trump", "Iran Pezeshkian", "Iran Ghalibaf", "IRGC", "Bloomberg", "UKMTO", "Vitol/Trafigura/Gunvor"],
+      "last_update": "20:30"
+    }
+  ]
+}
