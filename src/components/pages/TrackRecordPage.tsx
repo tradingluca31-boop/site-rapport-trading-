@@ -37,9 +37,9 @@ function tradeRR(t: Trade): number | null {
   return t.pnl_eur / risk;
 }
 
-function fmtEur(n: number): string {
+function fmtUsd(n: number): string {
   const sign = n >= 0 ? "+" : "-";
-  return `${sign}€${Math.abs(n).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `${sign}$${Math.abs(n).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function fmtRr(r: number): string {
@@ -483,7 +483,7 @@ function CalendarView({
               fontFamily: "monospace",
             }}
           >
-            {fmtEur(monthlyPnl)}
+            {fmtUsd(monthlyPnl)}
           </span>
           {monthlyRr !== null && (
             <span
@@ -593,7 +593,7 @@ function CalendarView({
                       fontFamily: "monospace",
                     }}
                   >
-                    {fmtEur(dayPnl)}
+                    {fmtUsd(dayPnl)}
                   </div>
                   {dayRr !== null && (
                     <div
@@ -695,7 +695,7 @@ function DayDetailModal({ day, trades, onClose }: { day: string; trades: Trade[]
             <div style={{ fontSize: 18, fontWeight: 600, color: "#111", textTransform: "capitalize" }}>{dayLabel}</div>
             <div style={{ fontSize: 12, color: "#6B7280", marginTop: 4, display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ padding: "3px 10px", borderRadius: 6, background: dayPnl >= 0 ? `${GREEN}18` : `${RED}18`, color: dayPnl >= 0 ? GREEN : RED, fontWeight: 700, fontFamily: "monospace" }}>
-                {fmtEur(dayPnl)}
+                {fmtUsd(dayPnl)}
               </span>
               <span>{logical} trade{logical > 1 ? "s" : ""} · {trades.length} ligne{trades.length > 1 ? "s" : ""}</span>
             </div>
@@ -732,9 +732,17 @@ function DayDetailModal({ day, trades, onClose }: { day: string; trades: Trade[]
                       {t.account}
                     </span>
                   )}
-                  {t.time && <span style={{ fontSize: 11, fontFamily: "monospace", color: "#6B7280" }}>{t.time}</span>}
+                  <span style={{ fontSize: 11, fontFamily: "monospace", color: "#6B7280", display: "flex", alignItems: "center", gap: 6 }}>
+                    {t.time ? `${t.date.slice(5)} ${t.time}` : t.date.slice(5)}
+                    {(t.close_date || t.close_time) && (
+                      <>
+                        <span style={{ color: "#9CA3AF" }}>→</span>
+                        <span>{t.close_date ? `${t.close_date.slice(5)} ` : ""}{t.close_time ?? ""}</span>
+                      </>
+                    )}
+                  </span>
                   <div style={{ flex: 1 }} />
-                  <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "monospace", color: sColor }}>{t.pnl_eur !== null ? fmtEur(pnl) : "—"}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "monospace", color: sColor }}>{t.pnl_eur !== null ? fmtUsd(pnl) : "—"}</span>
                   {rr !== null && (
                     <span style={{ fontSize: 12, fontWeight: 700, fontFamily: "monospace", color: sColor, padding: "2px 8px", borderRadius: 4, background: `${sColor}12` }}>
                       {fmtRr(rr)}
@@ -780,11 +788,11 @@ function TrackRecordBody({ trades, kpis, accountFilter }: { trades: Trade[]; kpi
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
         <KpiCard icon={<Percent size={14} />} label="WIN RATE" value={kpis.winRate !== null ? `${kpis.winRate.toFixed(0)}%` : "—"} sub={`${kpis.wins}W / ${kpis.losses}L`} accent={GREEN} />
-        <KpiCard icon={<DollarSign size={14} />} label="P&L NET" value={fmtEur(kpis.pnlEurTotal)} sub={`sur ${kpis.total} trades`} accent={kpis.pnlEurTotal >= 0 ? GREEN : RED} />
+        <KpiCard icon={<DollarSign size={14} />} label="P&L NET" value={fmtUsd(kpis.pnlEurTotal)} sub={`sur ${kpis.total} trades`} accent={kpis.pnlEurTotal >= 0 ? GREEN : RED} />
         <KpiCard icon={<Target size={14} />} label="RR MOYEN" value={kpis.rrAvg !== null ? fmtRr(kpis.rrAvg) : "—"} sub={`sum ${kpis.rrSum >= 0 ? "+" : ""}${kpis.rrSum.toFixed(2)}R`} accent={ACCENT} />
         <KpiCard icon={<BarChart3 size={14} />} label="NB TRADES" value={String(kpis.total)} sub={`${kpis.opens} en cours`} accent={GOLD} />
-        <KpiCard icon={<Trophy size={14} />} label="BEST TRADE" value={kpis.bestTrade !== null ? fmtEur(kpis.bestTrade) : "—"} sub={kpis.bestPair ?? ""} accent={GREEN} />
-        <KpiCard icon={<Zap size={14} />} label="WORST TRADE" value={kpis.worstTrade !== null ? fmtEur(kpis.worstTrade) : "—"} accent={RED} />
+        <KpiCard icon={<Trophy size={14} />} label="BEST TRADE" value={kpis.bestTrade !== null ? fmtUsd(kpis.bestTrade) : "—"} sub={kpis.bestPair ?? ""} accent={GREEN} />
+        <KpiCard icon={<Zap size={14} />} label="WORST TRADE" value={kpis.worstTrade !== null ? fmtUsd(kpis.worstTrade) : "—"} accent={RED} />
       </div>
 
       <div style={{ background: "white", borderRadius: 14, border: "1px solid #E5E7EB", overflow: "hidden" }}>
@@ -798,7 +806,7 @@ function TrackRecordBody({ trades, kpis, accountFilter }: { trades: Trade[]; kpi
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "#FAFAF9" }}>
-                {["Date", "Heure", "Compte", "Paire", "Dir.", "Entry", "SL", "TP", "Size", "Status", "P&L (€)", "R", "Idee"].map((h) => (
+                {["Date", "Heure", "Compte", "Paire", "Dir.", "Entry", "SL", "TP", "Size", "Status", "P&L ($)", "R", "Idee"].map((h) => (
                   <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontSize: 10, fontWeight: 800, letterSpacing: 1, color: "#6B7280", borderBottom: "1px solid #E5E7EB", whiteSpace: "nowrap" }}>
                     {h}
                   </th>
@@ -836,7 +844,7 @@ function TrackRecordBody({ trades, kpis, accountFilter }: { trades: Trade[]; kpi
                       </span>
                     </td>
                     <td style={{ padding: "10px 12px", fontFamily: "monospace", fontWeight: 700, color: statusColor(t.status) }}>
-                      {t.pnl_eur !== null ? fmtEur(pnl) : "—"}
+                      {t.pnl_eur !== null ? fmtUsd(pnl) : "—"}
                     </td>
                     <td style={{ padding: "10px 12px", fontFamily: "monospace", fontWeight: 700, color: rr !== null ? (rr >= 0 ? GREEN : RED) : "#9CA3AF" }}>
                       {rr !== null ? fmtRr(rr) : "—"}

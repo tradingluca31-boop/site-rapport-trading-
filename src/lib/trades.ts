@@ -28,6 +28,8 @@ export type Trade = {
   account_size_eur: number | null;
   risk_pct: number | null;
   group_id: string | null;
+  close_date: string | null;
+  close_time: string | null;
 };
 
 export type TradeInput = Omit<Trade, "id" | "created_at" | "updated_at">;
