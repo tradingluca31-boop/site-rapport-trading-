@@ -120,11 +120,48 @@ function computeKpis(trades: Trade[]): Kpis {
   };
 }
 
-const PRESETS: { label: string; days: number }[] = [
-  { label: "7j", days: 6 },
-  { label: "30j", days: 29 },
-  { label: "90j", days: 89 },
-  { label: "YTD", days: -1 },
+function isoDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+type Preset = { label: string; getRange: () => { start: string; end: string } };
+
+const PRESETS: Preset[] = [
+  {
+    label: "Semaine",
+    getRange: () => {
+      const now = new Date();
+      const day = now.getDay(); // 0=Sun..6=Sat
+      const mondayOffset = day === 0 ? 6 : day - 1;
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - mondayOffset);
+      return { start: isoDate(monday), end: isoDate(now) };
+    },
+  },
+  {
+    label: "Mois",
+    getRange: () => {
+      const now = new Date();
+      const first = new Date(now.getFullYear(), now.getMonth(), 1);
+      return { start: isoDate(first), end: isoDate(now) };
+    },
+  },
+  {
+    label: "Trimestre",
+    getRange: () => {
+      const now = new Date();
+      const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3;
+      const first = new Date(now.getFullYear(), quarterStartMonth, 1);
+      return { start: isoDate(first), end: isoDate(now) };
+    },
+  },
+  {
+    label: "YTD",
+    getRange: () => {
+      const now = new Date();
+      return { start: `${now.getFullYear()}-01-01`, end: isoDate(now) };
+    },
+  },
 ];
 
 const ALL_ACCOUNTS = "__all__";
@@ -137,8 +174,11 @@ function formatMonthFr(year: number, month0: number): string {
 export default function TrackRecordPage() {
   const today = new Date();
   const todayIso = isoDateOffset(0);
-  const [start, setStart] = useState<string>(isoDateOffset(29));
-  const [end, setEnd] = useState<string>(todayIso);
+  // Par defaut : mois courant (1er du mois -> aujourd'hui)
+  const monthPreset = PRESETS.find((p) => p.label === "Mois")!;
+  const defaultRange = monthPreset.getRange();
+  const [start, setStart] = useState<string>(defaultRange.start);
+  const [end, setEnd] = useState<string>(defaultRange.end);
   const [allTrades, setAllTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
   const [accountFilter, setAccountFilter] = useState<string>(ALL_ACCOUNTS);
@@ -177,15 +217,10 @@ export default function TrackRecordPage() {
 
   const kpis = useMemo(() => computeKpis(rangeTrades), [rangeTrades]);
 
-  const applyPreset = (days: number) => {
-    if (days === -1) {
-      const now = new Date();
-      setStart(`${now.getFullYear()}-01-01`);
-      setEnd(todayIso);
-    } else {
-      setStart(isoDateOffset(days));
-      setEnd(todayIso);
-    }
+  const applyPreset = (preset: Preset) => {
+    const { start: s, end: e } = preset.getRange();
+    setStart(s);
+    setEnd(e);
   };
 
   return (
@@ -272,19 +307,14 @@ function HeaderBar({
   end: string;
   onStart: (v: string) => void;
   onEnd: (v: string) => void;
-  onPreset: (days: number) => void;
+  onPreset: (preset: Preset) => void;
   accounts: string[];
   accountFilter: string;
   onAccountFilterChange: (v: string) => void;
 }) {
-  const today = isoDateOffset(0);
   const activePreset = PRESETS.find((p) => {
-    if (end !== today) return false;
-    if (p.days === -1) {
-      const year = new Date().getFullYear();
-      return start === `${year}-01-01`;
-    }
-    return start === isoDateOffset(p.days);
+    const r = p.getRange();
+    return r.start === start && r.end === end;
   });
 
   return (
@@ -320,7 +350,7 @@ function HeaderBar({
             <button
               key={p.label}
               type="button"
-              onClick={() => onPreset(p.days)}
+              onClick={() => onPreset(p)}
               style={{
                 padding: "6px 12px",
                 fontSize: 11,
