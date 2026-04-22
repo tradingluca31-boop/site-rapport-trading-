@@ -82,51 +82,101 @@ type Kpis = {
   winRate: number | null;
   pnlEurTotal: number;
   rrAvg: number | null;
+  rrAvgWins: number | null;
   rrSum: number;
   bestTrade: number | null;
   worstTrade: number | null;
   bestPair: string | null;
 };
 
+type LogicalTrade = {
+  pnlEur: number;
+  rr: number | null;
+  status: Trade["status"];
+  pair: string;
+};
+
+function groupLogicalTrades(trades: Trade[]): LogicalTrade[] {
+  const groups = new Map<string, Trade[]>();
+  const singles: Trade[] = [];
+  for (const t of trades) {
+    if (t.group_id) {
+      const arr = groups.get(t.group_id) ?? [];
+      arr.push(t);
+      groups.set(t.group_id, arr);
+    } else {
+      singles.push(t);
+    }
+  }
+
+  const logical: LogicalTrade[] = [];
+
+  for (const t of singles) {
+    logical.push({ pnlEur: pnlEur(t), rr: tradeRR(t), status: t.status, pair: t.pair });
+  }
+
+  for (const arr of groups.values()) {
+    const pnlSum = arr.reduce((acc, t) => acc + pnlEur(t), 0);
+    const ref = arr[0];
+    let rr: number | null = null;
+    if (ref.account_size_eur && ref.risk_pct) {
+      const risk = ref.account_size_eur * (ref.risk_pct / 100);
+      if (risk > 0) rr = pnlSum / risk;
+    }
+    const hasOpen = arr.some((t) => t.status === "open");
+    const status: Trade["status"] = hasOpen ? "open" : pnlSum >= 0 ? "closed-win" : "closed-loss";
+    logical.push({ pnlEur: pnlSum, rr, status, pair: ref.pair });
+  }
+
+  return logical;
+}
+
 function computeKpis(trades: Trade[]): Kpis {
-  const closed = trades.filter((t) => t.status === "closed-win" || t.status === "closed-loss");
-  const wins = trades.filter((t) => t.status === "closed-win").length;
-  const losses = trades.filter((t) => t.status === "closed-loss").length;
-  const opens = trades.filter((t) => t.status === "open").length;
+  const logical = groupLogicalTrades(trades);
+  const closed = logical.filter((t) => t.status === "closed-win" || t.status === "closed-loss");
+  const wins = logical.filter((t) => t.status === "closed-win").length;
+  const losses = logical.filter((t) => t.status === "closed-loss").length;
+  const opens = logical.filter((t) => t.status === "open").length;
   const winRate = closed.length > 0 ? (wins / closed.length) * 100 : null;
 
   let pnlEurTotal = 0;
   let rrSum = 0;
   let rrCount = 0;
+  let rrWinsSum = 0;
+  let rrWinsCount = 0;
   let best: number | null = null;
   let worst: number | null = null;
   const byPair: Record<string, number> = {};
 
-  for (const t of trades) {
-    const u = pnlEur(t);
-    pnlEurTotal += u;
-    if (best === null || u > best) best = u;
-    if (worst === null || u < worst) worst = u;
-    byPair[t.pair] = (byPair[t.pair] ?? 0) + u;
+  for (const t of logical) {
+    pnlEurTotal += t.pnlEur;
+    if (best === null || t.pnlEur > best) best = t.pnlEur;
+    if (worst === null || t.pnlEur < worst) worst = t.pnlEur;
+    byPair[t.pair] = (byPair[t.pair] ?? 0) + t.pnlEur;
 
-    const r = tradeRR(t);
-    if (r !== null) {
-      rrSum += r;
+    if (t.rr !== null) {
+      rrSum += t.rr;
       rrCount += 1;
+      if (t.status === "closed-win") {
+        rrWinsSum += t.rr;
+        rrWinsCount += 1;
+      }
     }
   }
 
   const rrAvg = rrCount > 0 ? rrSum / rrCount : null;
+  const rrAvgWins = rrWinsCount > 0 ? rrWinsSum / rrWinsCount : null;
   const bestPair = Object.entries(byPair).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 
   return {
-    total: countLogicalTrades(trades),
+    total: logical.length,
     wins,
     losses,
     opens,
     winRate,
     pnlEurTotal,
     rrAvg,
+    rrAvgWins,
     rrSum,
     bestTrade: best,
     worstTrade: worst,
@@ -842,7 +892,8 @@ function TrackRecordBody({ trades, kpis, accountFilter }: { trades: Trade[]; kpi
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
         <KpiCard icon={<Percent size={14} />} label="WIN RATE" value={kpis.winRate !== null ? `${kpis.winRate.toFixed(0)}%` : "—"} sub={`${kpis.wins}W / ${kpis.losses}L`} accent={GREEN} />
         <KpiCard icon={<DollarSign size={14} />} label="P&L NET" value={fmtUsd(kpis.pnlEurTotal)} sub={`sur ${kpis.total} trades`} accent={kpis.pnlEurTotal >= 0 ? GREEN : RED} />
-        <KpiCard icon={<Target size={14} />} label="RR MOYEN" value={kpis.rrAvg !== null ? fmtRr(kpis.rrAvg) : "—"} sub={`sum ${kpis.rrSum >= 0 ? "+" : ""}${kpis.rrSum.toFixed(2)}R`} accent={ACCENT} />
+        <KpiCard icon={<Target size={14} />} label="RR MOYEN (TOUS)" value={kpis.rrAvg !== null ? fmtRr(kpis.rrAvg) : "—"} sub={`sum ${kpis.rrSum >= 0 ? "+" : ""}${kpis.rrSum.toFixed(2)}R`} accent={ACCENT} />
+        <KpiCard icon={<Target size={14} />} label="RR MOYEN (GAGNANTS)" value={kpis.rrAvgWins !== null ? fmtRr(kpis.rrAvgWins) : "—"} sub={`sur ${kpis.wins} gagnants`} accent={GREEN} />
         <KpiCard icon={<BarChart3 size={14} />} label="NB TRADES" value={String(kpis.total)} sub={`${kpis.opens} en cours`} accent={GOLD} />
         <KpiCard icon={<Trophy size={14} />} label="BEST TRADE" value={kpis.bestTrade !== null ? fmtUsd(kpis.bestTrade) : "—"} sub={kpis.bestPair ?? ""} accent={GREEN} />
         <KpiCard icon={<Zap size={14} />} label="WORST TRADE" value={kpis.worstTrade !== null ? fmtUsd(kpis.worstTrade) : "—"} accent={RED} />
