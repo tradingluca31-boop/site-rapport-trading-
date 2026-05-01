@@ -202,6 +202,22 @@ export default function MonthlyDashboard({ trades }: { trades: Trade[] }) {
               enableArcLabels={false}
               enableArcLinkLabels={false}
               motionConfig="gentle"
+              tooltip={({ datum }) => {
+                const isWin = datum.id === "Wins";
+                const count = isWin ? stats.wins : stats.losses;
+                const pct = Number(datum.value);
+                const color = isWin ? GREEN : RED;
+                return (
+                  <div style={{ background: "white", padding: "8px 14px", border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.08)", fontFamily: "system-ui, sans-serif", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: 2, background: color, display: "inline-block" }} />
+                    <span style={{ fontWeight: 700, color: TEXT }}>{isWin ? "Wins" : "Losses"}</span>
+                    <span style={{ color: MUTED }}>·</span>
+                    <span style={{ color, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{pct.toFixed(1)}%</span>
+                    <span style={{ color: MUTED }}>·</span>
+                    <span style={{ color: TEXT, fontVariantNumeric: "tabular-nums" }}>{count} trade{count > 1 ? "s" : ""}</span>
+                  </div>
+                );
+              }}
             />
             <DonutCenter big={`${stats.pctWon.toFixed(0)}%`} small={`${stats.wins}W / ${stats.losses}L`} color={GREEN} />
           </div>
@@ -286,6 +302,22 @@ export default function MonthlyDashboard({ trades }: { trades: Trade[] }) {
               enableArcLabels={false}
               enableArcLinkLabels={false}
               motionConfig="gentle"
+              tooltip={({ datum }) => {
+                const isProfits = datum.id === "Profits";
+                const usd = isProfits ? stats.totalProfits : stats.totalLosses;
+                const pct = Number(datum.value);
+                const color = isProfits ? GREEN : RED;
+                return (
+                  <div style={{ background: "white", padding: "8px 14px", border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.08)", fontFamily: "system-ui, sans-serif", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: 2, background: color, display: "inline-block" }} />
+                    <span style={{ fontWeight: 700, color: TEXT }}>{isProfits ? "Profits" : "Pertes"}</span>
+                    <span style={{ color: MUTED }}>·</span>
+                    <span style={{ color, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{pct.toFixed(1)}%</span>
+                    <span style={{ color: MUTED }}>·</span>
+                    <span style={{ color, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{fmtUsd(usd)}</span>
+                  </div>
+                );
+              }}
             />
             <DonutCenter big={`${stats.profitLossRatio.profitPct.toFixed(0)}%`} small={fmtUsd(stats.net)} color={GREEN} />
           </div>
