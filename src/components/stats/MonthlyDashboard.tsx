@@ -58,7 +58,12 @@ export default function MonthlyDashboard({ trades }: { trades: Trade[] }) {
 
   const isPct = unit === "pct";
   const fmtVal = (v: number) => (isPct ? fmtPct(v) : fmtUsd(v));
-  const fmtAxis = (v: number) => (isPct ? `${v.toFixed(1)}%` : `$${v}`);
+  const fmtAxis = (v: number) => {
+    if (isPct) return `${v.toFixed(1)}%`;
+    const absV = Math.abs(v);
+    const sign = v < 0 ? "-" : "";
+    return `${sign}$${absV.toLocaleString("fr-FR", { maximumFractionDigits: 0 })}`;
+  };
 
   const equityData = [{
     id: "Equity",
@@ -123,12 +128,12 @@ export default function MonthlyDashboard({ trades }: { trades: Trade[] }) {
             {equityData[0].data.length > 1 && (
               <ResponsiveLine
                 data={equityData}
-                margin={{ top: 20, right: 30, bottom: 40, left: 70 }}
+                margin={{ top: 20, right: 30, bottom: 40, left: 80 }}
                 xScale={{ type: "linear" }}
                 yScale={{ type: "linear", min: "auto", max: "auto" }}
                 curve="monotoneX"
-                axisBottom={{ tickSize: 0, tickPadding: 8 }}
-                axisLeft={{ tickSize: 0, tickPadding: 8, format: (v) => fmtAxis(Number(v)) }}
+                axisBottom={{ tickSize: 0, tickPadding: 10, format: (v) => `#${v}` }}
+                axisLeft={{ tickSize: 0, tickPadding: 10, format: (v) => fmtAxis(Number(v)) }}
                 colors={[GREEN]}
                 lineWidth={3}
                 pointSize={6}
@@ -140,10 +145,21 @@ export default function MonthlyDashboard({ trades }: { trades: Trade[] }) {
                 enableGridX={false}
                 theme={{
                   grid: { line: { stroke: BORDER, strokeWidth: 1 } },
-                  axis: { ticks: { text: { fill: MUTED, fontSize: 11 } } },
+                  axis: { ticks: { text: { fill: "#9CA3AF", fontSize: 11, fontWeight: 500 } } },
                 }}
                 motionConfig="gentle"
                 useMesh
+                tooltip={({ point }) => {
+                  const idx = Number(point.data.x);
+                  const y = Number(point.data.y);
+                  const tr = stats.perTrade[idx - 1];
+                  return (
+                    <div style={{ background: "white", padding: "8px 12px", border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.08)", fontFamily: "system-ui, sans-serif" }}>
+                      <div style={{ fontWeight: 700, color: TEXT, marginBottom: 2 }}>Trade #{idx}{tr ? ` · ${tr.pair}` : ""}</div>
+                      <div style={{ fontSize: 11, color: MUTED, marginBottom: 4 }}>Equity cumulee : <span style={{ color: y >= 0 ? GREEN : RED, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{fmtVal(y)}</span></div>
+                    </div>
+                  );
+                }}
               />
             )}
           </div>
@@ -204,7 +220,7 @@ export default function MonthlyDashboard({ trades }: { trades: Trade[] }) {
                 theme={{
                   grid: { line: { stroke: BORDER, strokeWidth: 1 } },
                   axis: {
-                    ticks: { text: { fill: TEXT, fontSize: 12, fontWeight: 600 } },
+                    ticks: { text: { fill: "#9CA3AF", fontSize: 11, fontWeight: 500 } },
                     domain: { line: { stroke: BORDER, strokeWidth: 1 } },
                   },
                 }}
