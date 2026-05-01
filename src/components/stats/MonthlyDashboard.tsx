@@ -256,10 +256,16 @@ export default function MonthlyDashboard({ trades }: { trades: Trade[] }) {
                 motionConfig="gentle"
                 tooltip={({ data, value }) => {
                   const d = data as { pair: string; date: string; account: string };
+                  const v = Number(value);
                   return (
-                    <div style={{ background: "white", padding: "8px 12px", border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
-                      <strong>{d.pair}</strong> · {d.date}{d.account ? ` · ${d.account}` : ""}<br />
-                      {fmtVal(Number(value))}
+                    <div style={{ background: "white", padding: "8px 14px", border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.08)", fontFamily: "system-ui, sans-serif", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontWeight: 700, color: TEXT }}>{d.pair}</span>
+                      <span style={{ color: MUTED }}>·</span>
+                      <span style={{ color: TEXT }}>{d.date}</span>
+                      {d.account && <span style={{ color: MUTED }}>·</span>}
+                      {d.account && <span style={{ color: TEXT, fontWeight: 600 }}>{d.account}</span>}
+                      <span style={{ color: MUTED }}>·</span>
+                      <span style={{ color: v >= 0 ? GREEN : RED, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{fmtVal(v)}</span>
                     </div>
                   );
                 }}
