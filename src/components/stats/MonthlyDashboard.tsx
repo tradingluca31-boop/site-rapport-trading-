@@ -161,9 +161,13 @@ export default function MonthlyDashboard({ trades }: { trades: Trade[] }) {
                   const y = Number(point.data.y);
                   const tr = stats.perTrade[idx - 1];
                   return (
-                    <div style={{ background: "white", padding: "8px 12px", border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.08)", fontFamily: "system-ui, sans-serif" }}>
-                      <div style={{ fontWeight: 700, color: TEXT, marginBottom: 2 }}>Trade #{idx}{tr ? ` · ${tr.pair}` : ""}</div>
-                      <div style={{ fontSize: 11, color: MUTED, marginBottom: 4 }}>Equity cumulee : <span style={{ color: y >= 0 ? GREEN : RED, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{fmtVal(y)}</span></div>
+                    <div style={{ background: "white", padding: "8px 14px", border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.08)", fontFamily: "system-ui, sans-serif", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontWeight: 700, color: TEXT }}>Trade #{idx}</span>
+                      {tr && <span style={{ color: MUTED }}>·</span>}
+                      {tr && <span style={{ color: TEXT, fontWeight: 600 }}>{tr.pair}</span>}
+                      <span style={{ color: MUTED }}>·</span>
+                      <span style={{ fontSize: 11, color: MUTED }}>Equity</span>
+                      <span style={{ color: y >= 0 ? GREEN : RED, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{fmtVal(y)}</span>
                     </div>
                   );
                 }}
