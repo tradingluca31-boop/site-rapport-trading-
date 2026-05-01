@@ -167,16 +167,21 @@ export default function MonthlyDashboard({ trades }: { trades: Trade[] }) {
                 useMesh
                 tooltip={({ point }) => {
                   const idx = Number(point.data.x);
-                  const y = Number(point.data.y);
+                  const cumul = Number(point.data.y);
                   const tr = stats.perTrade[idx - 1];
+                  if (!tr) return null;
+                  const tradePnl = isPct ? tr.pnlPct : tr.pnl;
                   return (
                     <div style={{ background: "white", padding: "8px 14px", border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.08)", fontFamily: "system-ui, sans-serif", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 10 }}>
                       <span style={{ fontWeight: 700, color: TEXT }}>Trade #{idx}</span>
-                      {tr && <span style={{ color: MUTED }}>·</span>}
-                      {tr && <span style={{ color: TEXT, fontWeight: 600 }}>{tr.pair}</span>}
                       <span style={{ color: MUTED }}>·</span>
-                      <span style={{ fontSize: 11, color: MUTED }}>Equity</span>
-                      <span style={{ color: y >= 0 ? GREEN : RED, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{fmtVal(y)}</span>
+                      <span style={{ color: TEXT, fontWeight: 600 }}>{tr.pair}</span>
+                      <span style={{ color: MUTED }}>·</span>
+                      <span style={{ fontSize: 11, color: MUTED }}>Trade :</span>
+                      <span style={{ color: tradePnl >= 0 ? GREEN : RED, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{fmtVal(tradePnl)}</span>
+                      <span style={{ color: MUTED }}>·</span>
+                      <span style={{ fontSize: 11, color: MUTED }}>Cumul :</span>
+                      <span style={{ color: cumul >= 0 ? GREEN : RED, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{fmtVal(cumul)}</span>
                     </div>
                   );
                 }}
