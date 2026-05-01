@@ -14,6 +14,7 @@ import {
   X as XIcon,
 } from "lucide-react";
 import { Trade, listTradesByDateRange } from "@/lib/trades";
+import MonthlyDashboard from "@/components/stats/MonthlyDashboard";
 
 const ACCENT = "#7C5CFF";
 const GREEN = "#08D9D6";
@@ -898,6 +899,8 @@ function TrackRecordBody({ trades, kpis, accountFilter }: { trades: Trade[]; kpi
         <KpiCard icon={<Trophy size={14} />} label="BEST TRADE" value={kpis.bestTrade !== null ? fmtUsd(kpis.bestTrade) : "—"} sub={kpis.bestPair ?? ""} accent={GREEN} />
         <KpiCard icon={<Zap size={14} />} label="WORST TRADE" value={kpis.worstTrade !== null ? fmtUsd(kpis.worstTrade) : "—"} accent={RED} />
       </div>
+
+      <MonthlyDashboard trades={trades} />
 
       <div style={{ background: "white", borderRadius: 14, border: "1px solid #E5E7EB", overflow: "hidden" }}>
         <div style={{ padding: "14px 18px", borderBottom: "1px solid #F3F4F6", fontSize: 11, fontWeight: 800, letterSpacing: 2, color: "#6B7280", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
