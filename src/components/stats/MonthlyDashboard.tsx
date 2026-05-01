@@ -77,6 +77,15 @@ export default function MonthlyDashboard({ trades }: { trades: Trade[] }) {
     date: p.date,
     account: p.account ?? "",
   }));
+
+  // Padding visuel 10% au-dessus/en-dessous pour que les barres ne touchent pas les bords
+  const pnlValues = perTradeData.map((d) => d.pnl);
+  const maxPnl = Math.max(...pnlValues, 0);
+  const minPnl = Math.min(...pnlValues, 0);
+  const range = Math.max(maxPnl - minPnl, 1);
+  const yPadding = range * 0.1;
+  const yMin = minPnl < 0 ? minPnl - yPadding : 0;
+  const yMax = maxPnl + yPadding;
   const hitRateData = [
     { id: "Wins", value: stats.pctWon, color: GREEN },
     { id: "Losses", value: stats.pctLost, color: RED },
@@ -210,9 +219,9 @@ export default function MonthlyDashboard({ trades }: { trades: Trade[] }) {
                 data={perTradeData}
                 keys={["pnl"]}
                 indexBy="idx"
-                margin={{ top: 20, right: 30, bottom: 70, left: 65 }}
+                margin={{ top: 30, right: 30, bottom: 70, left: 70 }}
                 padding={0.35}
-                valueScale={{ type: "linear" }}
+                valueScale={{ type: "linear", min: yMin, max: yMax }}
                 indexScale={{ type: "band", round: true }}
                 colors={({ data }) => (data as { color: string }).color}
                 axisTop={null}
