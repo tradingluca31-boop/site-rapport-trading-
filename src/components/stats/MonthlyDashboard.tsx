@@ -144,8 +144,15 @@ export default function MonthlyDashboard({ trades }: { trades: Trade[] }) {
                 areaOpacity={0.15}
                 enableGridX={false}
                 theme={{
+                  text: { fontFamily: "system-ui, -apple-system, sans-serif" },
                   grid: { line: { stroke: BORDER, strokeWidth: 1 } },
-                  axis: { ticks: { text: { fill: "#9CA3AF", fontSize: 11, fontWeight: 500 } } },
+                  axis: {
+                    ticks: {
+                      line: { stroke: "transparent" },
+                      text: { fill: "#374151", fontSize: 12, fontWeight: 600, fontFamily: "system-ui, -apple-system, sans-serif" },
+                    },
+                    domain: { line: { stroke: "transparent" } },
+                  },
                 }}
                 motionConfig="gentle"
                 useMesh
@@ -218,10 +225,14 @@ export default function MonthlyDashboard({ trades }: { trades: Trade[] }) {
                 role="application"
                 layers={["grid", "bars", "markers", "legends", "axes"]}
                 theme={{
+                  text: { fontFamily: "system-ui, -apple-system, sans-serif" },
                   grid: { line: { stroke: BORDER, strokeWidth: 1 } },
                   axis: {
-                    ticks: { text: { fill: "#9CA3AF", fontSize: 11, fontWeight: 500 } },
-                    domain: { line: { stroke: BORDER, strokeWidth: 1 } },
+                    ticks: {
+                      line: { stroke: "transparent" },
+                      text: { fill: "#374151", fontSize: 12, fontWeight: 600, fontFamily: "system-ui, -apple-system, sans-serif" },
+                    },
+                    domain: { line: { stroke: "transparent" } },
                   },
                 }}
                 motionConfig="gentle"
