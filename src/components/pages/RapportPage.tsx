@@ -12,6 +12,9 @@ import {
   X as XIcon,
   Check,
   Trash2,
+  ChevronLeft,
+  ChevronRight,
+  CalendarDays,
 } from "lucide-react";
 import {
   Trade,
@@ -80,15 +83,23 @@ const EMPTY_TRADE_FORM: TradeFormState = {
   pnl: "",
 };
 
-function todayKey() {
-  const d = new Date();
+function dateToKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function formatTodayHeader() {
-  const now = new Date();
-  const weekday = now.toLocaleDateString("fr-FR", { weekday: "long" }).toUpperCase();
-  const full = now.toLocaleDateString("fr-FR", {
+function keyToDate(key: string) {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1);
+}
+
+function todayKey() {
+  return dateToKey(new Date());
+}
+
+function formatHeader(key: string) {
+  const date = keyToDate(key);
+  const weekday = date.toLocaleDateString("fr-FR", { weekday: "long" }).toUpperCase();
+  const full = date.toLocaleDateString("fr-FR", {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -96,13 +107,29 @@ function formatTodayHeader() {
   return { weekday, full };
 }
 
+function shiftKey(key: string, deltaDays: number) {
+  const d = keyToDate(key);
+  d.setDate(d.getDate() + deltaDays);
+  return dateToKey(d);
+}
+
 function newId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export default function RapportPage() {
-  const dayKey = todayKey();
-  const header = formatTodayHeader();
+  const [dayKey, setDayKey] = useState<string>(() => todayKey());
+  const header = formatHeader(dayKey);
+  const isToday = dayKey === todayKey();
+
+  const goPrevDay = useCallback(() => setDayKey((k) => shiftKey(k, -1)), []);
+  const goNextDay = useCallback(() => {
+    setDayKey((k) => {
+      const next = shiftKey(k, 1);
+      return next > todayKey() ? k : next;
+    });
+  }, []);
+  const goToday = useCallback(() => setDayKey(todayKey()), []);
 
   const [data, setData] = useState<DayReport>(EMPTY_DAY);
   const [trades, setTrades] = useState<Trade[]>([]);
@@ -227,28 +254,37 @@ export default function RapportPage() {
   return (
     <div className="page-root" style={{ padding: "40px 32px", background: "var(--bg-page, #FAFAF9)", minHeight: "100vh" }}>
       <div style={{ maxWidth: 1440, margin: "0 auto" }}>
-        <header style={{ marginBottom: 36 }}>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 800,
-              letterSpacing: 2,
-              color: "var(--text-muted, #6B7280)",
-              marginBottom: 6,
-            }}
-          >
-            {header.weekday} — RAPPORT DE SESSION
+        <header style={{ marginBottom: 36, display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 800,
+                letterSpacing: 2,
+                color: "var(--text-muted, #6B7280)",
+                marginBottom: 6,
+              }}
+            >
+              {header.weekday} — RAPPORT DE SESSION
+            </div>
+            <h1
+              style={{
+                fontSize: 32,
+                fontWeight: 300,
+                letterSpacing: "-0.01em",
+                fontFamily: "var(--font-display, Georgia, serif)",
+              }}
+            >
+              {header.full}
+            </h1>
           </div>
-          <h1
-            style={{
-              fontSize: 32,
-              fontWeight: 300,
-              letterSpacing: "-0.01em",
-              fontFamily: "var(--font-display, Georgia, serif)",
-            }}
-          >
-            {header.full}
-          </h1>
+
+          <DateNav
+            onPrev={goPrevDay}
+            onNext={goNextDay}
+            onToday={goToday}
+            isToday={isToday}
+          />
         </header>
 
         <div className="mobile-stack" style={{ display: "grid", gridTemplateColumns: "3fr 1fr", gap: 28 }}>
@@ -1345,6 +1381,80 @@ function IdeasCard({
           <Plus size={14} />
         </button>
       </div>
+    </div>
+  );
+}
+
+function DateNav({
+  onPrev,
+  onNext,
+  onToday,
+  isToday,
+}: {
+  onPrev: () => void;
+  onNext: () => void;
+  onToday: () => void;
+  isToday: boolean;
+}) {
+  const navBtn: React.CSSProperties = {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    background: "white",
+    border: "1px solid var(--border, #E5E7EB)",
+    color: "var(--text-secondary, #374151)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+  };
+  const nextDisabled = isToday;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <button
+        type="button"
+        onClick={onPrev}
+        title="Jour precedent"
+        aria-label="Jour precedent"
+        style={navBtn}
+      >
+        <ChevronLeft size={18} />
+      </button>
+      <button
+        type="button"
+        onClick={onToday}
+        disabled={isToday}
+        title="Revenir a aujourd'hui"
+        aria-label="Aujourd'hui"
+        style={{
+          ...navBtn,
+          width: "auto",
+          padding: "0 14px",
+          fontSize: 11,
+          fontWeight: 800,
+          letterSpacing: 1.5,
+          gap: 6,
+          opacity: isToday ? 0.5 : 1,
+          cursor: isToday ? "default" : "pointer",
+        }}
+      >
+        <CalendarDays size={14} />
+        AUJOURD&apos;HUI
+      </button>
+      <button
+        type="button"
+        onClick={onNext}
+        disabled={nextDisabled}
+        title={nextDisabled ? "Pas de rapport futur" : "Jour suivant"}
+        aria-label="Jour suivant"
+        style={{
+          ...navBtn,
+          opacity: nextDisabled ? 0.4 : 1,
+          cursor: nextDisabled ? "not-allowed" : "pointer",
+        }}
+      >
+        <ChevronRight size={18} />
+      </button>
     </div>
   );
 }
