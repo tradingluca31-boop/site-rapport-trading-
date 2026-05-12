@@ -15,6 +15,8 @@ import {
   ChevronLeft,
   ChevronRight,
   CalendarDays,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 import {
   Trade,
@@ -55,12 +57,15 @@ type TradeFormState = {
 };
 
 type Idea = { id: string; text: string };
+type BilanItem = { id: string; text: string };
 
 type DayReport = {
   editoTitle: string;
   editoSummary: string;
   fonda: FondaEntry[];
   ideas: Idea[];
+  pluses: BilanItem[];
+  minuses: BilanItem[];
 };
 
 const EMPTY_DAY: DayReport = {
@@ -68,6 +73,8 @@ const EMPTY_DAY: DayReport = {
   editoSummary: "",
   fonda: [],
   ideas: [],
+  pluses: [],
+  minuses: [],
 };
 
 const EMPTY_TRADE_FORM: TradeFormState = {
@@ -152,12 +159,19 @@ export default function RapportPage() {
   const [detailTrade, setDetailTrade] = useState<Trade | null>(null);
 
   const [newIdea, setNewIdea] = useState("");
+  const [newPlus, setNewPlus] = useState("");
+  const [newMinus, setNewMinus] = useState("");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
       const raw = localStorage.getItem(`rapport-${dayKey}`);
-      setData(raw ? (JSON.parse(raw) as DayReport) : EMPTY_DAY);
+      if (!raw) {
+        setData(EMPTY_DAY);
+        return;
+      }
+      const parsed = JSON.parse(raw) as Partial<DayReport>;
+      setData({ ...EMPTY_DAY, ...parsed });
     } catch {
       setData(EMPTY_DAY);
     }
@@ -249,6 +263,23 @@ export default function RapportPage() {
 
   const deleteIdea = (id: string) => {
     setData((prev) => ({ ...prev, ideas: prev.ideas.filter((i) => i.id !== id) }));
+  };
+
+  const addPlus = () => {
+    if (!newPlus.trim()) return;
+    setData((prev) => ({ ...prev, pluses: [...prev.pluses, { id: newId(), text: newPlus.trim() }] }));
+    setNewPlus("");
+  };
+  const deletePlus = (id: string) => {
+    setData((prev) => ({ ...prev, pluses: prev.pluses.filter((p) => p.id !== id) }));
+  };
+  const addMinus = () => {
+    if (!newMinus.trim()) return;
+    setData((prev) => ({ ...prev, minuses: [...prev.minuses, { id: newId(), text: newMinus.trim() }] }));
+    setNewMinus("");
+  };
+  const deleteMinus = (id: string) => {
+    setData((prev) => ({ ...prev, minuses: prev.minuses.filter((m) => m.id !== id) }));
   };
 
   return (
@@ -365,6 +396,19 @@ export default function RapportPage() {
                 </div>
               )}
             </Section>
+
+            <BilanCard
+              pluses={data.pluses}
+              minuses={data.minuses}
+              newPlus={newPlus}
+              newMinus={newMinus}
+              onNewPlusChange={setNewPlus}
+              onNewMinusChange={setNewMinus}
+              onAddPlus={addPlus}
+              onAddMinus={addMinus}
+              onDeletePlus={deletePlus}
+              onDeleteMinus={deleteMinus}
+            />
           </main>
 
           <aside style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -1370,6 +1414,193 @@ function IdeasCard({
             height: 32,
             borderRadius: 8,
             background: GOLD,
+            border: "none",
+            color: "white",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+          }}
+        >
+          <Plus size={14} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function BilanCard({
+  pluses,
+  minuses,
+  newPlus,
+  newMinus,
+  onNewPlusChange,
+  onNewMinusChange,
+  onAddPlus,
+  onAddMinus,
+  onDeletePlus,
+  onDeleteMinus,
+}: {
+  pluses: BilanItem[];
+  minuses: BilanItem[];
+  newPlus: string;
+  newMinus: string;
+  onNewPlusChange: (v: string) => void;
+  onNewMinusChange: (v: string) => void;
+  onAddPlus: () => void;
+  onAddMinus: () => void;
+  onDeletePlus: (id: string) => void;
+  onDeleteMinus: (id: string) => void;
+}) {
+  return (
+    <div
+      style={{
+        background: "white",
+        borderRadius: 16,
+        border: "1px solid var(--border, #E5E7EB)",
+        padding: 28,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+        <Check size={16} style={{ color: GREEN }} />
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2 }}>BILAN DE LA JOURNEE</span>
+      </div>
+
+      <div className="mobile-stack" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <BilanColumn
+          label="CE QUI A BIEN MARCHE"
+          icon={<ThumbsUp size={14} />}
+          color={GREEN}
+          items={pluses}
+          value={newPlus}
+          onChange={onNewPlusChange}
+          onAdd={onAddPlus}
+          onDelete={onDeletePlus}
+          placeholder="Ex: respect plan, patience sur entree..."
+          emptyText="Rien pour l'instant."
+        />
+        <BilanColumn
+          label="A AMELIORER"
+          icon={<ThumbsDown size={14} />}
+          color={RED}
+          items={minuses}
+          value={newMinus}
+          onChange={onNewMinusChange}
+          onAdd={onAddMinus}
+          onDelete={onDeleteMinus}
+          placeholder="Ex: FOMO, SL trop large, revenge trade..."
+          emptyText="Rien pour l'instant."
+        />
+      </div>
+    </div>
+  );
+}
+
+function BilanColumn({
+  label,
+  icon,
+  color,
+  items,
+  value,
+  onChange,
+  onAdd,
+  onDelete,
+  placeholder,
+  emptyText,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  color: string;
+  items: BilanItem[];
+  value: string;
+  onChange: (v: string) => void;
+  onAdd: () => void;
+  onDelete: (id: string) => void;
+  placeholder: string;
+  emptyText: string;
+}) {
+  return (
+    <div
+      style={{
+        background: "var(--bg-page, #FAFAF9)",
+        borderRadius: 12,
+        border: "1px solid #F3F4F6",
+        padding: 16,
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ color }}>{icon}</span>
+        <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.5, color }}>{label}</span>
+      </div>
+
+      {items.length === 0 ? (
+        <div style={{ fontSize: 12, color: "var(--text-muted, #9CA3AF)", fontStyle: "italic", padding: "6px 0" }}>
+          {emptyText}
+        </div>
+      ) : (
+        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+          {items.map((it) => (
+            <li
+              key={it.id}
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 8,
+                fontSize: 13,
+                color: "var(--text-secondary, #374151)",
+                lineHeight: 1.5,
+                padding: "6px 0",
+                borderTop: "1px solid #F3F4F6",
+              }}
+            >
+              <span style={{ color, marginTop: 2, fontWeight: 700 }}>·</span>
+              <span style={{ flex: 1, whiteSpace: "pre-wrap" }}>{it.text}</span>
+              <button
+                type="button"
+                onClick={() => onDelete(it.id)}
+                title="Supprimer"
+                aria-label="Supprimer cette ligne"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--text-muted, #9CA3AF)",
+                  cursor: "pointer",
+                  padding: 0,
+                  opacity: 0.5,
+                }}
+              >
+                <Trash2 size={12} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") onAdd();
+          }}
+          placeholder={placeholder}
+          aria-label={label}
+          style={{ ...inputStyle, flex: 1, fontSize: 12 }}
+        />
+        <button
+          type="button"
+          onClick={onAdd}
+          title="Ajouter"
+          aria-label="Ajouter"
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            background: color,
             border: "none",
             color: "white",
             display: "flex",
