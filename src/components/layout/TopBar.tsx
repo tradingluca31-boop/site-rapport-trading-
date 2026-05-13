@@ -23,6 +23,7 @@ const PAGE_LABELS: Record<PageId, string> = {
   rapport: "Rapport",
   "track-record": "Track record",
   fondamentaux: "Fondamentaux",
+  scenarios: "Scenarios",
   bibliotheque: "Bibliotheque",
   parametres: "Parametres",
 };
