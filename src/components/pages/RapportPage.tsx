@@ -69,20 +69,12 @@ type DayReport = {
   minuses: BilanItem[];
 };
 
-const DEFAULT_IDEAS: Idea[] = [
-  {
-    id: "default-gbpusd-uk",
-    text:
-      "GBPUSD short — Crise politique UK (Starmer sous pression, ~100 MPs Labour demandent demission, Streeting pousse, Miliband se positionne). 3 scenarios convergents bear GBP : demission immediate 25% (pire, contest 6-10 sem), demission differee 25% (lame duck, drift 1.35→1.32), Starmer reste fragilise 50% (slow leak permanent). Setup : short sur rebond 1.36-1.37, SL 1.3680, TP1 1.345, TP2 1.32, TP3 1.30 (tail risk). Catalysts : headline demission PM, transition Powell→Warsh 15 mai. Pas urgent — monitor + react.",
-  },
-];
-
 const EMPTY_DAY: DayReport = {
   editoTitle: "",
   editoSummary: "",
   dayScore: 5,
   fonda: [],
-  ideas: DEFAULT_IDEAS,
+  ideas: [],
   pluses: [],
   minuses: [],
 };
