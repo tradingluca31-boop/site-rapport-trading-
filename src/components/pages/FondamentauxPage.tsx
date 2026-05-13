@@ -24,16 +24,46 @@ function isoDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function frDateLong(dateIso: string): string {
-  const [y, m, d] = dateIso.split("-").map(Number);
-  const dt = new Date(y, m - 1, d);
-  return dt.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+// Retourne le lundi de la semaine ISO contenant `d` (lundi = 1, dimanche = 0)
+function mondayOf(d: Date): Date {
+  const out = new Date(d);
+  out.setHours(0, 0, 0, 0);
+  const day = out.getDay();                         // 0..6 (dim..sam)
+  const diff = day === 0 ? -6 : 1 - day;            // distance au lundi
+  out.setDate(out.getDate() + diff);
+  return out;
 }
 
-function yesterdayIso(): string {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return isoDate(d);
+function mondayIso(d: Date): string {
+  return isoDate(mondayOf(d));
+}
+
+function currentWeekMondayIso(): string {
+  return mondayIso(new Date());
+}
+
+// Numero de semaine ISO (1..53)
+function isoWeekNumber(date: Date): number {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+}
+
+// Label "Semaine 20 · 11 - 15 mai 2026"
+function frWeekLabel(mondayIso: string): { weekNum: number; range: string; long: string } {
+  const [y, m, d] = mondayIso.split("-").map(Number);
+  const monday = new Date(y, m - 1, d);
+  const friday = new Date(monday);
+  friday.setDate(friday.getDate() + 4);
+  const weekNum = isoWeekNumber(monday);
+  const sameMonth = monday.getMonth() === friday.getMonth();
+  const sameYear = monday.getFullYear() === friday.getFullYear();
+  const mondayPart = monday.toLocaleDateString("fr-FR", { day: "numeric", month: sameMonth ? undefined : "long", year: sameYear ? undefined : "numeric" });
+  const fridayPart = friday.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+  const range = `${mondayPart} - ${fridayPart}`;
+  const long = `Semaine ${weekNum} · ${range}`;
+  return { weekNum, range, long };
 }
 
 // 0..10 -> couleur du gradient (rouge → gris → vert)
@@ -52,7 +82,7 @@ function labelForScore(s: number): string {
 }
 
 export default function FondamentauxPage() {
-  const [currentDate, setCurrentDate] = useState<string>(yesterdayIso());
+  const [currentDate, setCurrentDate] = useState<string>(currentWeekMondayIso());
   const [report, setReport] = useState<FundamentalReportInput | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -134,10 +164,10 @@ export default function FondamentauxPage() {
     scheduleAutoSave(next);
   };
 
-  const changeDay = (offset: number) => {
+  const changeWeek = (offset: number) => {
     const [y, m, d] = currentDate.split("-").map(Number);
-    const dt = new Date(y, m - 1, d + offset);
-    setCurrentDate(isoDate(dt));
+    const dt = new Date(y, m - 1, d + offset * 7);
+    setCurrentDate(mondayIso(dt));
   };
 
   const updateAsset = (ticker: string, patch: Partial<FundamentalAsset>) => {
@@ -175,26 +205,27 @@ export default function FondamentauxPage() {
         <header className="fondamentaux-header" style={{ marginBottom: 20, display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <div>
             <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2, color: "#6B7280", marginBottom: 6 }}>
-              RAPPORT FONDAMENTAL
+              RAPPORT FONDAMENTAL HEBDO
             </div>
-            <h1 className="fondamentaux-title" style={{ fontSize: 30, fontWeight: 300, letterSpacing: "-0.01em", fontFamily: "var(--font-display, Georgia, serif)", color: "#111", textTransform: "capitalize" }}>
-              {frDateLong(currentDate)}
+            <h1 className="fondamentaux-title" style={{ fontSize: 30, fontWeight: 300, letterSpacing: "-0.01em", fontFamily: "var(--font-display, Georgia, serif)", color: "#111" }}>
+              Semaine {frWeekLabel(currentDate).weekNum} <span style={{ color: "#9CA3AF", fontSize: 18 }}>· {frWeekLabel(currentDate).range}</span>
             </h1>
           </div>
           <div className="fondamentaux-controls" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <button type="button" onClick={() => changeDay(-1)} aria-label="Jour precedent" style={navBtn}><ChevronLeft size={16} /></button>
+            <button type="button" onClick={() => changeWeek(-1)} aria-label="Semaine precedente" style={navBtn}><ChevronLeft size={16} /></button>
             <div style={{ position: "relative" }}>
               <input
                 type="date"
                 value={currentDate}
-                onChange={(e) => setCurrentDate(e.target.value)}
-                aria-label="Date du rapport"
+                onChange={(e) => e.target.value && setCurrentDate(mondayIso(new Date(e.target.value)))}
+                aria-label="Date dans la semaine du rapport"
+                title="Snap au lundi de la semaine choisie"
                 style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #E5E7EB", background: "white", color: "#111", fontSize: 12 }}
               />
             </div>
-            <button type="button" onClick={() => changeDay(1)} aria-label="Jour suivant" style={navBtn}><ChevronRight size={16} /></button>
-            <button type="button" onClick={() => setCurrentDate(yesterdayIso())} style={{ ...navBtn, width: "auto", padding: "0 12px", fontSize: 11, fontWeight: 700 }}>
-              <CalendarDays size={14} style={{ marginRight: 5 }} />Hier
+            <button type="button" onClick={() => changeWeek(1)} aria-label="Semaine suivante" style={navBtn}><ChevronRight size={16} /></button>
+            <button type="button" onClick={() => setCurrentDate(currentWeekMondayIso())} style={{ ...navBtn, width: "auto", padding: "0 12px", fontSize: 11, fontWeight: 700 }}>
+              <CalendarDays size={14} style={{ marginRight: 5 }} />Cette semaine
             </button>
             <button
               type="button"
@@ -449,7 +480,7 @@ function PromptModal({ date, onClose }: { date: string; onClose: () => void }) {
         <div style={modalHeader}>
           <div>
             <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2, color: "#6B7280", marginBottom: 4 }}>PROMPT POUR CLAUDE MOBILE</div>
-            <div style={{ fontSize: 16, fontWeight: 600, color: "#111" }}>Rapport du {frDateLong(date)}</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: "#111" }}>{frWeekLabel(date).long}</div>
           </div>
           <button type="button" onClick={onClose} aria-label="Fermer" style={modalCloseBtn}><XIcon size={16} /></button>
         </div>
@@ -563,10 +594,13 @@ function ImportModal({ targetDate, onClose, onImported }: { targetDate: string; 
 function validateReport(obj: unknown): FundamentalReportInput {
   if (!obj || typeof obj !== "object") throw new Error("Racine JSON invalide");
   const o = obj as Record<string, unknown>;
-  const report_date = typeof o.report_date === "string" ? o.report_date : null;
-  if (!report_date || !/^\d{4}-\d{2}-\d{2}$/.test(report_date)) {
+  const rawDate = typeof o.report_date === "string" ? o.report_date : null;
+  if (!rawDate || !/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
     throw new Error("Champ 'report_date' manquant ou mauvais format (YYYY-MM-DD attendu)");
   }
+  // Snap automatique au lundi de la semaine (clef hebdo)
+  const [yy, mm, dd] = rawDate.split("-").map(Number);
+  const report_date = mondayIso(new Date(yy, mm - 1, dd));
   const headline = typeof o.headline === "string" ? o.headline : "";
   const intro = typeof o.intro === "string" ? o.intro : "";
   const rawAssets = Array.isArray(o.assets) ? o.assets : [];
@@ -607,17 +641,18 @@ function validateReport(obj: unknown): FundamentalReportInput {
   return { report_date, headline, intro, assets };
 }
 
-function buildClaudePrompt(date: string): string {
-  return `Tu es un analyste macro hedge-fund senior. Je vais te donner 3 wraps InvestingLive (Asia Pacific / European / US) d'une meme journee. Tu dois produire UN JSON STRICT qui sera importe directement dans mon site de rapport fondamental.
+function buildClaudePrompt(mondayDate: string): string {
+  const { weekNum, range } = frWeekLabel(mondayDate);
+  return `Tu es un analyste macro hedge-fund senior. Je vais te donner les wraps InvestingLive (Asia Pacific / European / US) des 5 jours de la SEMAINE ${weekNum} (${range}, lundi-vendredi). Tu dois produire UN JSON STRICT qui sera importe directement dans mon site de rapport fondamental hebdo.
 
 ===== CONTEXTE SITE =====
-Le site attend un rapport "Daily Macro Brief" pour la date ${date}, avec 12 actifs (8 devises + Yuan + 3 matieres premieres). Chaque actif a un score de sentiment 0-10 (0=vendeur fort, 5=neutre, 10=acheteur fort) et un champ "summary" qui resume tout (monetaire + macro + geo + sentiment + sources, melanges naturellement en prose).
+Le site attend un rapport "Weekly Macro Brief" pour la semaine demarrant le ${mondayDate} (lundi), avec 12 actifs (8 devises + Yuan + 3 matieres premieres). Chaque actif a un score de sentiment 0-10 (0=vendeur fort, 5=neutre, 10=acheteur fort) et un champ "summary" qui resume la SEMAINE complete (monetaire + macro + geo + sentiment + sources, en prose, avec horaires et dates).
 
 ===== TA MISSION =====
-ETAPE 1 - Fetch les 3 wraps.
-ETAPE 2 - OBLIGATION : pour chaque wrap, fetch TOUS les hyperliens internes (vers investinglive.com). Typiquement 25-40 sous-articles par jour. Extrais horaires precis, chiffres, citations.
-ETAPE 3 - Regroupe chronologiquement. Mentionne toutes les contradictions de la journee.
-ETAPE 4 - Pour chacun des 12 actifs, remplis un objet JSON. Le "summary" est UNE PROSE en francais regroupant TOUT (BC, data, geo, flows, sources, horaires).
+ETAPE 1 - Fetch les wraps de chaque jour de la semaine (Asia / European / US par jour, 5 jours = jusqu'a 15 wraps).
+ETAPE 2 - OBLIGATION : pour chaque wrap, fetch les hyperliens internes investinglive.com pour avoir chiffres precis, citations, horodatages.
+ETAPE 3 - Regroupe chronologiquement (lundi au vendredi). Mentionne les retournements de narratives intra-semaine et les events cles (BC, data majeures, geo).
+ETAPE 4 - Pour chacun des 12 actifs, remplis un objet JSON. Le "summary" est UNE PROSE en francais qui retrace l'arc de la semaine : ouverture, events cles datees, fermeture vendredi. Cite chiffres et BC.
 ETAPE 5 - Renvoie UNIQUEMENT le JSON, rien avant, rien apres, pas de markdown.
 
 ===== 12 ACTIFS OBLIGATOIRES (ordre et spelling exacts) =====
@@ -625,14 +660,14 @@ USD, EUR, GBP, JPY, CHF, AUD, NZD, CAD, CNY, XAUUSD, XAGUSD, USOIL
 
 ===== SCHEMA JSON EXACT =====
 {
-  "report_date": "${date}",
-  "headline": "string - titre 1 ligne max 80 char",
-  "intro": "string - synthese 2-4 lignes",
+  "report_date": "${mondayDate}",
+  "headline": "string - titre 1 ligne max 80 char (theme dominant de la semaine)",
+  "intro": "string - synthese 3-5 lignes de la semaine (events cles, biais general)",
   "assets": [
     {
       "ticker": "USD",
       "sentiment10": 7,
-      "summary": "08:30 Retail sales +0.6% vs +0.3% att. 14:00 Powell repete pas de baisse avant CPI clair. JPMorgan releve cible S&P a 7600. Sources : Fed, BEA, JPMorgan. Maj 20:30.",
+      "summary": "LUN 12 : Retail sales +0.6%. MER 14 : Powell repete pas de baisse avant CPI clair. VEN 16 : JPMorgan releve cible S&P a 7600. Net hebdo : USD hawkish modere. Sources : Fed, BEA, JPMorgan.",
       "bias": "hawkish",
       "score": 2
     },
@@ -641,13 +676,14 @@ USD, EUR, GBP, JPY, CHF, AUD, NZD, CAD, CNY, XAUUSD, XAGUSD, USOIL
 }
 
 ===== REGLES =====
-- "sentiment10" : entier 0-10 (CHAMP PRINCIPAL : 0 vendeur fort, 5 neutre, 10 acheteur fort).
-- "summary" : prose francaise, chiffres precis, citations, horaires. Si rien d'important : "" et sentiment10=5.
-- "bias" : "hawkish" si sentiment10 > 5, "dovish" si < 5, "neutral" si = 5 (champs legacy, calcule automatiquement).
+- "report_date" : EXACTEMENT le lundi de la semaine = "${mondayDate}".
+- "sentiment10" : entier 0-10 (CHAMP PRINCIPAL : 0 vendeur fort, 5 neutre, 10 acheteur fort). Reflete le NET de la semaine, pas la moyenne.
+- "summary" : prose francaise hebdo, datee jour par jour (LUN/MAR/MER/JEU/VEN + chiffre), citations BC, sources en fin. Si RAS sur la semaine : "" et sentiment10 absent.
+- "bias" : "hawkish" si sentiment10 > 5, "dovish" si < 5, "neutral" si = 5 (legacy auto).
 - "score" : sentiment10 - 5 (legacy).
-- TOUS les 12 tickers DOIVENT etre presents, meme vides (sentiment10=5, summary="").
+- TOUS les 12 tickers DOIVENT etre presents.
 
-Maintenant attends que je te colle les 3 URLs du ${date}.`;
+Maintenant attends que je te colle les URLs des wraps de la semaine ${weekNum} (${range}).`;
 }
 
 const modalOverlay: React.CSSProperties = {
