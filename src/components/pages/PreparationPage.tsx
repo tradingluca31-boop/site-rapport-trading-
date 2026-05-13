@@ -645,64 +645,6 @@ export default function PreparationPage() {
         </span>
       </div>
 
-      {/* Stats strip */}
-      <div
-        className="grid mb-8 mobile-stats-strip"
-        style={{
-          gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr",
-          border: "1px solid var(--border)",
-          borderRadius: 12,
-          overflow: "hidden",
-          background: "#FFFFFF",
-        }}
-      >
-        <div
-          style={{
-            padding: "14px 20px",
-            background: "linear-gradient(90deg, rgba(124,92,255,0.08), transparent)",
-            borderRight: "1px solid var(--border)",
-          }}
-        >
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: "var(--accent)", marginBottom: 4 }}>
-            THÈME
-          </div>
-          <div style={{ fontSize: 14, fontWeight: 500, color: "#0A0B0E" }}>{week.theme}</div>
-        </div>
-        {[
-          { label: "Events", value: filteredEvents.length },
-          { label: "Red news", value: filteredEvents.filter((e) => e.impact === "high").length },
-          {
-            label: "Thèses",
-            value:
-              (((thesesOverride.shortTerm ?? week.thesisShortTerm) || "").trim() ? 1 : 0) +
-              (((thesesOverride.longTerm ?? week.thesisLongTerm) || "").trim() ? 1 : 0),
-          },
-          { label: "Scénarios", value: week.scenarios.length },
-        ].map((s, i, arr) => (
-          <div
-            key={s.label}
-            style={{
-              padding: "14px 16px",
-              borderRight: i < arr.length - 1 ? "1px solid var(--border)" : "none",
-            }}
-          >
-            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, color: "var(--text-muted)", marginBottom: 4 }}>
-              {s.label}
-            </div>
-            <div
-              style={{
-                fontSize: 20,
-                fontWeight: 600,
-                fontFamily: "ui-monospace, SFMono-Regular, monospace",
-                color: "#0A0B0E",
-              }}
-            >
-              {s.value}
-            </div>
-          </div>
-        ))}
-      </div>
-
       {/* Onglets section */}
       <div
         className="flex items-center gap-1 border-b"
@@ -2269,7 +2211,7 @@ function WeeklyScenarioCard({
   const meta = WEEKLY_COLORS[scenario.kind];
   return (
     <div
-      className="rounded-lg border p-5 flex flex-col gap-3 transition-all"
+      className="rounded-xl border p-8 flex flex-col gap-5 transition-all"
       style={{
         borderColor: isValidated ? meta.color : "var(--border)",
         background: isValidated ? meta.bg : "var(--bg-card)",
@@ -2277,27 +2219,27 @@ function WeeklyScenarioCard({
     >
       <div className="flex items-center justify-between">
         <span
-          className="text-[10px] font-bold px-2 py-0.5 rounded tracking-wider"
+          className="text-sm font-bold px-3 py-1 rounded tracking-wider"
           style={{ background: meta.bg, color: meta.color }}
         >
           {meta.label}
         </span>
-        <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+        <span className="text-2xl font-mono font-bold" style={{ color: meta.color }}>
           {scenario.probability}%
         </span>
       </div>
       <div>
-        <div className="text-sm font-medium leading-snug mb-2">{scenario.title}</div>
-        <p className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+        <div className="text-xl font-semibold leading-snug mb-4">{scenario.title}</div>
+        <p className="text-base leading-relaxed" style={{ color: "var(--text-secondary)" }}>
           {scenario.description}
         </p>
       </div>
       {scenario.instruments.length > 0 && (
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-2">
           {scenario.instruments.map((ins) => (
             <span
               key={ins}
-              className="text-[10px] font-mono px-1.5 py-0.5 rounded"
+              className="text-xs font-mono px-2.5 py-1 rounded"
               style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)" }}
             >
               {ins}
@@ -2308,13 +2250,13 @@ function WeeklyScenarioCard({
       <button
         type="button"
         onClick={onToggle}
-        className="mt-auto w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors"
+        className="mt-auto w-full flex items-center justify-center gap-2 px-4 py-3 rounded-md text-sm font-medium transition-colors"
         style={{
           background: isValidated ? meta.color : "var(--bg-elevated)",
           color: isValidated ? "white" : "var(--text-secondary)",
         }}
       >
-        <Check size={12} />
+        <Check size={16} />
         {isValidated ? "Valide" : "Valider"}
       </button>
     </div>

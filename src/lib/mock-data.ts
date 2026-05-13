@@ -1,15 +1,15 @@
 import { WeeklyPrep, DailyReport, InstrumentBias, LibraryEntry } from "@/types";
 
 export const currentWeek: WeeklyPrep = {
-  id: "s16-2026",
-  weekNumber: 16,
+  id: "s20-2026",
+  weekNumber: 20,
   year: 2026,
-  startDate: "2026-04-13",
-  endDate: "2026-04-17",
-  theme: "Inflation US + divergence BCE/FED",
+  startDate: "2026-05-11",
+  endDate: "2026-05-15",
+  theme: "Crise politique UK + transition Powell → Warsh",
   status: "en_cours",
-  thesisShortTerm: "Le marche attend un CPI US core en-dessous de 3.0% pour valider la sequence de baisses FED. Un print hot relance DXY et pese sur Gold/EURUSD. Cote BCE, Lagarde doit confirmer la pause apres la baisse de mars — toute hawkish surprise soutient EURUSD.",
-  thesisLongTerm: "Regime desinflation US en deceleration, zone de fin de cycle de baisses FED (2-3 cuts prices 2026). EUR structurellement soutenu par differentiel de croissance favorable et fin d'assouplissement BCE prevue H2 2026. Or tenu par achats BC + flux refuge sur tensions geopolitiques. Biais moyen terme : EUR/USD long sur repli 1.0850, Gold long sur pullback 2980, DXY short sur rebond 103.",
+  thesisShortTerm: "Pression interne croissante sur PM Starmer (~100 MPs Labour demandent demission). Streeting pousse, Miliband se positionne. CPI US sorti hot mardi (core MoM +0.4%) mais marche refuse de pricer USD strength : yields baissent, DXY ne se renforce pas. Transition Fed Powell → Warsh vendredi 15 mai = catalyst binaire 50/50. Risque politique UK et binaire Fed → no trade force avant Warsh, monitor + react. Biais GBP : short selectif sur rebonds 1.36-1.37, alertes setup pour cassure 1.345.",
+  thesisLongTerm: "UK en political risk premium structurel 3-6 mois. Les 3 scenarios politiques (demission immediate / differee / Starmer reste fragilise) convergent dans la direction bearish GBP = asymetrie negative structurelle. Aucun retour rapide a la stabilite avant l'automne. Rebonds techniques GBPUSD vers 1.36-1.37 = opportunites de short a moyenne probabilite. Cote USD, repricing Fed hawkish massif (proba hike Dec 2026 passe de 1.6% a 38.1% en 1 mois) mais spot ne suit pas avant Warsh. Si Warsh hawkish = USD long selectif (USDJPY/USDCHF), si dovish = USD weakness + AUD bid.",
   events: [
     { id: "e1", date: "2026-04-13", time: "11:00", currency: "EUR", title: "Production industrielle Zone Euro", impact: "medium", category: "croissance" },
     { id: "e2", date: "2026-04-14", time: "14:30", currency: "USD", title: "CPI US (MoM & YoY, core & headline)", impact: "high", category: "inflation", forecast: "0.2% / 3.1%", previous: "0.3% / 3.2%" },
@@ -101,19 +101,19 @@ export const currentWeek: WeeklyPrep = {
   ],
   weeklyScenarios: [
     {
-      id: "ws-dovish", kind: "dovish", title: "Scenario dovish — CPI cold + FOMC dovish",
-      description: "CPI core <2.9% mardi puis FOMC cut 25bp + guidance dovish mercredi. Pricing de 3 cuts 2026 confirme. DXY -1.5% sur la semaine (103.50), EUR/USD +1.2% (1.102), Gold +2.5% (3080), NAS +2%. Biais risk-on consolide.",
-      probability: 30, instruments: ["DXY", "EURUSD", "XAUUSD", "NAS100", "US2Y"], validated: false,
+      id: "ws-uk-dovish", kind: "dovish", title: "Starmer survit fragilise (slow leak)",
+      description: "PM tient bon, State Opening passe sans encombre. Cabinet reste hostile en arriere-plan, ministres briefent contre le PM, risque permanent de nouvelle tentative de demission dans les 6 mois. GBPUSD reste en range 1.32-1.36 indefiniment, volatility croissante a chaque vague de pression. Pas de crise, mais pas de confiance non plus. Le moins pire des 3 scenarios pour le GBP, mais toujours bearish structurel.",
+      probability: 50, instruments: ["GBPUSD", "GBPJPY", "GILTS"], validated: false,
     },
     {
-      id: "ws-base", kind: "base", title: "Scenario base — CPI en ligne + FOMC hold data-dependent",
-      description: "CPI proche consensus (3.0-3.2%) puis FOMC hold avec ton equilibre. Range maintenu : DXY 103.80-104.40, EUR/USD 1.085-1.095, Gold 2985-3020. Volatilite intraday mais clotures semaine proches des niveaux actuels. Focus sur Jobless jeudi + Michigan vendredi pour biais de fin de semaine.",
-      probability: 50, instruments: ["DXY", "EURUSD", "XAUUSD"], validated: false,
+      id: "ws-uk-base", kind: "base", title: "Demission differee style May (lame duck)",
+      description: "Demission annoncee mais reportee : Starmer reste jusqu'a l'election d'un successeur designe. PM devient lame duck, plus aucune decision majeure, cabinet en guerre de succession. Probleme cle : aucun candidat (Streeting / Miliband / Cooper / Burnham / Reeves) ne fait l'unanimite ni n'apporte de premium positif au GBP. Drift GBPUSD de 1.35 vers 1.32 sur 2-3 mois sans grand mouvement explosif.",
+      probability: 25, instruments: ["GBPUSD", "GBPJPY"], validated: false,
     },
     {
-      id: "ws-hawkish", kind: "hawkish", title: "Scenario hawkish — CPI hot + FOMC ton hawkish",
-      description: "CPI core >3.3% + FOMC hold avec Powell evoquant inflation persistante. Repricing : 1 cut 2026 max. DXY +1.2% (105.30), EUR/USD -1% (1.078), Gold -2% (2950), NAS -2.5%, yields 10Y +15bp (4.47). Biais risk-off, short squeeze sur DXY.",
-      probability: 20, instruments: ["DXY", "EURUSD", "XAUUSD", "NAS100", "US10Y"], validated: false,
+      id: "ws-uk-hawkish", kind: "hawkish", title: "Demission immediate + contest 6-10 semaines",
+      description: "Starmer demissionne, leadership contest commence immediatement. Pendant 6 a 10 semaines, le UK n'a plus de gouvernement decisionnaire fort. GBP devient 'a la merci des autres devises' : pas de reponse coordonnee si Trump annonce des tarifs, si BoE doit bouger, si Iran s'aggrave. Reference historique : ete 2022 (Johnson → Truss → Sunak) ou GBPUSD passe de 1.22 a 1.04 en 90 jours. Pire scenario pour le GBP, gap-down initial 100-180 pips quasi-garanti.",
+      probability: 25, instruments: ["GBPUSD", "GBPJPY", "GILTS", "GBPCHF"], validated: false,
     },
   ],
 };

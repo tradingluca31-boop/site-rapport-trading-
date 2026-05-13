@@ -4,6 +4,7 @@ export type PageId =
   | "rapport"
   | "track-record"
   | "fondamentaux"
+  | "scenarios"
   | "bibliotheque"
   | "parametres";
 

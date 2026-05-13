@@ -8,7 +8,6 @@ import {
   Target,
   Newspaper,
   Plus,
-  Pencil,
   X as XIcon,
   Check,
   Trash2,
@@ -17,6 +16,7 @@ import {
   CalendarDays,
   ThumbsUp,
   ThumbsDown,
+  Gauge,
 } from "lucide-react";
 import {
   Trade,
@@ -62,6 +62,7 @@ type BilanItem = { id: string; text: string };
 type DayReport = {
   editoTitle: string;
   editoSummary: string;
+  dayScore: number; // 0..10 (0 = catastrophe, 10 = excellent)
   fonda: FondaEntry[];
   ideas: Idea[];
   pluses: BilanItem[];
@@ -71,6 +72,7 @@ type DayReport = {
 const EMPTY_DAY: DayReport = {
   editoTitle: "",
   editoSummary: "",
+  dayScore: 5,
   fonda: [],
   ideas: [],
   pluses: [],
@@ -141,8 +143,6 @@ export default function RapportPage() {
   const [data, setData] = useState<DayReport>(EMPTY_DAY);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [tradesLoading, setTradesLoading] = useState(true);
-  const [editingEdito, setEditingEdito] = useState(false);
-  const [draftEdito, setDraftEdito] = useState({ title: "", summary: "" });
 
   const [fondaFormOpen, setFondaFormOpen] = useState(false);
   const [newFonda, setNewFonda] = useState<Omit<FondaEntry, "id">>({
@@ -202,10 +202,9 @@ export default function RapportPage() {
   const losses = trades.filter((t) => t.status === "closed-loss").length;
   const opens = trades.filter((t) => t.status === "open").length;
 
-  const saveEdito = () => {
-    setData((prev) => ({ ...prev, editoTitle: draftEdito.title, editoSummary: draftEdito.summary }));
-    setEditingEdito(false);
-  };
+  const updateEditoTitle = (v: string) => setData((prev) => ({ ...prev, editoTitle: v }));
+  const updateEditoSummary = (v: string) => setData((prev) => ({ ...prev, editoSummary: v }));
+  const updateDayScore = (v: number) => setData((prev) => ({ ...prev, dayScore: Math.max(0, Math.min(10, Math.round(v))) }));
 
   const addFonda = () => {
     if (!newFonda.title.trim()) return;
@@ -323,16 +322,11 @@ export default function RapportPage() {
             <EditoCard
               title={data.editoTitle}
               summary={data.editoSummary}
-              editing={editingEdito}
-              draft={draftEdito}
-              onDraftChange={setDraftEdito}
-              onEdit={() => {
-                setDraftEdito({ title: data.editoTitle, summary: data.editoSummary });
-                setEditingEdito(true);
-              }}
-              onSave={saveEdito}
-              onCancel={() => setEditingEdito(false)}
+              onTitleChange={updateEditoTitle}
+              onSummaryChange={updateEditoSummary}
             />
+
+            <DayScoreCard score={data.dayScore} onChange={updateDayScore} />
 
             <Section
               icon={<Newspaper size={16} />}
@@ -664,23 +658,14 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function EditoCard({
   title,
   summary,
-  editing,
-  draft,
-  onDraftChange,
-  onEdit,
-  onSave,
-  onCancel,
+  onTitleChange,
+  onSummaryChange,
 }: {
   title: string;
   summary: string;
-  editing: boolean;
-  draft: { title: string; summary: string };
-  onDraftChange: (v: { title: string; summary: string }) => void;
-  onEdit: () => void;
-  onSave: () => void;
-  onCancel: () => void;
+  onTitleChange: (v: string) => void;
+  onSummaryChange: (v: string) => void;
 }) {
-  const empty = !title && !summary;
   return (
     <div
       style={{
@@ -702,72 +687,6 @@ function EditoCard({
           background: `linear-gradient(90deg, ${ACCENT}, ${GREEN})`,
         }}
       />
-      <div style={{ position: "absolute", top: 16, right: 16, display: "flex", gap: 6 }}>
-        {!editing ? (
-          <button
-            type="button"
-            onClick={onEdit}
-            title="Modifier l'edito"
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: "50%",
-              background: "white",
-              border: `1px solid ${ACCENT}30`,
-              color: ACCENT,
-              boxShadow: `0 2px 6px ${ACCENT}20`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-            }}
-          >
-            <Pencil size={14} />
-          </button>
-        ) : (
-          <>
-            <button
-              type="button"
-              onClick={onCancel}
-              title="Annuler"
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: "50%",
-                background: "white",
-                border: "1px solid rgba(0,0,0,0.08)",
-                color: "var(--text-muted, #6B7280)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-              }}
-            >
-              <XIcon size={14} />
-            </button>
-            <button
-              type="button"
-              onClick={onSave}
-              title="Enregistrer"
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: "50%",
-                background: ACCENT,
-                border: "none",
-                color: "white",
-                boxShadow: `0 2px 6px ${ACCENT}40`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-              }}
-            >
-              <Check size={14} />
-            </button>
-          </>
-        )}
-      </div>
       <div
         style={{
           fontSize: 11,
@@ -780,80 +699,115 @@ function EditoCard({
         EDITO DU JOUR
       </div>
 
-      {editing ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <input
-            type="text"
-            value={draft.title}
-            onChange={(e) => onDraftChange({ ...draft, title: e.target.value })}
-            placeholder="Titre du jour (ex: CPI hot renverse la narrative disinflation...)"
-            aria-label="Titre edito"
-            style={{
-              fontSize: 24,
-              fontWeight: 400,
-              fontFamily: "Georgia, serif",
-              padding: 12,
-              borderRadius: 10,
-              border: "1px solid rgba(0,0,0,0.1)",
-              outline: "none",
-              width: "100%",
-            }}
-          />
-          <textarea
-            value={draft.summary}
-            onChange={(e) => onDraftChange({ ...draft, summary: e.target.value })}
-            placeholder="Synthese de ta journee, contexte, lessons..."
-            aria-label="Summary edito"
-            rows={6}
-            style={{
-              fontSize: 15,
-              fontFamily: "Georgia, serif",
-              lineHeight: 1.7,
-              padding: 12,
-              borderRadius: 10,
-              border: "1px solid rgba(0,0,0,0.1)",
-              outline: "none",
-              width: "100%",
-              resize: "vertical",
-              minHeight: 140,
-            }}
-          />
-        </div>
-      ) : empty ? (
-        <div style={{ color: "var(--text-muted, #9CA3AF)", fontSize: 14, padding: "8px 0" }}>
-          Clique sur le crayon pour ecrire ton edito du jour (titre + synthese).
-        </div>
-      ) : (
-        <>
-          {title && (
-            <h3
-              style={{
-                fontSize: 28,
-                fontWeight: 400,
-                letterSpacing: "-0.01em",
-                lineHeight: 1.3,
-                marginBottom: 16,
-                fontFamily: "Georgia, serif",
-              }}
-            >
-              {title}
-            </h3>
-          )}
-          {summary && (
-            <p
-              style={{
-                fontSize: 15,
-                color: "var(--text-secondary, #374151)",
-                lineHeight: 1.8,
-                fontFamily: "Georgia, serif",
-                whiteSpace: "pre-wrap",
-              }}
-            >
-              {summary}
-            </p>
-          )}
-        </>
-      )}
+      <input
+        type="text"
+        value={title}
+        onChange={(e) => onTitleChange(e.target.value)}
+        placeholder="Titre du jour (clique et tape directement)"
+        aria-label="Titre edito"
+        style={{
+          fontSize: 28,
+          fontWeight: 400,
+          fontFamily: "Georgia, serif",
+          padding: "10px 0",
+          border: "none",
+          borderBottom: "1px solid transparent",
+          outline: "none",
+          width: "100%",
+          marginBottom: 12,
+          background: "transparent",
+          color: "#111",
+        }}
+        onFocus={(e) => (e.currentTarget.style.borderBottomColor = "#E5E7EB")}
+        onBlur={(e) => (e.currentTarget.style.borderBottomColor = "transparent")}
+      />
+      <textarea
+        value={summary}
+        onChange={(e) => onSummaryChange(e.target.value)}
+        placeholder="Synthese de ta journee, contexte, lessons... (clique et tape directement)"
+        aria-label="Summary edito"
+        rows={5}
+        style={{
+          fontSize: 15,
+          fontFamily: "Georgia, serif",
+          lineHeight: 1.7,
+          padding: "10px 0",
+          border: "none",
+          borderBottom: "1px solid transparent",
+          outline: "none",
+          width: "100%",
+          resize: "vertical",
+          minHeight: 120,
+          background: "transparent",
+          color: "var(--text-secondary, #374151)",
+          whiteSpace: "pre-wrap",
+        }}
+        onFocus={(e) => (e.currentTarget.style.borderBottomColor = "#E5E7EB")}
+        onBlur={(e) => (e.currentTarget.style.borderBottomColor = "transparent")}
+      />
+    </div>
+  );
+}
+
+function DayScoreCard({ score, onChange }: { score: number; onChange: (v: number) => void }) {
+  const color = score <= 3 ? RED : score >= 7 ? GREEN : "#6B7280";
+  const label =
+    score <= 1 ? "DESASTRE" :
+    score <= 3 ? "JOURNEE DIFFICILE" :
+    score === 4 ? "EN-DESSOUS" :
+    score === 5 ? "MOYENNE" :
+    score === 6 ? "CORRECTE" :
+    score <= 8 ? "BONNE JOURNEE" :
+    "EXCELLENTE";
+
+  return (
+    <div
+      style={{
+        background: "white",
+        borderRadius: 16,
+        border: "1px solid var(--border, #E5E7EB)",
+        padding: 24,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+        <Gauge size={16} style={{ color }} />
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2 }}>NOTE DE LA JOURNEE</span>
+        <span
+          style={{
+            marginLeft: "auto",
+            fontSize: 11,
+            fontWeight: 800,
+            letterSpacing: 1,
+            color,
+            padding: "3px 10px",
+            borderRadius: 6,
+            background: `${color}15`,
+          }}
+        >
+          {label} · {score}/10
+        </span>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, fontWeight: 700, color: "#9CA3AF", letterSpacing: 1, marginBottom: 6 }}>
+        <span style={{ color: RED }}>CATA</span>
+        <span>MOYEN</span>
+        <span style={{ color: GREEN }}>PARFAIT</span>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={10}
+        step={1}
+        value={score}
+        onChange={(e) => onChange(Number(e.target.value))}
+        aria-label="Note de la journee 0-10"
+        style={{ width: "100%", accentColor: color, cursor: "pointer" }}
+      />
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "#D1D5DB", fontFamily: "monospace", marginTop: 2 }}>
+        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+          <span key={n} style={{ color: n === score ? color : "#D1D5DB", fontWeight: n === score ? 700 : 400 }}>{n}</span>
+        ))}
+      </div>
     </div>
   );
 }
