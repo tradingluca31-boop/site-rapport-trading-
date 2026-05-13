@@ -315,10 +315,12 @@ function AssetSection({
   asset: FundamentalAsset;
   onChange: (patch: Partial<FundamentalAsset>) => void;
 }) {
-  const score = biasScoreToSentiment10(asset);
+  const score = biasScoreToSentiment10(asset);                  // undefined si pas encore note
+  const rated = typeof score === "number";
+  const displayScore = rated ? (score as number) : 5;            // position visuelle quand non note
   const summary = typeof asset.summary === "string" ? asset.summary : getAssetSummary(asset);
-  const color = colorForScore(score);
-  const label = labelForScore(score);
+  const color = rated ? colorForScore(displayScore) : "#D1D5DB";
+  const label = rated ? labelForScore(displayScore) : "PAS ENCORE NOTE";
 
   const updateScore = (val: number) => {
     const v = Math.max(0, Math.min(10, Math.round(val)));
@@ -326,31 +328,57 @@ function AssetSection({
     onChange({ sentiment10: v, bias: mapped.bias as Bias, score: mapped.score });
   };
 
+  const resetScore = () => {
+    onChange({ sentiment10: undefined, bias: "ras", score: 0 });
+  };
+
   return (
     <section style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid #F3F4F6" }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 20 }}>{asset.flag}</span>
-        <h3 style={{ fontSize: 18, fontWeight: 600, color: "#111", fontFamily: "Georgia, serif", margin: 0 }}>
+        <span style={{ fontSize: 20, opacity: rated ? 1 : 0.5 }}>{asset.flag}</span>
+        <h3 style={{ fontSize: 18, fontWeight: 600, color: rated ? "#111" : "#9CA3AF", fontFamily: "Georgia, serif", margin: 0 }}>
           {asset.name} <span style={{ color: "#9CA3AF", fontSize: 14, fontWeight: 400 }}>· {asset.ticker}</span>
         </h3>
-        <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 800, letterSpacing: 1, color, padding: "3px 10px", borderRadius: 6, background: `${color}15` }}>
-          {label} · {score}/10
+        <span
+          style={{
+            marginLeft: "auto",
+            fontSize: 11,
+            fontWeight: 800,
+            letterSpacing: 1,
+            color,
+            padding: "3px 10px",
+            borderRadius: 6,
+            background: rated ? `${color}15` : "transparent",
+            border: rated ? "none" : "1px dashed #E5E7EB",
+          }}
+        >
+          {rated ? `${label} · ${displayScore}/10` : label}
         </span>
+        {rated && (
+          <button
+            type="button"
+            onClick={resetScore}
+            title="Reset (pas encore note)"
+            style={{ background: "transparent", border: "none", color: "#9CA3AF", fontSize: 10, cursor: "pointer", textDecoration: "underline" }}
+          >
+            reset
+          </button>
+        )}
       </div>
 
       {/* Slider 0-10 */}
-      <div style={{ marginBottom: 14 }}>
+      <div style={{ marginBottom: 14, opacity: rated ? 1 : 0.45 }}>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, fontWeight: 700, color: "#9CA3AF", letterSpacing: 1, marginBottom: 4 }}>
-          <span style={{ color: RED }}>VENDEUR</span>
-          <span>NEUTRE</span>
-          <span style={{ color: GREEN }}>ACHETEUR</span>
+          <span style={{ color: rated ? RED : "#9CA3AF" }}>VENDEUR</span>
+          <span>{rated ? "NEUTRE" : "GLISSE POUR EVALUER"}</span>
+          <span style={{ color: rated ? GREEN : "#9CA3AF" }}>ACHETEUR</span>
         </div>
         <input
           type="range"
           min={0}
           max={10}
           step={1}
-          value={score}
+          value={displayScore}
           onChange={(e) => updateScore(Number(e.target.value))}
           aria-label={`Sentiment ${asset.ticker} (0 vendeur, 10 acheteur)`}
           style={{
@@ -361,7 +389,7 @@ function AssetSection({
         />
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "#D1D5DB", fontFamily: "monospace", marginTop: 2 }}>
           {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-            <span key={n} style={{ color: n === score ? color : "#D1D5DB", fontWeight: n === score ? 700 : 400 }}>{n}</span>
+            <span key={n} style={{ color: rated && n === displayScore ? color : "#D1D5DB", fontWeight: rated && n === displayScore ? 700 : 400 }}>{n}</span>
           ))}
         </div>
       </div>
@@ -389,7 +417,7 @@ function AssetSection({
           transition: "border-color 0.15s, background 0.15s",
         }}
         onFocus={(e) => {
-          e.currentTarget.style.borderColor = `${color}60`;
+          e.currentTarget.style.borderColor = `${rated ? color : ACCENT}60`;
           e.currentTarget.style.background = "white";
         }}
         onBlur={(e) => {

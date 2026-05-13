@@ -28,10 +28,12 @@ export function sentiment10ToBiasScore(s: number): { bias: Bias; score: number }
   return { bias: "hawkish", score: v - 5 };
 }
 
-export function biasScoreToSentiment10(asset: Pick<FundamentalAsset, "bias" | "score" | "sentiment10">): number {
+// Retourne le sentiment 0-10 si l'utilisateur a deja note l'actif, sinon undefined.
+// Un actif en "ras" sans sentiment10 explicite est considere comme NON NOTE (vierge).
+export function biasScoreToSentiment10(asset: Pick<FundamentalAsset, "bias" | "score" | "sentiment10">): number | undefined {
   if (typeof asset.sentiment10 === "number") return Math.max(0, Math.min(10, asset.sentiment10));
-  if (asset.bias === "ras" || asset.bias === "neutral") return 5;
-  // hawkish/dovish: score est dans [-5, +5]
+  if (asset.bias === "ras") return undefined;
+  if (asset.bias === "neutral") return 5;
   return Math.max(0, Math.min(10, 5 + (asset.score ?? 0)));
 }
 
@@ -67,18 +69,18 @@ const TABLE = "fundamental_reports";
 
 // Skeleton par defaut pour un nouveau rapport (toutes devises en RAS / neutre)
 export const DEFAULT_ASSETS: FundamentalAsset[] = [
-  { ticker: "USD", flag: "🇺🇸", name: "Dollar US",         bias: "ras", score: 0, sentiment10: 5, summary: "", monetary: null, macro: null, geo: null, sentiment: null, sources: [], last_update: "—" },
-  { ticker: "EUR", flag: "🇪🇺", name: "Euro",              bias: "ras", score: 0, sentiment10: 5, summary: "", monetary: null, macro: null, geo: null, sentiment: null, sources: [], last_update: "—" },
-  { ticker: "GBP", flag: "🇬🇧", name: "Livre sterling",    bias: "ras", score: 0, sentiment10: 5, summary: "", monetary: null, macro: null, geo: null, sentiment: null, sources: [], last_update: "—" },
-  { ticker: "JPY", flag: "🇯🇵", name: "Yen japonais",      bias: "ras", score: 0, sentiment10: 5, summary: "", monetary: null, macro: null, geo: null, sentiment: null, sources: [], last_update: "—" },
-  { ticker: "CHF", flag: "🇨🇭", name: "Franc suisse",      bias: "ras", score: 0, sentiment10: 5, summary: "", monetary: null, macro: null, geo: null, sentiment: null, sources: [], last_update: "—" },
-  { ticker: "AUD", flag: "🇦🇺", name: "Dollar australien", bias: "ras", score: 0, sentiment10: 5, summary: "", monetary: null, macro: null, geo: null, sentiment: null, sources: [], last_update: "—" },
-  { ticker: "NZD", flag: "🇳🇿", name: "Dollar NZ",         bias: "ras", score: 0, sentiment10: 5, summary: "", monetary: null, macro: null, geo: null, sentiment: null, sources: [], last_update: "—" },
-  { ticker: "CAD", flag: "🇨🇦", name: "Dollar canadien",   bias: "ras", score: 0, sentiment10: 5, summary: "", monetary: null, macro: null, geo: null, sentiment: null, sources: [], last_update: "—" },
-  { ticker: "CNY", flag: "🇨🇳", name: "Yuan chinois",      bias: "ras", score: 0, sentiment10: 5, summary: "", monetary: null, macro: null, geo: null, sentiment: null, sources: [], last_update: "—" },
-  { ticker: "XAUUSD", flag: "🥇", name: "Or",               bias: "ras", score: 0, sentiment10: 5, summary: "", monetary: null, macro: null, geo: null, sentiment: null, sources: [], last_update: "—" },
-  { ticker: "XAGUSD", flag: "🥈", name: "Argent",           bias: "ras", score: 0, sentiment10: 5, summary: "", monetary: null, macro: null, geo: null, sentiment: null, sources: [], last_update: "—" },
-  { ticker: "USOIL", flag: "🛢️", name: "Petrole WTI",      bias: "ras", score: 0, sentiment10: 5, summary: "", monetary: null, macro: null, geo: null, sentiment: null, sources: [], last_update: "—" },
+  { ticker: "USD", flag: "🇺🇸", name: "Dollar US",         bias: "ras", score: 0, summary: "", monetary: null, macro: null, geo: null, sentiment: null, sources: [], last_update: "—" },
+  { ticker: "EUR", flag: "🇪🇺", name: "Euro",              bias: "ras", score: 0, summary: "", monetary: null, macro: null, geo: null, sentiment: null, sources: [], last_update: "—" },
+  { ticker: "GBP", flag: "🇬🇧", name: "Livre sterling",    bias: "ras", score: 0, summary: "", monetary: null, macro: null, geo: null, sentiment: null, sources: [], last_update: "—" },
+  { ticker: "JPY", flag: "🇯🇵", name: "Yen japonais",      bias: "ras", score: 0, summary: "", monetary: null, macro: null, geo: null, sentiment: null, sources: [], last_update: "—" },
+  { ticker: "CHF", flag: "🇨🇭", name: "Franc suisse",      bias: "ras", score: 0, summary: "", monetary: null, macro: null, geo: null, sentiment: null, sources: [], last_update: "—" },
+  { ticker: "AUD", flag: "🇦🇺", name: "Dollar australien", bias: "ras", score: 0, summary: "", monetary: null, macro: null, geo: null, sentiment: null, sources: [], last_update: "—" },
+  { ticker: "NZD", flag: "🇳🇿", name: "Dollar NZ",         bias: "ras", score: 0, summary: "", monetary: null, macro: null, geo: null, sentiment: null, sources: [], last_update: "—" },
+  { ticker: "CAD", flag: "🇨🇦", name: "Dollar canadien",   bias: "ras", score: 0, summary: "", monetary: null, macro: null, geo: null, sentiment: null, sources: [], last_update: "—" },
+  { ticker: "CNY", flag: "🇨🇳", name: "Yuan chinois",      bias: "ras", score: 0, summary: "", monetary: null, macro: null, geo: null, sentiment: null, sources: [], last_update: "—" },
+  { ticker: "XAUUSD", flag: "🥇", name: "Or",               bias: "ras", score: 0, summary: "", monetary: null, macro: null, geo: null, sentiment: null, sources: [], last_update: "—" },
+  { ticker: "XAGUSD", flag: "🥈", name: "Argent",           bias: "ras", score: 0, summary: "", monetary: null, macro: null, geo: null, sentiment: null, sources: [], last_update: "—" },
+  { ticker: "USOIL", flag: "🛢️", name: "Petrole WTI",      bias: "ras", score: 0, summary: "", monetary: null, macro: null, geo: null, sentiment: null, sources: [], last_update: "—" },
 ];
 
 export function buildDefaultReport(date: string): FundamentalReportInput {
