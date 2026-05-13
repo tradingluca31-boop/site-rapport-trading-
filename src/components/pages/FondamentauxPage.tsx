@@ -258,14 +258,14 @@ export default function FondamentauxPage() {
         <div className="fondamentaux-brief-card" style={{ background: "white", borderRadius: 14, border: "1px solid #E5E7EB", padding: "36px 40px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18, color: ACCENT }}>
             <Newspaper size={16} />
-            <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 3 }}>DAILY MACRO BRIEF</span>
+            <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 3 }}>WEEKLY MACRO BRIEF</span>
           </div>
 
           <input
             type="text"
             value={report.headline}
             onChange={(e) => patchReport({ headline: e.target.value })}
-            placeholder="Titre du jour (clique et tape directement)"
+            placeholder="Titre de la semaine (clique et tape directement)"
             aria-label="Titre du brief"
             style={{
               width: "100%",
@@ -287,7 +287,7 @@ export default function FondamentauxPage() {
           <textarea
             value={report.intro}
             onChange={(e) => patchReport({ intro: e.target.value })}
-            placeholder="Resume de la journee en 2-4 lignes (clique et tape directement)..."
+            placeholder="Synthese de la semaine en 2-4 lignes (events cles, biais general) — clique et tape directement..."
             rows={3}
             aria-label="Intro du brief"
             style={{
